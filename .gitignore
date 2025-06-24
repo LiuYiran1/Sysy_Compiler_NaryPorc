@@ -1,3 +1,5 @@
 /qemu_riscv
 /compiler2025-main
 /compiler2025-main.zip
+/target
+/src/test/java/RISCV_performance
