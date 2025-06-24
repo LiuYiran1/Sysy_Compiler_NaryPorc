@@ -76,31 +76,12 @@
                         <argument>com.compiler.frontend</argument>
                     </arguments>
                     <sourceDirectory>src/main/antlr4</sourceDirectory>
-                    <outputDirectory>target/generated-sources/antlr4</outputDirectory>
+                    <outputDirectory>src/main/java/com/compiler/frontend</outputDirectory>
                     <listener>false</listener>
                 </configuration>
             </plugin>
 
-            <!-- build-helper 插件：添加生成目录到源码路径 -->
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>build-helper-maven-plugin</artifactId>
-                <version>3.2.0</version>
-                <executions>
-                    <execution>
-                        <id>add-source</id>
-                        <phase>generate-sources</phase>
-                        <goals>
-                            <goal>add-source</goal>
-                        </goals>
-                        <configuration>
-                            <sources>
-                                <source>target/generated-sources/antlr4</source>
-                            </sources>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
+
 
         </plugins>
     </build>
