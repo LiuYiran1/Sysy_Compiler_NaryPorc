@@ -46,7 +46,7 @@
                     <arguments>
                         <argument>-visitor</argument>
                         <argument>-package</argument>
-                        <argument>com.test.frontend</argument>
+                        <argument>com.compiler.frontend</argument>
                     </arguments>
                     <sourceDirectory>src/main/antlr4</sourceDirectory>
                     <outputDirectory>target/generated-sources/antlr4</outputDirectory>

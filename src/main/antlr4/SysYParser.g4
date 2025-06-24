@@ -1,60 +1,74 @@
 parser grammar SysYParser;
 
 options {
-    tokenVocab = SysYLexer;//注意使用该语句指定词法分析器；请不要修改词法分析器或语法分析器的文件名，否则Makefile可能无法正常工作，影响评测结果
+    tokenVocab = SysYLexer;
 }
 
-program : compUnit ;
-compUnit
-   : (funcDef | decl)+ EOF
-   ;
-//compUnit    : (compUnit (decl | funcDef)) | (decl | funcDef);
-/* compUnit : (decl | funcDef) compUnitTem; 删除左递归
+// 编译单元
+program : compUnit EOF ;
 
-compUnitTem
-    : (decl | funcDef) compUnitTem
-    | 空
-      ; */
+compUnit : (decl | funcDef)+ ;
 
-decl        : constDecl | varDecl ;
+// 声明
+decl : constDecl | varDecl ;
 
-constDecl   : CONST bType constDef (COMMA constDef)* SEMICOLON ; //
+// 常量声明
+constDecl : CONST bType constDef (COMMA constDef)* SEMICOLON ;
 
-bType       : INT ;
+// 类型
+bType : INT | FLOAT ;
 
-constDef    : IDENT (L_BRACKT constExp R_BRACKT)* ASSIGN constInitVal ;
+// 常量定义
+constDef : IDENT (L_BRACKT constExp R_BRACKT)* ASSIGN constInitVal ;
 
-constInitVal: constExp | L_BRACE (constInitVal (COMMA constInitVal)*)? R_BRACE ;
+constInitVal
+    : constExp
+    | L_BRACE (constInitVal (COMMA constInitVal)*)? R_BRACE
+    ;
 
-varDecl     : bType varDef (COMMA varDef)* SEMICOLON ; //
+// 变量声明
+varDecl : bType varDef (COMMA varDef)* SEMICOLON ;
 
-varDef      : IDENT (L_BRACKT constExp R_BRACKT)*
-            | IDENT (L_BRACKT constExp R_BRACKT)* ASSIGN initVal ;
+varDef
+    : IDENT (L_BRACKT constExp R_BRACKT)*
+    | IDENT (L_BRACKT constExp R_BRACKT)* ASSIGN initVal
+    ;
 
-initVal     : exp | L_BRACE (initVal (COMMA initVal)*)? R_BRACE ;
+initVal
+    : exp
+    | L_BRACE (initVal (COMMA initVal)*)? R_BRACE
+    ;
 
-funcDef     : funcType IDENT L_PAREN (funcFParams)? R_PAREN block ; //
+// 函数定义
+funcDef : funcType IDENT L_PAREN funcFParams? R_PAREN block ;
 
-funcType    : VOID | INT ;
+// 函数返回类型
+funcType : VOID | INT | FLOAT ; // ★ 加入 float 返回值支持
 
+// 形参表
 funcFParams : funcFParam (COMMA funcFParam)* ;
 
-funcFParam  : bType IDENT (L_BRACKT R_BRACKT (L_BRACKT exp R_BRACKT)*)? ;
+funcFParam : bType IDENT (L_BRACKT R_BRACKT (L_BRACKT exp R_BRACKT)*)? ;
 
-block       : L_BRACE (blockItem)* R_BRACE ;
+// 语句块
+block : L_BRACE blockItem* R_BRACE ;
 
-blockItem   : decl | stmt ;
+// 语句块项
+blockItem : decl | stmt ;
 
-stmt        : lVal ASSIGN exp SEMICOLON //
-            | (exp)? SEMICOLON //
-            | block //
-            | IF L_PAREN cond R_PAREN stmt (ELSE stmt)?
-            | WHILE L_PAREN cond R_PAREN stmt
-            | BREAK SEMICOLON
-            | CONTINUE SEMICOLON
-            | RETURN (exp)? SEMICOLON ;
+// 语句
+stmt
+    : lVal ASSIGN exp SEMICOLON
+    | exp? SEMICOLON
+    | block
+    | IF L_PAREN cond R_PAREN stmt (ELSE stmt)?
+    | WHILE L_PAREN cond R_PAREN stmt
+    | BREAK SEMICOLON
+    | CONTINUE SEMICOLON
+    | RETURN exp? SEMICOLON
+    ;
 
-exp //
+exp
    : L_PAREN exp R_PAREN
    | lVal
    | number
@@ -72,10 +86,12 @@ cond
    | cond OR cond
    ;
 
-lVal : IDENT (L_BRACKT exp R_BRACKT)* ;
+lVal
+   : IDENT (L_BRACKT exp R_BRACKT)*
+   ;
 
 number
-   : INTEGER_CONST
+   : INTEGER_CONST | FLOAT_CONST
    ;
 
 unaryOp
@@ -84,8 +100,14 @@ unaryOp
    | NOT
    ;
 
-funcRParams   : param (COMMA param)* ;
+funcRParams
+   : param (COMMA param)*
+   ;
 
-param : exp ;
+param
+   : exp
+   ;
 
-constExp : exp ;
+constExp
+   : exp
+   ;
