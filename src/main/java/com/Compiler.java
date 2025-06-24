@@ -5,6 +5,7 @@ import com.compiler.frontend.SysYLexer;
 import com.compiler.frontend.SysYParser;
 import com.compiler.listeners.ParserListener;
 import com.compiler.utils.Checker;
+import com.compiler.visitors.LLVisitor;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -15,7 +16,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class Compiler {
     static SysYLexer lexer;
@@ -23,6 +23,8 @@ public class Compiler {
 
     static SysYParser parser;
     static ParserListener parserListener;
+
+    static ParseTree tree;
 
     public static void main(String[] args) throws IOException {
         Path inputDir = Paths.get("src/test/java/RISCV_performance");
@@ -33,29 +35,16 @@ public class Compiler {
                 .filter(p -> p.toString().endsWith(".sy"))
                 .toList();
 
-//        for (Path inputFile : syFiles) {
-//            String fileName = "src/test/java/RISCV_performance/" + inputFile.getFileName().toString();
-//            //System.out.println("Input file: " + fileName);
-//
-//            processLexer(inputFile.toString());
-//            Checker.checkLexer(lexer, lexerListener,fileName);
-//        }
 
         for (Path inputFile : syFiles) {
-            processLexer(inputFile.toString());
-            CommonTokenStream tokens = new CommonTokenStream(lexer);
-            parser = new SysYParser(tokens);
-            parser.removeErrorListeners();
-            parserListener = new ParserListener();
-            parser.addErrorListener(parserListener);
+            String inputPath = inputFile.toString();
 
-            ParseTree tree = parser.program();
+            processLexer(inputPath);
+            processParser(lexer, inputPath);
+            irGen(tree);
 
-            if (parserListener.hasError){
-                System.out.println("Parse error");
-            } else{
-                System.out.println("Parse success");
-            }
+
+
         }
 
 
@@ -73,5 +62,24 @@ public class Compiler {
         lexerListener = new LexerListener();
         lexer.removeErrorListeners();
         lexer.addErrorListener(lexerListener);
+
+        Checker.checkLexer(lexer, lexerListener,inputPath);
+    }
+
+    private static void processParser(SysYLexer lexer, String inputPath) {
+        CommonTokenStream tokens = new CommonTokenStream(lexer);
+        parser = new SysYParser(tokens);
+        parser.removeErrorListeners();
+        parserListener = new ParserListener();
+        parser.addErrorListener(parserListener);
+
+        tree = parser.program();
+
+        Checker.checkParser(parser, parserListener,inputPath);
+    }
+
+    private static void irGen(ParseTree tree) {
+        LLVisitor llVisitor = new LLVisitor();
+        llVisitor.visit(tree);
     }
 }
