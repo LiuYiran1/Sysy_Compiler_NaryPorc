@@ -1,8 +1,8 @@
-package com;
+package com.compiler;
 
-import com.compiler.listeners.LexerListener;
 import com.compiler.frontend.SysYLexer;
 import com.compiler.frontend.SysYParser;
+import com.compiler.listeners.LexerListener;
 import com.compiler.listeners.ParserListener;
 import com.compiler.utils.Checker;
 import com.compiler.visitors.LLVisitor;
@@ -17,7 +17,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
-public class Compiler {
+public class Main {
     static SysYLexer lexer;
     static LexerListener lexerListener;
 
