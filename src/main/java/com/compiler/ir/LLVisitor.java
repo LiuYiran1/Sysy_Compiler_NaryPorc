@@ -7,8 +7,11 @@ import org.llvm4j.llvm4j.Module;
 import com.compiler.frontend.SysYParser;
 import org.llvm4j.optional.Option;
 
+import java.io.File;
 import java.util.LinkedHashMap;
 import java.util.Map;
+
+import static org.bytedeco.llvm.global.LLVM.LLVMGetBasicBlockTerminator;
 
 public class LLVisitor extends SysYParserBaseVisitor<Value> {
     private static final Context context = new Context();
@@ -29,8 +32,11 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
     private final SymbolTable symbolTable = new SymbolTable();
     private Function curFunc;
-    private Map<String, Type> retTypes = new LinkedHashMap<>();
+    private final Map<String, Type> retTypes = new LinkedHashMap<>();
 
+    public void dump(Option<File> of) {
+        mod.dump(of);
+    }
 
     @Override
     public Value visitProgram(SysYParser.ProgramContext ctx) {
@@ -106,7 +112,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
         }
 
-        String funcName = ctx.funcType().getText();
+        String funcName = ctx.IDENT().getText();
 
         Function function = mod.addFunction(funcName, context.getFunctionType(retType, params, false));
 
@@ -158,9 +164,33 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
     @Override
     public Value visitStmt(SysYParser.StmtContext ctx) {
         if (ctx.RETURN() != null) {
+            if(ctx.exp() != null) {
+                Value retVal = visit(ctx.exp());
+                Type retType = retVal.getType();
+                
+                Type curFuncRetType = retTypes.get(curFunc.getName());
+                
+                if(retType.isIntegerType() && curFuncRetType.isFloatingPointType()){
+                    retVal = builder.buildSignedToFloat(retVal, f32, Option.of("fRet"));
+                } else if (retType.isFloatingPointType() && curFuncRetType.isIntegerType()) {
+                    retVal = builder.buildFloatToSigned(retVal, i32, Option.of("iRet"));
+                }
 
+                // 构建ret指令（若基本块有终结指令则不构建）
+                BasicBlock curBlock = builder.getInsertionBlock().unwrap();
+                if(LLVMGetBasicBlockTerminator(curBlock.getRef()) == null) {
+                    builder.buildReturn(Option.of(retVal));
+                }
+
+
+            } else { // return void
+                BasicBlock curBlock = builder.getInsertionBlock().unwrap();
+                if(LLVMGetBasicBlockTerminator(curBlock.getRef()) == null) {
+                    builder.buildReturn(Option.empty());
+                }
+            }
         }
-        return super.visitStmt(ctx);
+        return null;
     }
 
 
@@ -209,10 +239,13 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
             Type leftType = left.getType();
             Type rightType = right.getType();
+
             if (leftType.isIntegerType() && rightType.isFloatingPointType()){
                 left = builder.buildSignedToFloat(left, f32, Option.of("lIToF"));
+                leftType = left.getType();
             } else if (leftType.isFloatingPointType() && rightType.isIntegerType()) {
                 right = builder.buildSignedToFloat(right, f32, Option.of("rIToF"));
+                rightType = right.getType();
             }
 
             if (leftType.isIntegerType() && rightType.isIntegerType()){

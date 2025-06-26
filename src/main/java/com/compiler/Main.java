@@ -10,7 +10,9 @@ import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
+import org.llvm4j.optional.Option;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,24 +29,29 @@ public class Main {
     static ParseTree tree;
 
     public static void main(String[] args) throws IOException {
-        Path inputDir = Paths.get("src/test/java/RISCV_performance");
+        Path inputDir = Paths.get("src/test/java/myTests");
 
-        // 找出所有.sy文件
+        // 找出所有 .sy 文件
         List<Path> syFiles = Files.walk(inputDir)
                 .filter(Files::isRegularFile)
                 .filter(p -> p.toString().endsWith(".sy"))
                 .toList();
 
+        // 构造对应的 .ll 输出路径
+        List<Path> llFiles = syFiles.stream()
+                .map(path -> {
+                    String fileName = path.getFileName().toString().replaceAll("\\.sy$", ".ll");
+                    return path.getParent().resolve(fileName);
+                })
+                .toList();
 
-        for (Path inputFile : syFiles) {
-            String inputPath = inputFile.toString();
+        for (int i = 0; i < syFiles.size(); i++) {
+            Path inputPath = syFiles.get(i);
+            Path outputPath = llFiles.get(i);
 
-            processLexer(inputPath);
-            processParser(lexer, inputPath);
-            irGen(tree);
-
-
-
+            processLexer(inputPath.toString());
+            processParser(lexer, inputPath.toString());
+            irGen(tree, outputPath.toString());
         }
 
 
@@ -78,8 +85,9 @@ public class Main {
         Checker.checkParser(parser, parserListener,inputPath);
     }
 
-    private static void irGen(ParseTree tree) {
+    private static void irGen(ParseTree tree, String outputPath) {
         LLVisitor llVisitor = new LLVisitor();
         llVisitor.visit(tree);
+        llVisitor.dump(Option.of(new File(outputPath)));
     }
 }

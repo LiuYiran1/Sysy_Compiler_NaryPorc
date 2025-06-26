@@ -16,6 +16,11 @@ public class Checker {
         if (!LexerChecker) { return; }
 
         List<? extends Token> tokens = Lexer.getAllTokens();
+        for (Token token : tokens) {
+            String text = token.getText();
+            System.out.print(text + " ");
+        }
+        System.out.println();
         if (lexerListener.hasError) {
             System.err.println("Lexer Error in file: " + fileName);
         } else {
