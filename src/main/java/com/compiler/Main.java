@@ -5,7 +5,7 @@ import com.compiler.frontend.SysYParser;
 import com.compiler.listeners.LexerListener;
 import com.compiler.listeners.ParserListener;
 import com.compiler.utils.Checker;
-import com.compiler.visitors.LLVisitor;
+import com.compiler.ir.LLVisitor;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;

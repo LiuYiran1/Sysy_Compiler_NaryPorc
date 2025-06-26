@@ -13,7 +13,7 @@ compUnit : (decl | funcDef)+ ;
 decl : constDecl | varDecl ;
 
 // 常量声明
-constDecl : CONST bType constDef (COMMA constDef)* SEMICOLON ;
+constDecl : CONST bType constDef (COMMA constDef)* SEMICOLON ; // 赋值类型不匹配
 
 // 类型
 bType : INT | FLOAT ;
@@ -27,7 +27,7 @@ constInitVal
     ;
 
 // 变量声明
-varDecl : bType varDef (COMMA varDef)* SEMICOLON ;
+varDecl : bType varDef (COMMA varDef)* SEMICOLON ;  // 赋值类型不匹配
 
 varDef
     : IDENT (L_BRACKT constExp R_BRACKT)*
@@ -43,7 +43,7 @@ initVal
 funcDef : funcType IDENT L_PAREN funcFParams? R_PAREN block ;
 
 // 函数返回类型
-funcType : VOID | INT | FLOAT ; // ★ 加入 float 返回值支持
+funcType : VOID | INT | FLOAT ;
 
 // 形参表
 funcFParams : funcFParam (COMMA funcFParam)* ;
@@ -58,43 +58,43 @@ blockItem : decl | stmt ;
 
 // 语句
 stmt
-    : lVal ASSIGN exp SEMICOLON
+    : lVal ASSIGN exp SEMICOLON // 赋值类型不匹配
     | exp? SEMICOLON
     | block
     | IF L_PAREN cond R_PAREN stmt (ELSE stmt)?
     | WHILE L_PAREN cond R_PAREN stmt
     | BREAK SEMICOLON
     | CONTINUE SEMICOLON
-    | RETURN exp? SEMICOLON
+    | RETURN exp? SEMICOLON // 返回值类型和实际返回值不匹配
     ;
 
 exp
-   : L_PAREN exp R_PAREN
-   | lVal
-   | number
-   | IDENT L_PAREN funcRParams? R_PAREN
-   | unaryOp exp
-   | exp (MUL | DIV | MOD) exp
-   | exp (PLUS | MINUS) exp
+   : L_PAREN exp R_PAREN///
+   | lVal ///
+   | number ///
+   | IDENT L_PAREN funcRParams? R_PAREN // 函数参数类型不匹配
+   | unaryOp exp///
+   | exp (MUL | DIV | MOD) exp // 两侧类型隐式转换 ///
+   | exp (PLUS | MINUS) exp///
    ;
 
 cond
    : exp
-   | cond (LT | GT | LE | GE) cond
+   | cond (LT | GT | LE | GE) cond // 两侧类型隐式转换
    | cond (EQ | NEQ) cond
    | cond AND cond
    | cond OR cond
    ;
 
-lVal
+lVal ////
    : IDENT (L_BRACKT exp R_BRACKT)*
    ;
 
-number
+number ///
    : INTEGER_CONST | FLOAT_CONST
    ;
 
-unaryOp
+unaryOp ///
    : PLUS
    | MINUS
    | NOT
