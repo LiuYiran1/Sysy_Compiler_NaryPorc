@@ -1,9 +1,7 @@
 package com.compiler.ir;
 
 import com.compiler.frontend.SysYParserBaseVisitor;
-import com.sun.jdi.FloatType;
 import org.bytedeco.javacpp.IntPointer;
-import org.bytedeco.llvm.LLVM.LLVMValueRef;
 import org.llvm4j.llvm4j.*;
 import org.llvm4j.llvm4j.Module;
 import com.compiler.frontend.SysYParser;
@@ -90,6 +88,14 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         return null;
     }
 
+    private Constant calConstInt(Value init){
+        return new ConstantInt(LLVMConstInt(LLVMInt32Type(), LLVMConstIntGetSExtValue(init.getRef()), 0));
+    }
+
+    private Constant calConstFloat(Value init){
+        return new ConstantFP(LLVMConstReal(LLVMFloatType(), LLVMConstRealGetDouble(init.getRef(), new IntPointer(0))));
+    }
+
     public Value myVisitVarDef(SysYParser.VarDefContext ctx, Type type) {
         if (ctx.L_BRACKT().isEmpty()) { // 普通变量
             String varName = ctx.IDENT().getText();
@@ -102,7 +108,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                         if (init.getType().isFloatingPointType()) {
                             init = builder.buildFloatToSigned(init, i32, Option.of("iInit"));
                         }
-                        globalVar.setInitializer(new ConstantInt(LLVMConstInt(LLVMInt32Type(), LLVMConstIntGetSExtValue(init.getRef()), 0)));
+                        globalVar.setInitializer(calConstInt(init));
                     } else {
                         globalVar.setInitializer(intZero);
                     }
@@ -114,7 +120,9 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                         if (init.getType().isIntegerType()) {
                             init = builder.buildSignedToFloat(init, f32, Option.of("fInit"));
                         }
-                        globalVar.setInitializer(new ConstantFP(LLVMConstReal(LLVMFloatType(), LLVMConstRealGetDouble(init.getRef(), new IntPointer(0)))));
+                        globalVar.setInitializer(calConstFloat(init));
+                    } else {
+                        globalVar.setInitializer(floatZero);
                     }
                     symbolTable.addSymbol(varName, globalVar);
                 } else {
@@ -147,7 +155,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             }
 
 
-        } else {
+        } else { // 数组
 
         }
     }
