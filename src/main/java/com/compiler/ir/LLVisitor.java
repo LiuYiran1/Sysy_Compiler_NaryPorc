@@ -2,6 +2,10 @@ package com.compiler.ir;
 
 import com.compiler.frontend.SysYParserBaseVisitor;
 import org.bytedeco.javacpp.IntPointer;
+import org.bytedeco.javacpp.PointerPointer;
+import org.bytedeco.llvm.LLVM.LLVMContextRef;
+import org.bytedeco.llvm.LLVM.LLVMTypeRef;
+import org.bytedeco.llvm.LLVM.LLVMValueRef;
 import org.llvm4j.llvm4j.*;
 import org.llvm4j.llvm4j.Module;
 import com.compiler.frontend.SysYParser;
@@ -9,6 +13,8 @@ import org.llvm4j.optional.Option;
 
 import java.io.File;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 import static org.bytedeco.llvm.global.LLVM.*;
@@ -226,13 +232,101 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             String varName = ctx.IDENT().getText();
 
             if (symbolTable.isBottom()) {
+                // 获取所有维数信息
+                List<Integer> dimensions = new LinkedList<>();
+                for (var constExp : ctx.constExp()) {
+                    long dim = LLVMConstIntGetSExtValue(calConstInt(visitConstExp(constExp)).getRef());
+                    dimensions.add((int) dim); // 这里的强制转换是否会有问题？
+                }
+                // 构建数组类型
+                Type arrayType = type;
+                for (int i = dimensions.size() - 1; i >= 0; i--) {
+                    arrayType = context.getArrayType(arrayType, dimensions.get(i)).unwrap();
+                }
+                // 处理数组赋值
+                var globalVar = mod.addGlobalVariable(varName, arrayType, Option.empty()).unwrap();
+                if (ctx.ASSIGN() != null) {
+                    int memSize = 1;
+                    for (int dim : dimensions) {
+                        memSize *= dim;
+                    }
+                    Value[] mem = new Value[memSize + 5];
+                    for (int i = 0; i < mem.length; i++) {
+                        mem[i] = type.isIntegerType() ? intZero : floatZero;
+                    }
+                    myVisitInitVal(ctx.initVal(), mem, 0, dimensions, memSize);
 
+                    LLVMValueRef[] newMem = new LLVMValueRef[mem.length];
+                    for (int i = 0; i < mem.length; i++) {
+                        newMem[i] = type.isIntegerType() ? calConstInt(mem[i]).getRef() : calConstFloat(mem[i]).getRef();
+                    }
+
+                    LLVMValueRef initializer = buildNestedArray(context.getRef(), newMem, dimensions, type.getRef());
+                    LLVMSetInitializer(globalVar.getRef(), initializer);
+
+
+
+                } else {
+                    globalVar.setInitializer(arrayType.getConstantArray()); /////
+                }
+
+                // 存符号表
+                symbolTable.addSymbol(varName, globalVar);
             } else {
 
             }
 
         }
     }
+
+    private LLVMValueRef buildNestedArray(LLVMContextRef context, LLVMValueRef[] flat, List<Integer> dims, LLVMTypeRef elemType) {
+        return buildArrayRecursive(context, flat, dims, 0, elemType).result;
+    }
+
+    private static class ArrayBuildResult {
+        LLVMValueRef result;
+        int nextIndex;
+        ArrayBuildResult(LLVMValueRef result, int nextIndex) {
+            this.result = result;
+            this.nextIndex = nextIndex;
+        }
+    }
+
+    private ArrayBuildResult buildArrayRecursive(LLVMContextRef context, LLVMValueRef[] flat, List<Integer> dims, int startIndex, LLVMTypeRef elemType) {
+        int dim = dims.get(0);
+
+        if (dims.size() == 1) {
+            // 最后一维，直接构造常量数组
+            LLVMValueRef[] slice = new LLVMValueRef[dim];
+            for (int i = 0; i < dim; i++) {
+                slice[i] = flat[startIndex + i];
+            }
+            LLVMTypeRef arrayType = LLVMArrayType(elemType, dim);
+            LLVMValueRef constArray = LLVMConstArray(elemType, new PointerPointer<>(slice), dim);
+            return new ArrayBuildResult(constArray, startIndex + dim);
+        } else {
+            // 多维，递归构造
+            List<Integer> subDims = dims.subList(1, dims.size());
+
+            LLVMTypeRef subType = elemType;
+            for (int i = subDims.size() - 1; i >= 0; i--) {
+                subType = LLVMArrayType(subType, subDims.get(i));
+            }
+
+            LLVMValueRef[] subArrays = new LLVMValueRef[dim];
+            int currentIndex = startIndex;
+            for (int i = 0; i < dim; i++) {
+                ArrayBuildResult sub = buildArrayRecursive(context, flat, subDims, currentIndex, elemType);
+                subArrays[i] = sub.result;
+                currentIndex = sub.nextIndex;
+            }
+
+            LLVMTypeRef arrayType = LLVMArrayType(LLVMTypeOf(subArrays[0]), dim);
+            LLVMValueRef constArray = LLVMConstArray(LLVMTypeOf(subArrays[0]), new PointerPointer<>(subArrays), dim);
+            return new ArrayBuildResult(constArray, currentIndex);
+        }
+    }
+
 
 //    @Override
 //    public Value visitVarDef(SysYParser.VarDefContext ctx) {
@@ -245,6 +339,21 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             return visitExp(ctx.exp());
         } else {
             return null;
+        }
+    }
+
+    public void myVisitInitVal(SysYParser.InitValContext ctx, Value[] mem, int index, List<Integer> dimensions, int h) {
+        if (ctx.exp() != null) {
+            mem[index] = visitExp(ctx.exp());
+            return;
+        }
+        h = h / dimensions.get(dimensions.size() - 1);
+        List<Integer> subDims = new LinkedList<>(dimensions);
+        subDims.remove(subDims.size() - 1);
+        for (int i = 0; i < ctx.initVal().size(); i++) {
+
+            myVisitInitVal(ctx.initVal(i), mem, index, subDims, h);
+            index = ctx.initVal(i).exp() == null ? index + h : index + 1;
         }
     }
 
