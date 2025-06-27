@@ -41,6 +41,8 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
     private Function curFunc;
     private final Map<String, Type> retTypes = new LinkedHashMap<>();
 
+    private final Map<Value, Constant> globalValues = new LinkedHashMap<>();
+
     public void dump(Option<File> of) {
         mod.dump(of);
     }
@@ -83,19 +85,15 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                 if (type.isIntegerType()) {
                     var globalVar = mod.addGlobalVariable(varName, i32, Option.empty()).unwrap();
 
-                    if (init.getType().isFloatingPointType()) {
-                        init = builder.buildFloatToSigned(init, i32, Option.of("iInit"));
-                    }
-                    globalVar.setInitializer(new ConstantInt(LLVMConstInt(LLVMInt32Type(), LLVMConstIntGetSExtValue(init.getRef()), 0)));
+                    globalVar.setInitializer(calConstInt(init));
                     symbolTable.addSymbol(varName, globalVar);
+                    globalValues.put(globalVar, calConstInt(init));
                 } else if (type.isFloatingPointType()) {
                     var globalVar = mod.addGlobalVariable(varName, f32, Option.empty()).unwrap();
 
-                    if (init.getType().isIntegerType()) {
-                        init = builder.buildSignedToFloat(init, f32, Option.of("fInit"));
-                    }
-                    globalVar.setInitializer(new ConstantFP(LLVMConstReal(LLVMFloatType(), LLVMConstRealGetDouble(init.getRef(), new IntPointer(0)))));
+                    globalVar.setInitializer(calConstFloat(init));
                     symbolTable.addSymbol(varName, globalVar);
+                    globalValues.put(globalVar, calConstFloat(init));
                 } else {
                     throw new RuntimeException("Unknown type: " + type);
                 }
@@ -255,6 +253,9 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                         mem[i] = type.isIntegerType() ? intZero : floatZero;
                     }
                     myVisitInitVal(ctx.initVal(), mem, 0, dimensions, memSize);
+                    for(var m : mem){
+                        System.out.println(m.getAsString());
+                    }
 
                     LLVMValueRef[] newMem = new LLVMValueRef[mem.length];
                     for (int i = 0; i < mem.length; i++) {
@@ -347,13 +348,17 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             mem[index] = visitExp(ctx.exp());
             return;
         }
-        h = h / dimensions.get(dimensions.size() - 1);
+        h = h / dimensions.get(0);
+        System.out.println("h = " + h);
         List<Integer> subDims = new LinkedList<>(dimensions);
-        subDims.remove(subDims.size() - 1);
+        subDims.remove(0);
         for (int i = 0; i < ctx.initVal().size(); i++) {
 
             myVisitInitVal(ctx.initVal(i), mem, index, subDims, h);
             index = ctx.initVal(i).exp() == null ? index + h : index + 1;
+        }
+        for(var m : mem){
+            System.out.println(m.getAsString() + "h: " + h);
         }
     }
 
@@ -564,6 +569,10 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
     public Value visitLVal(SysYParser.LValContext ctx) {
         String varName = ctx.IDENT().getText();
         Value var = symbolTable.getSymbol(varName);
+        Constant constGlobal = globalValues.get(var);
+        if (constGlobal != null) {
+            return constGlobal;
+        }
         if (var == null) {
             throw new RuntimeException("Variable '" + varName + "' not found");
         }
