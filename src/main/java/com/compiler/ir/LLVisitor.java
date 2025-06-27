@@ -2,13 +2,16 @@ package com.compiler.ir;
 
 import com.compiler.frontend.SysYParserBaseVisitor;
 import org.bytedeco.javacpp.IntPointer;
+import org.bytedeco.llvm.LLVM.LLVMValueRef;
 import org.llvm4j.llvm4j.*;
 import org.llvm4j.llvm4j.Module;
 import com.compiler.frontend.SysYParser;
 import org.llvm4j.optional.Option;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.bytedeco.llvm.global.LLVM.*;
@@ -451,6 +454,8 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         return super.visitCond(ctx);
     }
 
+
+    //实际处理的是rVal  = a ; = b[1][2] ;
     @Override
     public Value visitLVal(SysYParser.LValContext ctx) {
         String varName = ctx.IDENT().getText();
@@ -459,12 +464,41 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             throw new RuntimeException("Variable '" + varName + "' not found");
         }
 
-        if (!ctx.exp().isEmpty()) {
-            // 处理数组
-            return null;
+        if (var.getType().isArrayType()) {
+            // 数组类型变量
+            ArrayType arrayType = (ArrayType) var.getType();
+            if (arrayType.getElementCount() != ctx.exp().size()) {
+                throw new RuntimeException("Array dimension mismatch");
+            }
+
+            // 收集所有索引表达式
+            List<Value> indices = new ArrayList<>();
+            if(arrayType.getElementType().isIntegerType()){
+                indices.add(intZero); // 数组指针的第一个索引总是0
+            } else if(arrayType.getElementType().isFloatingPointType()){
+                indices.add(floatZero); // 数组指针的第一个索引总是0.0
+            } else {
+                throw new RuntimeException("Unsupported array element type: " + arrayType.getElementType());
+            }
+
+            // 计算每个维度的索引值
+            for (var expCtx : ctx.exp()) {
+                Value indexValue = visitExp(expCtx);
+                // 确保索引是整数类型
+                if (!indexValue.getType().isIntegerType()) {
+                    throw new RuntimeException("Array index must be integer");
+                }
+                indices.add(indexValue);
+            }
+
+            // 使用GEP获取元素地址
+            Value elementPtr = builder.buildGetElementPtr(var, indices.toArray(new Value[0]), Option.of("arrayPtr"),true);
+            // 加载元素值
+            return builder.buildLoad(elementPtr, Option.of("arrayElement"));
+
         } else {
-            Value loaded = builder.buildLoad(var, Option.of("lVar"));
-            return loaded;
+            // 普通变量访问
+            return builder.buildLoad(var, Option.of("loadVar"));
         }
     }
 
