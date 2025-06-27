@@ -13,7 +13,7 @@ define i32 @main() {
 mainEntry:
   %a = alloca i32, align 4
   store i32 139, i32* %a, align 4
-  %b = alloca i32, align 4
-  store float 0x40617BBBA0000000, i32* %b, align 4
+  %b = alloca float, align 4
+  store float 0x40617BBBA0000000, float* %b, align 4
   ret i32 0
 }

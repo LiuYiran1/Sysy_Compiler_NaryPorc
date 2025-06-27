@@ -6,3 +6,8 @@
 IR visit:
 - 函数作用域：Stack<SymTable> 、curFunc 
 - whileStack
+
+- 数组
+  - 全局 局部
+  - 初始化中是否有变量
+
