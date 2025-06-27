@@ -15,21 +15,21 @@ import static org.bytedeco.llvm.global.LLVM.*;
 import static org.bytedeco.llvm.global.LLVM.LLVMConstIntGetSExtValue;
 
 public class LLVisitor extends SysYParserBaseVisitor<Value> {
-    private static final Context context = new Context();
+    private final Context context = new Context();
 
-    private static final IRBuilder builder = context.newIRBuilder();
+    private final IRBuilder builder = context.newIRBuilder();
 
-    private static final Module mod = context.newModule("module");
+    private final Module mod = context.newModule("module");
 
-    private static final IntegerType i32 = context.getInt32Type();
+    private final IntegerType i32 = context.getInt32Type();
 
-    private static final FloatingPointType f32 = context.getFloatType();
+    private final FloatingPointType f32 = context.getFloatType();
 
-    private static final VoidType vo = context.getVoidType();
+    private final VoidType vo = context.getVoidType();
 
-    private static final ConstantInt intZero = i32.getConstant(0, false);
+    private final ConstantInt intZero = i32.getConstant(0, false);
 
-    private static final ConstantFP floatZero = f32.getConstant(0.0);
+    private final ConstantFP floatZero = f32.getConstant(0.0);
 
     private final SymbolTable symbolTable = new SymbolTable();
     private Function curFunc;
@@ -89,10 +89,16 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
     }
 
     private Constant calConstInt(Value init){
+        if (init.getType().isFloatingPointType()) {
+            init = builder.buildFloatToSigned(init, i32, Option.of("iInit"));
+        }
         return new ConstantInt(LLVMConstInt(LLVMInt32Type(), LLVMConstIntGetSExtValue(init.getRef()), 0));
     }
 
     private Constant calConstFloat(Value init){
+        if (init.getType().isIntegerType()) {
+            init = builder.buildSignedToFloat(init, f32, Option.of("fInit"));
+        }
         return new ConstantFP(LLVMConstReal(LLVMFloatType(), LLVMConstRealGetDouble(init.getRef(), new IntPointer(0))));
     }
 
@@ -105,9 +111,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                     var globalVar = mod.addGlobalVariable(varName, i32, Option.empty()).unwrap();
                     if (ctx.ASSIGN() != null) {
                         Value init = visitInitVal(ctx.initVal());
-                        if (init.getType().isFloatingPointType()) {
-                            init = builder.buildFloatToSigned(init, i32, Option.of("iInit"));
-                        }
+
                         globalVar.setInitializer(calConstInt(init));
                     } else {
                         globalVar.setInitializer(intZero);
@@ -117,9 +121,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                     var globalVar = mod.addGlobalVariable(varName, f32, Option.empty()).unwrap();
                     if (ctx.ASSIGN() != null) {
                         Value init = visitInitVal(ctx.initVal());
-                        if (init.getType().isIntegerType()) {
-                            init = builder.buildSignedToFloat(init, f32, Option.of("fInit"));
-                        }
+
                         globalVar.setInitializer(calConstFloat(init));
                     } else {
                         globalVar.setInitializer(floatZero);
@@ -156,18 +158,30 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
 
         } else { // 数组
+            String varName = ctx.IDENT().getText();
+
+            if (symbolTable.isBottom()) {
+
+            } else {
+
+            }
 
         }
+        return null;
     }
 
-    @Override
-    public Value visitVarDef(SysYParser.VarDefContext ctx) {
-        return super.visitVarDef(ctx);
-    }
+//    @Override
+//    public Value visitVarDef(SysYParser.VarDefContext ctx) {
+//        return super.visitVarDef(ctx);
+//    }
 
     @Override
     public Value visitInitVal(SysYParser.InitValContext ctx) {
-        return super.visitInitVal(ctx);
+        if(ctx.exp() != null) {
+            return visitExp(ctx.exp());
+        } else {
+            return null;
+        }
     }
 
     @Override

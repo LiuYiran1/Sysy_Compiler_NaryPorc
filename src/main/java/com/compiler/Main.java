@@ -52,6 +52,7 @@ public class Main {
             processLexer(inputPath.toString());
             processParser(lexer, inputPath.toString());
             irGen(tree, outputPath.toString());
+            clear();
         }
 
 
@@ -89,5 +90,9 @@ public class Main {
         LLVisitor llVisitor = new LLVisitor();
         llVisitor.visit(tree);
         llVisitor.dump(Option.of(new File(outputPath)));
+    }
+
+    private static void clear(){
+
     }
 }
