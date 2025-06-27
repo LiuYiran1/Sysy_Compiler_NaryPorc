@@ -1,9 +1,7 @@
 package com.compiler.ir;
 
 import com.compiler.frontend.SysYParserBaseVisitor;
-import com.sun.jdi.FloatType;
 import org.bytedeco.javacpp.IntPointer;
-import org.bytedeco.llvm.LLVM.LLVMValueRef;
 import org.llvm4j.llvm4j.*;
 import org.llvm4j.llvm4j.Module;
 import com.compiler.frontend.SysYParser;
@@ -58,12 +56,72 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
     @Override
     public Value visitConstDecl(SysYParser.ConstDeclContext ctx) {
-        return super.visitConstDecl(ctx);
+        String typeStr = ctx.bType().getText();
+        Type type = switch (typeStr) {
+            case "int" -> context.getInt32Type();
+            case "float" -> context.getFloatType();
+            default -> throw new RuntimeException("Unknown type: " + typeStr);
+        };
+        for (var constDef : ctx.constDef()) {
+            myVisitConstDef(constDef, type);
+        }
+        return null;
     }
 
-    @Override
-    public Value visitBType(SysYParser.BTypeContext ctx) {
-        return super.visitBType(ctx);
+    public void myVisitConstDef(SysYParser.ConstDefContext ctx, Type type) {
+        if (ctx.L_BRACKT().isEmpty()) { // 普通变量
+            String varName = ctx.IDENT().getText();
+            Value init = visitConstInitVal(ctx.constInitVal());
+
+            if (symbolTable.isBottom()) { // 全局变量
+                if (type.isIntegerType()) {
+                    var globalVar = mod.addGlobalVariable(varName, i32, Option.empty()).unwrap();
+
+                    if (init.getType().isFloatingPointType()) {
+                        init = builder.buildFloatToSigned(init, i32, Option.of("iInit"));
+                    }
+                    globalVar.setInitializer(new ConstantInt(LLVMConstInt(LLVMInt32Type(), LLVMConstIntGetSExtValue(init.getRef()), 0)));
+                    symbolTable.addSymbol(varName, globalVar);
+                } else if (type.isFloatingPointType()) {
+                    var globalVar = mod.addGlobalVariable(varName, f32, Option.empty()).unwrap();
+
+                    if (init.getType().isIntegerType()) {
+                        init = builder.buildSignedToFloat(init, f32, Option.of("fInit"));
+                    }
+                    globalVar.setInitializer(new ConstantFP(LLVMConstReal(LLVMFloatType(), LLVMConstRealGetDouble(init.getRef(), new IntPointer(0)))));
+                    symbolTable.addSymbol(varName, globalVar);
+                } else {
+                    throw new RuntimeException("Unknown type: " + type);
+                }
+
+            } else { // 局部变量
+                if (type.isIntegerType()) {
+                    Value alloc = builder.buildAlloca(i32, Option.of(varName));
+
+                    if (init.getType().isFloatingPointType()) {
+                        init = builder.buildFloatToSigned(init, i32, Option.of("iInit"));
+                    }
+                    builder.buildStore(alloc, init);
+
+                    symbolTable.addSymbol(varName, alloc);
+                } else if (type.isFloatingPointType()) {
+                    Value alloc = builder.buildAlloca(f32, Option.of(varName));
+
+                    if (init.getType().isIntegerType()) {
+                        init = builder.buildSignedToFloat(init, f32, Option.of("fInit"));
+                    }
+                    builder.buildStore(alloc, init);
+
+                    symbolTable.addSymbol(varName, alloc);
+                } else {
+                    throw new RuntimeException("Unknown type: " + type);
+                }
+
+            }
+
+        } else {
+
+        }
     }
 
     @Override
@@ -90,7 +148,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         return null;
     }
 
-    public Value myVisitVarDef(SysYParser.VarDefContext ctx, Type type) {
+    public void myVisitVarDef(SysYParser.VarDefContext ctx, Type type) {
         if (ctx.L_BRACKT().isEmpty()) { // 普通变量
             String varName = ctx.IDENT().getText();
 
@@ -115,6 +173,8 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                             init = builder.buildSignedToFloat(init, f32, Option.of("fInit"));
                         }
                         globalVar.setInitializer(new ConstantFP(LLVMConstReal(LLVMFloatType(), LLVMConstRealGetDouble(init.getRef(), new IntPointer(0)))));
+                    } else {
+                        globalVar.setInitializer(floatZero);
                     }
                     symbolTable.addSymbol(varName, globalVar);
                 } else {
@@ -122,40 +182,41 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                 }
 
             } else { // 局部变量
-                Value alloc = builder.buildAlloca(i32, Option.of(varName));
-                Value init = visitInitVal(ctx.initVal());
-                Type initType = init.getType();
                 if (type.isIntegerType()) {
+                    Value alloc = builder.buildAlloca(i32, Option.of(varName));
                     if (ctx.ASSIGN() != null) {
-                        if (initType.isFloatingPointType()) {
+                        Value init = visitInitVal(ctx.initVal());
+                        if (init.getType().isFloatingPointType()) {
                             init = builder.buildFloatToSigned(init, i32, Option.of("iInit"));
                         }
                         builder.buildStore(alloc, init);
+                    } else {
+                        builder.buildStore(alloc, intZero);
                     }
+                    symbolTable.addSymbol(varName, alloc);
                 } else if (type.isFloatingPointType()) {
+                    Value alloc = builder.buildAlloca(f32, Option.of(varName));
                     if (ctx.ASSIGN() != null) {
-                        if (initType.isIntegerType()) {
-                            init = builder.buildSignedToFloat(init, f32, Option.of("iInit"));
+                        Value init = visitInitVal(ctx.initVal());
+                        if (init.getType().isIntegerType()) {
+                            init = builder.buildSignedToFloat(init, f32, Option.of("fInit"));
                         }
                         builder.buildStore(alloc, init);
+                    } else {
+                        builder.buildStore(alloc, floatZero);
                     }
+                    symbolTable.addSymbol(varName, alloc);
                 } else {
                     throw new RuntimeException("Unknown type: " + type);
                 }
 
-                symbolTable.addSymbol(varName, alloc);
             }
-
 
         } else {
 
         }
     }
 
-    @Override
-    public Value visitVarDef(SysYParser.VarDefContext ctx) {
-        return super.visitVarDef(ctx);
-    }
 
     @Override
     public Value visitInitVal(SysYParser.InitValContext ctx) {
