@@ -490,8 +490,9 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             Type curType = baseType;
             List<SysYParser.ExpContext> exps = ctx.exp();
             if (exps != null && !exps.isEmpty()) {
-                for (int i = 1; i < exps.size(); i++) {
+                for (int i = 0; i < exps.size(); i++) {
                     long dim = LLVMConstIntGetSExtValue(calConstInt(visitExp(exps.get(i))).getRef());
+                    System.out.println("dim = " + dim);
                     curType = context.getArrayType(curType, (int) dim).unwrap();
                 }
             }
@@ -658,8 +659,9 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         if (var == null) {
             throw new RuntimeException("Variable '" + varName + "' not found");
         }
-
+        System.out.println(var.getType().getAsString());
         if (var.getType().isArrayType()) {
+            System.out.println(var.getType().getAsString() + "is an array");
             // 数组类型变量
             ArrayType arrayType = (ArrayType) var.getType();
             if (arrayType.getElementCount() != ctx.exp().size()) {
