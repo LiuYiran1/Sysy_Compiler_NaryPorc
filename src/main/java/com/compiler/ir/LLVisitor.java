@@ -651,51 +651,27 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
     @Override
     public Value visitLVal(SysYParser.LValContext ctx) {
         String varName = ctx.IDENT().getText();
-        Value var = symbolTable.getSymbol(varName);
-        Constant constGlobal = globalValues.get(var);
+        Value varAddr = symbolTable.getSymbol(varName);
+        Constant constGlobal = globalValues.get(varAddr);
         if (constGlobal != null) {
             return constGlobal;
         }
-        if (var == null) {
+        if (varAddr == null) {
             throw new RuntimeException("Variable '" + varName + "' not found");
         }
+
+        Value var = builder.buildLoad(varAddr, Option.of("val"));
         System.out.println(var.getType().getAsString());
+
         if (var.getType().isArrayType()) {
-            System.out.println(var.getType().getAsString() + "is an array");
             // 数组类型变量
-            ArrayType arrayType = (ArrayType) var.getType();
-            if (arrayType.getElementCount() != ctx.exp().size()) {
-                throw new RuntimeException("Array dimension mismatch");
-            }
+            ArrayType arrayType = new ArrayType(var.getType().getRef());
 
-            // 收集所有索引表达式
-            List<Value> indices = new ArrayList<>();
-            if(arrayType.getElementType().isIntegerType()){
-                indices.add(intZero); // 数组指针的第一个索引总是0
-            } else if(arrayType.getElementType().isFloatingPointType()){
-                indices.add(floatZero); // 数组指针的第一个索引总是0.0
-            } else {
-                throw new RuntimeException("Unsupported array element type: " + arrayType.getElementType());
-            }
-
-            // 计算每个维度的索引值
-            for (var expCtx : ctx.exp()) {
-                Value indexValue = visitExp(expCtx);
-                // 确保索引是整数类型
-                if (!indexValue.getType().isIntegerType()) {
-                    throw new RuntimeException("Array index must be integer");
-                }
-                indices.add(indexValue);
-            }
-
-            // 使用GEP获取元素地址
-            Value elementPtr = builder.buildGetElementPtr(var, indices.toArray(new Value[0]), Option.of("arrayPtr"),true);
-            // 加载元素值
-            return builder.buildLoad(elementPtr, Option.of("arrayElement"));
+            return null;
 
         } else {
             // 普通变量访问
-            return builder.buildLoad(var, Option.of("loadVar"));
+            return var;
         }
     }
 
