@@ -418,21 +418,25 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             retType = context.getInt32Type();
         }
         // 函数参数解析
-        Type[] params = null;
+        Type[] paramTypes = null;
+        String[] paramNames = null;
         if (ctx.funcFParams() != null) {
-            params = new Type[ctx.funcFParams().funcFParam().size()];
+            paramTypes = new Type[ctx.funcFParams().funcFParam().size()];
+            paramNames = new String[paramTypes.length];
         } else {
-            params = new Type[]{};
+            paramTypes = new Type[]{};
         }
 
-        // ！处理数组参数
-        for (int i = 0; i < params.length; i++) {
-
+        // ！处理普通/数组参数
+        for (int i = 0; i < paramTypes.length; i++) {
+            LLVMTypeRef llvmType = myVisitFuncFParam(ctx.funcFParams().funcFParam().get(i));
+            paramTypes[i] = new Type(llvmType);
+            paramNames[i] = ctx.funcFParams().funcFParam().get(i).IDENT().getText();
         }
 
         String funcName = ctx.IDENT().getText();
 
-        Function function = mod.addFunction(funcName, context.getFunctionType(retType, params, false));
+        Function function = mod.addFunction(funcName, context.getFunctionType(retType, paramTypes, false));
 
         symbolTable.addSymbol(funcName, function);
         retTypes.put(funcName, retType);
@@ -446,6 +450,12 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         symbolTable.enterScope();
         // 将参数加入到符号表中
         // 数组
+        Value[] params = function.getParameters();
+        for(int i = 0;i < paramTypes.length;i++){
+            Value alloc = builder.buildAlloca(paramTypes[i], Option.of(paramNames[i]));
+            builder.buildStore(alloc, params[i]);
+            symbolTable.addSymbol(paramNames[i], alloc);
+        }
 
         visitBlock(ctx.block());
 
@@ -462,6 +472,31 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
     @Override
     public Value visitFuncFParams(SysYParser.FuncFParamsContext ctx) {
         return super.visitFuncFParams(ctx);
+    }
+    public LLVMTypeRef myVisitFuncFParam(SysYParser.FuncFParamContext ctx) {
+        Type baseType;
+        if (ctx.bType().getText().equals("int")) {
+            baseType = context.getInt32Type();
+        } else {
+            baseType = context.getFloatType();
+        }
+
+        // 是数组参数
+        if (!ctx.L_BRACKT().isEmpty()) {
+            // 跳过第一个 []，其维度在函数参数里可以省略
+            Type curType = baseType;
+            List<SysYParser.ExpContext> exps = ctx.exp();
+            if (exps != null && !exps.isEmpty()) {
+                for (int i = 1; i < exps.size(); i++) {
+                    long dim = LLVMConstIntGetSExtValue(calConstInt(visitExp(exps.get(i))).getRef());
+                    curType = context.getArrayType(curType, (int) dim).unwrap();
+                }
+            }
+
+            return LLVMPointerType(curType.getRef(), 0);
+        }
+
+        return baseType.getRef();
     }
 
     @Override
