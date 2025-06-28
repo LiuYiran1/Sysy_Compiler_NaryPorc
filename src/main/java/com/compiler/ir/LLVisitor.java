@@ -1,11 +1,11 @@
 package com.compiler.ir;
 
 import com.compiler.frontend.SysYParserBaseVisitor;
+import kotlin.Pair;
 import org.bytedeco.javacpp.IntPointer;
 import org.bytedeco.javacpp.PointerPointer;
 import org.bytedeco.llvm.LLVM.LLVMContextRef;
 import org.bytedeco.llvm.LLVM.LLVMTypeRef;
-import org.bytedeco.llvm.LLVM.LLVMValueRef;
 import org.bytedeco.llvm.LLVM.LLVMValueRef;
 import org.llvm4j.llvm4j.*;
 import org.llvm4j.llvm4j.Module;
@@ -13,12 +13,7 @@ import com.compiler.frontend.SysYParser;
 import org.llvm4j.optional.Option;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static org.bytedeco.llvm.global.LLVM.*;
 import static org.bytedeco.llvm.global.LLVM.LLVMConstIntGetSExtValue;
@@ -38,10 +33,18 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
     private final ConstantInt intZero = i32.getConstant(0, false);
 
+    private final ConstantInt intOne = i32.getConstant(1, false);
+
     private final ConstantFP floatZero = f32.getConstant(0.0);
 
     private final SymbolTable symbolTable = new SymbolTable();
+
     private Function curFunc;
+
+    private final Stack<BasicBlock> breakBlocks = new Stack<>();
+
+    private final Stack<BasicBlock> continueBlocks = new Stack<>();
+
     private final Map<String, Type> retTypes = new LinkedHashMap<>();
 
     private final Map<Value, Constant> globalValues = new LinkedHashMap<>();
@@ -447,24 +450,96 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
                 Type curFuncRetType = retTypes.get(curFunc.getName());
 
+                // 处理隐式转换
                 if (retType.isIntegerType() && curFuncRetType.isFloatingPointType()) {
                     retVal = builder.buildSignedToFloat(retVal, f32, Option.of("fRet"));
                 } else if (retType.isFloatingPointType() && curFuncRetType.isIntegerType()) {
                     retVal = builder.buildFloatToSigned(retVal, i32, Option.of("iRet"));
                 }
 
-                // 构建ret指令（若基本块有终结指令则不构建）
-                BasicBlock curBlock = builder.getInsertionBlock().unwrap();
-                if (LLVMGetBasicBlockTerminator(curBlock.getRef()) == null) {
-                    builder.buildReturn(Option.of(retVal));
-                }
-
-
+//                // 构建ret指令（若基本块有终结指令则不构建）
+//                BasicBlock curBlock = builder.getInsertionBlock().unwrap();
+//                if (LLVMGetBasicBlockTerminator(curBlock.getRef()) == null) {
+//                    builder.buildReturn(Option.of(retVal));
+//                }
+                builder.buildReturn(Option.of(retVal));
             } else { // return void
-                BasicBlock curBlock = builder.getInsertionBlock().unwrap();
-                if (LLVMGetBasicBlockTerminator(curBlock.getRef()) == null) {
-                    builder.buildReturn(Option.empty());
-                }
+//                BasicBlock curBlock = builder.getInsertionBlock().unwrap();
+//                if (LLVMGetBasicBlockTerminator(curBlock.getRef()) == null) {
+//                    builder.buildReturn(Option.empty());
+//                }
+                builder.buildReturn(Option.empty());
+            }
+        } else if (ctx.lVal() != null) {
+            // 处理 a =1 ; a =b; a = f(1); .... 现在多了 a[1][2] = 3;……
+//            String lValIdent = ctx.lVal().IDENT().getText();
+//            Value lVal = symbolTable.getSymbol(lValIdent);
+//            builder.buildStore(lVal,visitExp(ctx.exp()));
+
+        } else if(ctx.block() != null) {
+            symbolTable.enterScope();
+            visitBlock(ctx.block());
+            symbolTable.exitScope();
+        } else if (ctx.IF() != null) {
+            BasicBlock ifTrue = context.newBasicBlock("ifTrue");
+            BasicBlock ifFalse = context.newBasicBlock("ifFalse");
+            BasicBlock ifNext = context.newBasicBlock("ifNext");
+
+            curFunc.addBasicBlock(ifTrue);
+            curFunc.addBasicBlock(ifFalse);
+            curFunc.addBasicBlock(ifNext);
+
+            var cond = builder.buildIntCompare(IntPredicate.NotEqual,visitCond(ctx.cond()),intZero,Option.of("cond"));
+            builder.buildConditionalBranch(cond,ifTrue,ifFalse);
+
+            builder.positionAfter(ifTrue);
+            visitStmt(ctx.stmt(0));
+            builder.buildBranch(ifNext);
+
+            builder.positionAfter(ifFalse);
+            if (ctx.ELSE() != null) {
+                visitStmt(ctx.stmt(1));
+            }
+            builder.buildBranch(ifNext);
+
+            builder.positionAfter(ifNext);
+        } else if (ctx.WHILE() != null) {
+
+            BasicBlock whileCond = context.newBasicBlock("whileCond");
+            BasicBlock whileBody = context.newBasicBlock("whileBody");
+            BasicBlock whileNext = context.newBasicBlock("whileNext");
+
+            curFunc.addBasicBlock(whileCond);
+            curFunc.addBasicBlock(whileBody);
+            curFunc.addBasicBlock(whileNext);
+
+            breakBlocks.push(whileNext);
+            continueBlocks.push(whileCond);
+
+            builder.buildBranch(whileCond);
+            builder.positionAfter(whileCond);
+
+            var cond = builder.buildIntCompare(IntPredicate.NotEqual,visitCond(ctx.cond()),intZero,Option.of("cond"));
+            builder.buildConditionalBranch(cond,whileBody,whileNext);
+
+            builder.positionAfter(whileBody);
+            visitStmt(ctx.stmt(0));
+            builder.buildBranch(whileCond);
+
+            builder.positionAfter(whileNext);
+
+            breakBlocks.pop();
+            continueBlocks.pop();
+        } else if (ctx.BREAK() != null) {
+            BasicBlock basicBlock = breakBlocks.peek();
+            builder.buildBranch(basicBlock);
+        } else if (ctx.CONTINUE() != null) {
+            BasicBlock basicBlock = continueBlocks.peek();
+            builder.buildBranch(basicBlock);
+        } else {
+            //处理 1 + 2 + 3；
+            if(ctx.exp() != null){
+                visitExp(ctx.exp());
             }
         }
         return null;
@@ -565,7 +640,129 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
     @Override
     public Value visitCond(SysYParser.CondContext ctx) {
-        return super.visitCond(ctx);
+        if(ctx.exp() != null){
+            return visitExp(ctx.exp());
+
+        } else if(ctx.AND() != null){
+            Value left = visitCond(ctx.cond(0));
+            BasicBlock andTrue = context.newBasicBlock("andTrue");
+            BasicBlock andFalse = context.newBasicBlock("andFalse");
+            BasicBlock andNext = context.newBasicBlock("andNext");
+
+            curFunc.addBasicBlock(andTrue);
+            curFunc.addBasicBlock(andFalse);
+            curFunc.addBasicBlock(andNext);
+
+            inBT = andNext;//
+
+            var cond = builder.buildIntCompare(IntPredicate.NotEqual, left, intZero, Option.of("cond"));
+            builder.buildConditionalBranch(cond, andTrue, andFalse);
+
+            builder.positionAfter(andTrue);
+            Value right = visitCond(ctx.cond(1));
+            builder.buildBranch(andNext);
+
+            builder.positionAfter(andFalse);
+            builder.buildBranch(andNext);
+
+            builder.positionAfter(andNext);
+            var phi = builder.buildPhi(i32, Option.of("andPhi"));
+
+            phi.addIncoming(new Pair<>(andFalse,intZero));
+            phi.addIncoming(new Pair<>(andTrue,right));
+            return phi;
+        } else if(ctx.OR() != null){
+            Value left = visitCond(ctx.cond(0));
+            inBT = null;
+            BasicBlock orTrue = context.newBasicBlock("orTrue");
+            BasicBlock orFalse = context.newBasicBlock("orFalse");
+            BasicBlock orNext = context.newBasicBlock("orNext");
+
+            curFunc.addBasicBlock(orTrue);
+            curFunc.addBasicBlock(orFalse);
+            curFunc.addBasicBlock(orNext);
+
+            var cond = builder.buildIntCompare(IntPredicate.NotEqual, left, intZero, Option.of("cond"));
+            builder.buildConditionalBranch(cond, orTrue, orFalse);
+
+            builder.positionAfter(orTrue);
+            builder.buildBranch(orNext);
+
+            builder.positionAfter(orFalse);
+            Value right = visitCond(ctx.cond(1));
+
+            builder.buildBranch(orNext);
+
+            builder.positionAfter(orNext);
+            var phi = builder.buildPhi(i32, Option.of("orPhi"));
+            phi.addIncoming(new Pair<>(orTrue,intOne));
+            if(inBT != null){
+                phi.addIncoming(new Pair<>(inBT,right));
+                inBT = null;
+            } else {
+                phi.addIncoming(new Pair<>(orFalse,right));
+            }
+            return phi;
+        } else {
+            Value left = visitCond(ctx.cond(0));
+            Value right = visitCond(ctx.cond(1));
+
+            Type leftType = left.getType();
+            Type rightType = right.getType();
+
+            if (leftType.isIntegerType() && rightType.isFloatingPointType()) {
+                left = builder.buildSignedToFloat(left, f32, Option.of("lIToF"));
+                leftType = left.getType();
+            } else if (leftType.isFloatingPointType() && rightType.isIntegerType()) {
+                right = builder.buildSignedToFloat(right, f32, Option.of("rIToF"));
+                rightType = right.getType();
+            }
+
+            if (leftType.isIntegerType() && rightType.isIntegerType()) {
+                if(ctx.LT() != null){
+                    var lt = builder.buildIntCompare(IntPredicate.SignedLessThan,left,right,Option.of("lt"));
+                    return builder.buildZeroExt(lt,i32,Option.of("zextForLt"));
+                } else if (ctx.LE() != null) {
+                    var le = builder.buildIntCompare(IntPredicate.SignedLessEqual,left,right,Option.of("le"));
+                    return builder.buildZeroExt(le,i32,Option.of("zextForLe"));
+                } else if (ctx.GT() != null){
+                    var gt = builder.buildIntCompare(IntPredicate.SignedGreaterThan,left,right,Option.of("gt"));
+                    return builder.buildZeroExt(gt,i32,Option.of("zextForGt"));
+                } else if (ctx.GE() != null) {
+                    var ge = builder.buildIntCompare(IntPredicate.SignedGreaterEqual,left,right,Option.of("ge"));
+                    return builder.buildZeroExt(ge,i32,Option.of("zextForGe"));
+                } else if (ctx.EQ() != null) {
+                    var eq = builder.buildIntCompare(IntPredicate.Equal,left,right,Option.of("eq"));
+                    return builder.buildZeroExt(eq,i32,Option.of("zextForEq"));
+                } else if (ctx.NEQ() != null) {
+                    var neq = builder.buildIntCompare(IntPredicate.NotEqual,left,right,Option.of("neq"));
+                    return builder.buildZeroExt(neq,i32,Option.of("zextForNeq"));
+                }
+            } else if (leftType.isFloatingPointType() && rightType.isFloatingPointType()) {
+                if(ctx.LT() != null){
+                    var lt = builder.buildFloatCompare(FloatPredicate.OrderedLessThan,left,right,Option.of("olt"));
+                    return builder.buildZeroExt(lt,i32,Option.of("zextForOLt"));
+                } else if (ctx.LE() != null) {
+                    var le = builder.buildFloatCompare(FloatPredicate.OrderedLessEqual,left,right,Option.of("ole"));
+                    return builder.buildZeroExt(le,i32,Option.of("zextForOLe"));
+                } else if (ctx.GT() != null){
+                    var gt = builder.buildFloatCompare(FloatPredicate.OrderedGreaterThan,left,right,Option.of("ogt"));
+                    return builder.buildZeroExt(gt,i32,Option.of("zextForOGt"));
+                } else if (ctx.GE() != null) {
+                    var ge = builder.buildFloatCompare(FloatPredicate.OrderedGreaterEqual,left,right,Option.of("oge"));
+                    return builder.buildZeroExt(ge,i32,Option.of("zextForOGe"));
+                } else if (ctx.EQ() != null) {
+                    var eq = builder.buildFloatCompare(FloatPredicate.OrderedEqual,left,right,Option.of("oeq"));
+                    return builder.buildZeroExt(eq,i32,Option.of("zextForOEq"));
+                } else if (ctx.NEQ() != null) {
+                    var neq = builder.buildFloatCompare(FloatPredicate.OrderedNotEqual,left,right,Option.of("oneq"));
+                    return builder.buildZeroExt(neq,i32,Option.of("zextForONeq"));
+                }
+            } else {
+                throw new RuntimeException("cond binary type error");
+            }
+        }
+        return null;
     }
 
     @Override
@@ -632,12 +829,12 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                 value = Long.parseLong(text);
             }
 
-            return context.getInt32Type().getConstant(value, false);
+            return i32.getConstant((int)value, false);
         } else if (ctx.FLOAT_CONST() != null) {
             String text = ctx.FLOAT_CONST().getText();
             double value = Double.parseDouble(text);
 
-            return context.getFloatType().getConstant((float) value);
+            return f32.getConstant((float) value);
         } else {
             throw new RuntimeException("visit number error");
         }
