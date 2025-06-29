@@ -116,33 +116,33 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
 
     public void dump(Option<File> of) {
-        // 遍历所有指令,消除终止指令后的冗余指令
-        List<LLVMValueRef> DCE = new ArrayList<>();
-        List<LLVMBasicBlockRef> DBE = new ArrayList<>();
-        for (LLVMValueRef func = LLVMGetFirstFunction(mod.getRef()); func != null; func = LLVMGetNextFunction(func)) {
-            for (LLVMBasicBlockRef bb = LLVMGetFirstBasicBlock(func); bb != null; bb = LLVMGetNextBasicBlock(bb)) {
-                boolean terminatorFlag = false;
-                if(LLVMGetFirstInstruction(bb) == null) {
-                    DBE.add(bb);
-                    continue;
-                }
-                for (LLVMValueRef inst = LLVMGetFirstInstruction(bb); inst != null; inst = LLVMGetNextInstruction(inst)) {
-                    int opcode = LLVMGetInstructionOpcode(inst);
-                    if(terminatorFlag){
-                        DCE.add(inst);
-                    }
-                    if((opcode == LLVMRet || opcode == LLVMBr) && !terminatorFlag){
-                       terminatorFlag = true;
-                    }
-                }
-            }
-        }
-        for(var code : DCE){
-            LLVMInstructionEraseFromParent(code);
-        }
-        for(var bb : DBE){
-            LLVMDeleteBasicBlock(bb);
-        }
+//        // 遍历所有指令,消除终止指令后的冗余指令
+//        List<LLVMValueRef> DCE = new ArrayList<>();
+//        List<LLVMBasicBlockRef> DBE = new ArrayList<>();
+//        for (LLVMValueRef func = LLVMGetFirstFunction(mod.getRef()); func != null; func = LLVMGetNextFunction(func)) {
+//            for (LLVMBasicBlockRef bb = LLVMGetFirstBasicBlock(func); bb != null; bb = LLVMGetNextBasicBlock(bb)) {
+//                boolean terminatorFlag = false;
+//                if(LLVMGetFirstInstruction(bb) == null) {
+//                    DBE.add(bb);
+//                    continue;
+//                }
+//                for (LLVMValueRef inst = LLVMGetFirstInstruction(bb); inst != null; inst = LLVMGetNextInstruction(inst)) {
+//                    int opcode = LLVMGetInstructionOpcode(inst);
+//                    if(terminatorFlag){
+//                        DCE.add(inst);
+//                    }
+//                    if((opcode == LLVMRet || opcode == LLVMBr) && !terminatorFlag){
+//                       terminatorFlag = true;
+//                    }
+//                }
+//            }
+//        }
+//        for(var code : DCE){
+//            LLVMInstructionEraseFromParent(code);
+//        }
+//        for(var bb : DBE){
+//            LLVMDeleteBasicBlock(bb);
+//        }
         mod.dump(of);
     }
 
