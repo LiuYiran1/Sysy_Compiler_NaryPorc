@@ -143,6 +143,16 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         for(var bb : DBE){
             LLVMDeleteBasicBlock(bb);
         }
+
+        for (LLVMValueRef func = LLVMGetFirstFunction(mod.getRef()); func != null; func = LLVMGetNextFunction(func)) {
+            for (LLVMBasicBlockRef bb = LLVMGetFirstBasicBlock(func); bb != null; bb = LLVMGetNextBasicBlock(bb)) {
+                if(LLVMGetBasicBlockTerminator(bb) == null) {
+                    builder.positionAfter(new BasicBlock(bb));
+                    builder.buildReturn(Option.empty());
+                }
+            }
+        }
+
         mod.dump(of);
     }
 
