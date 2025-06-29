@@ -1,6 +1,7 @@
 package com.compiler.ir;
 
 import com.compiler.frontend.SysYParserBaseVisitor;
+import org.antlr.v4.runtime.ParserRuleContext;
 import org.bytedeco.javacpp.IntPointer;
 import org.bytedeco.javacpp.Pointer;
 import org.bytedeco.javacpp.PointerPointer;
@@ -546,6 +547,17 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                     builder.buildReturn(Option.empty());
                 }
             }
+        } else if (ctx.ASSIGN() != null) {
+            Value rVal = visitExp(ctx.exp());
+            String lValName = ctx.lVal().IDENT().getText();
+            Value lValAddr = symbolTable.getSymbol(lValName);
+            Value var = builder.buildLoad(lValAddr, Option.of(lValName+"tem"));
+            if(var.getType().isPointerType() || var.getType().isArrayType()){
+                Value gep = visitLVal(ctx.lVal());
+                builder.buildStore(gep, rVal);
+            } else {
+                builder.buildStore(lValAddr, rVal);
+            }
         }
         return null;
     }
@@ -675,8 +687,18 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             boolean isFunctionArg = var.getType().isPointerType();
             System.out.println("isFunctionArg: " + isFunctionArg);
 
+            boolean needLoad = false;
+            ParserRuleContext parent = ctx.getParent();
 
-            return buildArrayAccess(varAddr, indices, isFunctionArg); // 这里得传地址...
+            if (parent instanceof SysYParser.ExpContext) {
+                needLoad = true;
+            } else if (parent instanceof SysYParser.StmtContext) {
+                needLoad = false;
+            }
+
+
+
+            return buildArrayAccess(varAddr, indices, isFunctionArg, needLoad); // 这里得传地址...
 
         } else {
             // 普通变量访问
@@ -684,7 +706,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         }
     }
 
-    public Value buildArrayAccess(Value var, List<Value> indices, boolean isFunctionArg) {
+    public Value buildArrayAccess(Value var, List<Value> indices, boolean isFunctionArg, boolean needLoad) {
         // 如果是函数参数，先 load 一次
         Value ptr = isFunctionArg ? builder.buildLoad(var, Option.of("load_array_param")) : var;
 
@@ -702,7 +724,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         Value gep = builder.buildGetElementPtr(ptr, gepIndices.toArray(new Value[0]), Option.of("array_element_ptr"), true); // 最后一个是true，表示数组不能越界
 
         // load 出值
-        return builder.buildLoad(gep, Option.of("array_element"));
+        return needLoad ? builder.buildLoad(gep, Option.of("array_element")): gep;
     }
 
 
