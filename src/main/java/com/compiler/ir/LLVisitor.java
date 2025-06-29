@@ -891,8 +891,6 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                 needLoad = false;
             }
 
-
-
             return buildArrayAccess(varAddr, indices, isFunctionArg, needLoad); // 这里得传地址...
 
         } else {
