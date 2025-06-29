@@ -1,0 +1,7 @@
+const int m = 998244353;
+
+int main(){
+    int a = 3, b = 9;
+    int c = a % 9;
+    return b % m;
+}
