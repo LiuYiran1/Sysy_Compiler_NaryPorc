@@ -3396,15 +3396,17 @@ mainEntry:
   %aElem1679 = getelementptr float, float* %aFlatPtr, i64 1679
   store float 0.000000e+00, float* %aElem1679, align 4
   %c = alloca i32, align 4
-  %val1 = load [5 x [6 x [7 x [8 x float]]]], [5 x [6 x [7 x [8 x float]]]]* %aArr, align 4
-  %array_element_ptr = getelementptr inbounds [5 x [6 x [7 x [8 x float]]]], [5 x [6 x [7 x [8 x float]]]]* %aArr, i32 0, i32 0, i32 0, i32 0, i32 1
-  %array_element = load float, float* %array_element_ptr, align 4
+  %arrayidx0 = getelementptr inbounds [5 x [6 x [7 x [8 x float]]]], [5 x [6 x [7 x [8 x float]]]]* %aArr, i64 0, i64 0
+  %arrayidx1 = getelementptr inbounds [6 x [7 x [8 x float]]], [6 x [7 x [8 x float]]]* %arrayidx0, i64 0, i64 0
+  %arrayidx2 = getelementptr inbounds [7 x [8 x float]], [7 x [8 x float]]* %arrayidx1, i64 0, i64 0
+  %arrayidx3 = getelementptr inbounds [8 x float], [8 x float]* %arrayidx2, i64 0, i64 1
+  %array_element = load float, float* %arrayidx3, align 4
   %fAdd = fadd float 1.500000e+00, %array_element
   %iInit = fptosi float %fAdd to i32
   store i32 %iInit, i32* %c, align 4
   %bArr = alloca [5 x [6 x [7 x [8 x i32]]]], align 4
-  %val2 = load i32, i32* %m, align 4
-  %iAdd = add i32 %val2, 1
+  %val1 = load i32, i32* %m, align 4
+  %iAdd = add i32 %val1, 1
   %bFlatPtr = bitcast [5 x [6 x [7 x [8 x i32]]]]* %bArr to i32*
   %bElem0 = getelementptr i32, i32* %bFlatPtr, i64 0
   store i32 1, i32* %bElem0, align 4
@@ -6766,15 +6768,20 @@ mainEntry:
   store i32 0, i32* %bElem1678, align 4
   %bElem1679 = getelementptr i32, i32* %bFlatPtr, i64 1679
   store i32 0, i32* %bElem1679, align 4
-  %val3 = load i32, i32* %c, align 4
-  %val4 = load [5 x [6 x [7 x [8 x float]]]], [5 x [6 x [7 x [8 x float]]]]* %aArr, align 4
-  %val5 = load [5 x [6 x [7 x [8 x i32]]]], [5 x [6 x [7 x [8 x i32]]]]* %bArr, align 4
-  %array_element_ptr6 = getelementptr inbounds [5 x [6 x [7 x [8 x i32]]]], [5 x [6 x [7 x [8 x i32]]]]* %bArr, i32 0, i32 0, i32 0, i32 0, i32 5
-  %array_element7 = load i32, i32* %array_element_ptr6, align 4
-  %array_element_ptr8 = getelementptr inbounds [5 x [6 x [7 x [8 x float]]]], [5 x [6 x [7 x [8 x float]]]]* %aArr, i32 0, i32 0, i32 0, i32 0, i32 %array_element7
-  %array_element9 = load float, float* %array_element_ptr8, align 4
-  %lIToF = sitofp i32 %val3 to float
-  %fAdd10 = fadd float %lIToF, %array_element9
-  %iRet = fptosi float %fAdd10 to i32
+  %val2 = load i32, i32* %c, align 4
+  %arrayidx03 = getelementptr inbounds [5 x [6 x [7 x [8 x i32]]]], [5 x [6 x [7 x [8 x i32]]]]* %bArr, i64 0, i64 0
+  %arrayidx14 = getelementptr inbounds [6 x [7 x [8 x i32]]], [6 x [7 x [8 x i32]]]* %arrayidx03, i64 0, i64 0
+  %arrayidx25 = getelementptr inbounds [7 x [8 x i32]], [7 x [8 x i32]]* %arrayidx14, i64 0, i64 0
+  %arrayidx36 = getelementptr inbounds [8 x i32], [8 x i32]* %arrayidx25, i64 0, i64 5
+  %array_element7 = load i32, i32* %arrayidx36, align 4
+  %idx64 = sext i32 %array_element7 to i64
+  %arrayidx08 = getelementptr inbounds [5 x [6 x [7 x [8 x float]]]], [5 x [6 x [7 x [8 x float]]]]* %aArr, i64 0, i64 0
+  %arrayidx19 = getelementptr inbounds [6 x [7 x [8 x float]]], [6 x [7 x [8 x float]]]* %arrayidx08, i64 0, i64 0
+  %arrayidx210 = getelementptr inbounds [7 x [8 x float]], [7 x [8 x float]]* %arrayidx19, i64 0, i64 0
+  %arrayidx311 = getelementptr inbounds [8 x float], [8 x float]* %arrayidx210, i64 0, i64 %idx64
+  %array_element12 = load float, float* %arrayidx311, align 4
+  %lIToF = sitofp i32 %val2 to float
+  %fAdd13 = fadd float %lIToF, %array_element12
+  %iRet = fptosi float %fAdd13 to i32
   ret i32 %iRet
 }

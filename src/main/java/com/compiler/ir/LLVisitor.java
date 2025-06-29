@@ -44,6 +44,8 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
     private final ConstantInt intOne = i32.getConstant(1, false);
 
+    private final ConstantInt intZero64 = context.getInt64Type().getConstant(0, true); //////
+
     private final ConstantFP floatZero = f32.getConstant(0.0);
 
     private final ConstantFP floatOne = f32.getConstant(1.0);
@@ -116,6 +118,15 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
 
     public void dump(Option<File> of) {
+        for (LLVMValueRef func = LLVMGetFirstFunction(mod.getRef()); func != null; func = LLVMGetNextFunction(func)) {
+            for (LLVMBasicBlockRef bb = LLVMGetFirstBasicBlock(func); bb != null; bb = LLVMGetNextBasicBlock(bb)) {
+                if(LLVMGetBasicBlockTerminator(bb) == null) {
+                    builder.positionAfter(new BasicBlock(bb));
+                    builder.buildReturn(Option.empty());
+                }
+            }
+        }
+
         // 遍历所有指令,消除终止指令后的冗余指令
         List<LLVMValueRef> DCE = new ArrayList<>();
         List<LLVMBasicBlockRef> DBE = new ArrayList<>();
@@ -144,14 +155,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             LLVMDeleteBasicBlock(bb);
         }
 
-        for (LLVMValueRef func = LLVMGetFirstFunction(mod.getRef()); func != null; func = LLVMGetNextFunction(func)) {
-            for (LLVMBasicBlockRef bb = LLVMGetFirstBasicBlock(func); bb != null; bb = LLVMGetNextBasicBlock(bb)) {
-                if(LLVMGetBasicBlockTerminator(bb) == null) {
-                    builder.positionAfter(new BasicBlock(bb));
-                    builder.buildReturn(Option.empty());
-                }
-            }
-        }
+
 
         mod.dump(of);
     }
@@ -656,9 +660,10 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             Value rVal = visitExp(ctx.exp());
             String lValName = ctx.lVal().IDENT().getText();
             Value lValAddr = symbolTable.getSymbol(lValName);
-            Value var = builder.buildLoad(lValAddr, Option.of(lValName+"tem"));
-            if(var.getType().isPointerType() || var.getType().isArrayType()){
-                ArrayType arrayType = new ArrayType(var.getType().getRef());
+            PointerType pVarType = new PointerType(lValAddr.getType().getRef());
+            Type varType = pVarType.getElementType();
+            if(varType.isPointerType() || varType.isArrayType()){
+                ArrayType arrayType = new ArrayType(varType.getRef());
                 if (rVal.getType().isFloatingPointType() && arrayType.getElementType().isIntegerType()) {
                     rVal = builder.buildFloatToSigned(rVal, i32, Option.of("iLVar"));
                 } else if (rVal.getType().isIntegerType() && arrayType.getElementType().isFloatingPointType()) {
@@ -667,9 +672,9 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                 Value gep = visitLVal(ctx.lVal());
                 builder.buildStore(gep, rVal);
             } else {
-                if (rVal.getType().isFloatingPointType() && var.getType().isIntegerType()) {
+                if (rVal.getType().isFloatingPointType() && varType.isIntegerType()) {
                     rVal = builder.buildFloatToSigned(rVal, i32, Option.of("iLVar"));
-                } else if (rVal.getType().isIntegerType() && var.getType().isFloatingPointType()) {
+                } else if (rVal.getType().isIntegerType() && varType.isFloatingPointType()) {
                     rVal = builder.buildSignedToFloat(rVal, f32, Option.of("fLVar"));
                 }
                 builder.buildStore(lValAddr, rVal);
@@ -1052,19 +1057,26 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             throw new RuntimeException("Variable '" + varName + "' not found");
         }
 
-        Value var = builder.buildLoad(varAddr, Option.of("val"));
-        System.out.println(var.getType().getAsString());
+        PointerType pVarType = new PointerType(varAddr.getType().getRef());
+        Type varType = pVarType.getElementType();
 
-        if (var.getType().isArrayType() || var.getType().isPointerType()) {
+        System.out.println("aaaaaaaaaaaaaaaa" + varType.getAsString());
 
+        //Value var = builder.buildLoad(varAddr, Option.of("val"));
+
+        if (varType.isArrayType() || varType.isPointerType()) {
             // 数组访问
             List<Value> indices = new ArrayList<>();
             for (SysYParser.ExpContext expCtx : ctx.exp()) {
-                indices.add(visitExp(expCtx));
+                Value idx = visitExp(expCtx);
+                // LLVM数组中的索引类型默认为i64
+                idx = builder.buildSignExt(idx, context.getInt64Type(), Option.of("idx64"));
+                indices.add(idx);
             }
 
             // 函数参数得先 load
-            boolean isFunctionArg = var.getType().isPointerType();
+            System.out.println(varType.getAsString());
+            boolean isFunctionArg = varType.isPointerType();
             System.out.println("isFunctionArg: " + isFunctionArg);
 
             boolean needLoad = false;
@@ -1080,43 +1092,88 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
         } else {
             // 普通变量访问
-            return var;
+            return builder.buildLoad(varAddr, Option.of("val"));
         }
     }
 
-    public Value buildArrayAccess(Value var, List<Value> indices, boolean isFunctionArg, boolean needLoad) {
-        // 如果是函数参数，先 load 一次
-        Value ptr = isFunctionArg ? builder.buildLoad(var, Option.of("load_array_param")) : var;
+//    public Value buildArrayAccess(Value var, List<Value> indices, boolean isFunctionArg, boolean needLoad) {
+//        // 如果是函数参数，先 load 一次
+//        Value ptr = isFunctionArg ? builder.buildLoad(var, Option.of("load_array_param")) : var;
+//
+//        List<Value> gepIndices = new ArrayList<>();
+//
+//        if (!isFunctionArg) {
+//            // 本地数组（alloca），第一个 GEP index 是 0，访问数组首地址！！！！！！！
+//            gepIndices.add(intZero);
+//        }
+//
+//        // 遍历表达式索引，例如 a[i][j][k] 就是 i, j, k
+//        gepIndices.addAll(indices);
+//
+//        // 构建 GEP 指令
+//        Value gep = builder.buildGetElementPtr(ptr, gepIndices.toArray(new Value[0]), Option.of("array_element_ptr"), true); // 最后一个是true，表示数组不能越界
+//
+//        // load 出值
+//        Value ans =  needLoad ? builder.buildLoad(gep, Option.of("array_element")): gep;
+//        /*
+//            对于 exp 中的 lVal 有两种情况：
+//            1. 在函数参数（其中也有两种情况，一种是传入 int 一种是传入 array ，前者是传值，后者是传指针）
+//            2. 是右值（这里与参数中传入 int 是一样的处理）
+//         */
+//        if (needLoad) {
+//            if(ans.getType().isIntegerType() || ans.getType().isFloatingPointType()){
+//                return ans;
+//            } else {
+//                return gep;
+//            }
+//        }
+//        return ans;
+//    }
+public Value buildArrayAccess(Value var, List<Value> indices, boolean isFunctionArg, boolean needLoad) {
+    // 如果是函数参数，先 load 一次（它本质上是一个 ptr-to-array 的参数）
+    Value currentPtr = isFunctionArg ? builder.buildLoad(var, Option.of("load_array_param")) : var;
+    System.out.println("currentPtr type"+currentPtr.getType().getAsString());
 
-        List<Value> gepIndices = new ArrayList<>();
 
-        if (!isFunctionArg) {
-            // 本地数组（alloca），第一个 GEP index 是 0，访问数组首地址！！！！！！！
-            gepIndices.add(intZero);
+
+    for (int level = 0; level < indices.size(); level++) {
+        Value index = indices.get(level);
+
+        Value[] gepIndices;
+
+        if (level == 0 && isFunctionArg) {
+            // 第一层：ptr -> [N x T]，GEP 的 index 只有一个
+            gepIndices = new Value[]{index};
+        } else {
+            // 后续层：需要两个 index（先进入数组元素，再进入子数组/元素）
+            gepIndices = new Value[]{intZero64, index};
         }
 
-        // 遍历表达式索引，例如 a[i][j][k] 就是 i, j, k
-        gepIndices.addAll(indices);
+        currentPtr = builder.buildGetElementPtr(
+                currentPtr,
+                gepIndices,
+                Option.of("arrayidx" + level),
+                true
+        );
 
-        // 构建 GEP 指令
-        Value gep = builder.buildGetElementPtr(ptr, gepIndices.toArray(new Value[0]), Option.of("array_element_ptr"), true); // 最后一个是true，表示数组不能越界
-
-        // load 出值
-        Value ans =  needLoad ? builder.buildLoad(gep, Option.of("array_element")): gep;
-        /*
-            对于 exp 中的 lVal 有两种情况：
-            1. 在函数参数（其中也有两种情况，一种是传入 int 一种是传入 array ，前者是传值，后者是传指针）
-            2. 是右值（这里与参数中传入 int 是一样的处理）
-         */
-        if (needLoad) {
-            if(ans.getType().isIntegerType() || ans.getType().isFloatingPointType()){
-                return ans;
-            } else {
-                return gep;
-            }
-        }
-        return ans;
+        System.out.println("after level " + level + ", currentPtr type: " + currentPtr.getType().getAsString());
     }
+
+    // 根据是否需要 load 值来决定是否加载
+    Value ans = needLoad ? builder.buildLoad(currentPtr, Option.of("array_element")) : currentPtr;
+
+    // 如果是右值，需要检查类型：基本类型（int/float）才 load；否则仍返回 GEP 结果（如数组/结构体）
+    if (needLoad) {
+        if (ans.getType().isIntegerType() || ans.getType().isFloatingPointType()) {
+            return ans;
+        } else {
+            return currentPtr; // 对于数组或结构体，返回指针
+        }
+    }
+
+    return ans;
+}
+
 
 
     @Override
