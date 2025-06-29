@@ -41,6 +41,8 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
     private Function curFunc;
 
+    private BasicBlock inBT;
+
     private final Stack<BasicBlock> breakBlocks = new Stack<>();
 
     private final Stack<BasicBlock> continueBlocks = new Stack<>();
@@ -637,7 +639,9 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         }
         return null;
     }
-
+    /*
+    下面需要做特殊处理的原因是，||优先级低，当出现a||b&&c的情况，会在进入到||的计算时先计算（b&&c)导致
+     */
     @Override
     public Value visitCond(SysYParser.CondContext ctx) {
         if(ctx.exp() != null){
