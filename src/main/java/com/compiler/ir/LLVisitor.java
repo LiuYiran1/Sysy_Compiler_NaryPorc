@@ -663,17 +663,48 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         Value var = builder.buildLoad(varAddr, Option.of("val"));
         System.out.println(var.getType().getAsString());
 
-        if (var.getType().isArrayType()) {
-            // 数组类型变量
-            ArrayType arrayType = new ArrayType(var.getType().getRef());
+        if (var.getType().isArrayType() || var.getType().isPointerType()) {
 
-            return null;
+            // 数组访问
+            List<Value> indices = new ArrayList<>();
+            for (SysYParser.ExpContext expCtx : ctx.exp()) {
+                indices.add(visit(expCtx));
+            }
+
+            // 函数参数得先 load
+            boolean isFunctionArg = var.getType().isPointerType();
+            System.out.println("isFunctionArg: " + isFunctionArg);
+
+
+            return buildArrayAccess(varAddr, indices, isFunctionArg); // 这里得传地址...
 
         } else {
             // 普通变量访问
             return var;
         }
     }
+
+    public Value buildArrayAccess(Value var, List<Value> indices, boolean isFunctionArg) {
+        // 如果是函数参数，先 load 一次
+        Value ptr = isFunctionArg ? builder.buildLoad(var, Option.of("load_array_param")) : var;
+
+        List<Value> gepIndices = new ArrayList<>();
+
+        if (!isFunctionArg) {
+            // 本地数组（alloca），第一个 GEP index 是 0，访问数组首地址！！！！！！！
+            gepIndices.add(intZero);
+        }
+
+        // 遍历表达式索引，例如 a[i][j][k] 就是 i, j, k
+        gepIndices.addAll(indices);
+
+        // 构建 GEP 指令
+        Value gep = builder.buildGetElementPtr(ptr, gepIndices.toArray(new Value[0]), Option.of("array_element_ptr"), true); // 最后一个是true，表示数组不能越界
+
+        // load 出值
+        return builder.buildLoad(gep, Option.of("array_element"));
+    }
+
 
     @Override
     public Value visitNumber(SysYParser.NumberContext ctx) {
