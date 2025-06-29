@@ -836,6 +836,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         } else {
             throw new RuntimeException("visitExp error");
         }
+        return null;
     }
     /*
     下面需要做特殊处理的原因是，||优先级低，当出现a||b&&c的情况，会在进入到||的计算时先计算（b&&c)导致
