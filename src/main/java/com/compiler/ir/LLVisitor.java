@@ -3,6 +3,7 @@ package com.compiler.ir;
 import com.compiler.frontend.SysYParserBaseVisitor;
 import kotlin.Pair;
 import org.bytedeco.javacpp.IntPointer;
+import org.bytedeco.javacpp.Pointer;
 import org.bytedeco.javacpp.PointerPointer;
 import org.bytedeco.llvm.LLVM.LLVMContextRef;
 import org.bytedeco.llvm.LLVM.LLVMTypeRef;
@@ -262,7 +263,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                     }
                     myVisitInitVal(ctx.initVal(), mem, 0, dimensions, memSize);
                     for(var m : mem){
-                        System.out.println(m.getAsString());
+                        //System.out.println(m.getAsString());
                     }
 
                     LLVMValueRef[] newMem = new LLVMValueRef[mem.length];
@@ -273,8 +274,6 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                     LLVMValueRef initializer = buildNestedArray(context.getRef(), newMem, dimensions, type.getRef());
                     LLVMSetInitializer(globalVar.getRef(), initializer);
 
-
-
                 } else {
                     globalVar.setInitializer(arrayType.getConstantArray()); /////
                 }
@@ -282,6 +281,51 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                 // 存符号表
                 symbolTable.addSymbol(varName, globalVar);
             } else {
+                // 获取所有维数信息
+                List<Integer> dimensions = new LinkedList<>();
+                for (var constExp : ctx.constExp()) {
+                    long dim = LLVMConstIntGetSExtValue(calConstInt(visitConstExp(constExp)).getRef());
+                    dimensions.add((int) dim); // 这里的强制转换是否会有问题？
+                }
+                // 构建数组类型
+                Type arrayType = type;
+                for (int i = dimensions.size() - 1; i >= 0; i--) {
+                    arrayType = context.getArrayType(arrayType, dimensions.get(i)).unwrap();
+                }
+                Value ptr = builder.buildAlloca(arrayType, Option.of(varName + "Arr"));
+                symbolTable.addSymbol(varName, ptr);
+                if (ctx.ASSIGN() != null) {
+                    int memSize = 1;
+                    for (int dim : dimensions) {
+                        memSize *= dim;
+                    }
+                    Value[] mem = new Value[memSize + 5];
+                    for (int i = 0; i < mem.length; i++) {
+                        mem[i] = type.isIntegerType() ? intZero : floatZero;
+                    }
+                    myVisitInitVal(ctx.initVal(), mem, 0, dimensions, memSize);
+                    for (int i = 0; i < mem.length; i++) {
+                        if (type.isIntegerType()) {
+                            if (mem[i].getType().isFloatingPointType()) {
+                                mem[i] = builder.buildFloatToSigned(mem[i], i32, Option.of("iArr"));
+                            }
+                        } else if (type.isFloatingPointType()) {
+                            if (mem[i].getType().isIntegerType()) {
+                                mem[i] = builder.buildSignedToFloat(mem[i], f32, Option.of("fArr"));
+                            }
+                        }
+                    }
+                    // 以线性的方式生成数组
+                    LLVMTypeRef linearPtrType = LLVMPointerType(type.getRef(),0);  // address space 0
+                    // 将多维数组压成一维
+                    LLVMValueRef linearPtr = LLVMBuildBitCast(builder.getRef(), ptr.getRef(), linearPtrType, varName + "FlatPtr");
+                    for (int i = 0; i < memSize; i++) {
+                        LLVMValueRef idx = LLVMConstInt(LLVMInt64Type(), i, 0); // i64 index
+                        PointerPointer<Pointer> indices = new PointerPointer<>(1).put(0, idx);
+                        LLVMValueRef gep = LLVMBuildGEP(builder.getRef(), linearPtr, indices, 1, varName + "Elem" + i);
+                        LLVMBuildStore(builder.getRef(), mem[i].getRef(), gep);
+                    }
+                }
 
             }
 
@@ -357,7 +401,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             return;
         }
         h = h / dimensions.get(0);
-        System.out.println("h = " + h);
+        ///System.out.println("h = " + h);
         List<Integer> subDims = new LinkedList<>(dimensions);
         subDims.remove(0);
         for (int i = 0; i < ctx.initVal().size(); i++) {
@@ -366,7 +410,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             index = ctx.initVal(i).exp() == null ? index + h : index + 1;
         }
         for(var m : mem){
-            System.out.println(m.getAsString() + "h: " + h);
+            //System.out.println(m.getAsString() + "h: " + h);
         }
     }
 
@@ -382,21 +426,25 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             retType = context.getInt32Type();
         }
         // 函数参数解析
-        Type[] params = null;
+        Type[] paramTypes = null;
+        String[] paramNames = null;
         if (ctx.funcFParams() != null) {
-            params = new Type[ctx.funcFParams().funcFParam().size()];
+            paramTypes = new Type[ctx.funcFParams().funcFParam().size()];
+            paramNames = new String[paramTypes.length];
         } else {
-            params = new Type[]{};
+            paramTypes = new Type[]{};
         }
 
-        // ！处理数组参数
-        for (int i = 0; i < params.length; i++) {
-
+        // ！处理普通/数组参数
+        for (int i = 0; i < paramTypes.length; i++) {
+            LLVMTypeRef llvmType = myVisitFuncFParam(ctx.funcFParams().funcFParam().get(i));
+            paramTypes[i] = new Type(llvmType);
+            paramNames[i] = ctx.funcFParams().funcFParam().get(i).IDENT().getText();
         }
 
         String funcName = ctx.IDENT().getText();
 
-        Function function = mod.addFunction(funcName, context.getFunctionType(retType, params, false));
+        Function function = mod.addFunction(funcName, context.getFunctionType(retType, paramTypes, false));
 
         symbolTable.addSymbol(funcName, function);
         retTypes.put(funcName, retType);
@@ -410,6 +458,12 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         symbolTable.enterScope();
         // 将参数加入到符号表中
         // 数组
+        Value[] params = function.getParameters();
+        for(int i = 0;i < paramTypes.length;i++){
+            Value alloc = builder.buildAlloca(paramTypes[i], Option.of(paramNames[i]));
+            builder.buildStore(alloc, params[i]);
+            symbolTable.addSymbol(paramNames[i], alloc);
+        }
 
         visitBlock(ctx.block());
 
@@ -426,6 +480,32 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
     @Override
     public Value visitFuncFParams(SysYParser.FuncFParamsContext ctx) {
         return super.visitFuncFParams(ctx);
+    }
+    public LLVMTypeRef myVisitFuncFParam(SysYParser.FuncFParamContext ctx) {
+        Type baseType;
+        if (ctx.bType().getText().equals("int")) {
+            baseType = context.getInt32Type();
+        } else {
+            baseType = context.getFloatType();
+        }
+
+        // 是数组参数
+        if (!ctx.L_BRACKT().isEmpty()) {
+            // 跳过第一个 []，其维度在函数参数里可以省略
+            Type curType = baseType;
+            List<SysYParser.ExpContext> exps = ctx.exp();
+            if (exps != null && !exps.isEmpty()) {
+                for (int i = 0; i < exps.size(); i++) {
+                    long dim = LLVMConstIntGetSExtValue(calConstInt(visitExp(exps.get(i))).getRef());
+                    System.out.println("dim = " + dim);
+                    curType = context.getArrayType(curType, (int) dim).unwrap();
+                }
+            }
+
+            return LLVMPointerType(curType.getRef(), 0);
+        }
+
+        return baseType.getRef();
     }
 
     @Override
@@ -780,8 +860,9 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         if (var == null) {
             throw new RuntimeException("Variable '" + varName + "' not found");
         }
-
+        System.out.println(var.getType().getAsString());
         if (var.getType().isArrayType()) {
+            System.out.println(var.getType().getAsString() + "is an array");
             // 数组类型变量
             ArrayType arrayType = (ArrayType) var.getType();
             if (arrayType.getElementCount() != ctx.exp().size()) {
