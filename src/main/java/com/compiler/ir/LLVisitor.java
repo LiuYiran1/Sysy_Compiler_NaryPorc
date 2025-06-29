@@ -61,6 +61,59 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
     private final Map<Value, Constant> globalValues = new LinkedHashMap<>();
 
+    public LLVisitor() {
+        initRunTimeLibrary();
+    }
+    private void addFunction(String name, LLVMTypeRef returnType, LLVMTypeRef... params) {
+        LLVMTypeRef funcType = LLVMFunctionType(returnType, new PointerPointer<>(params), params.length, 0);
+        LLVMValueRef func = LLVMAddFunction(mod.getRef(), name, funcType);
+        symbolTable.addSymbol(name, new Function(func));
+    }
+
+    private void initRunTimeLibrary() {
+        LLVMTypeRef i32 = LLVMInt32TypeInContext(context.getRef());
+        LLVMTypeRef f32 = LLVMFloatTypeInContext(context.getRef());
+        LLVMTypeRef voidTy = LLVMVoidTypeInContext(context.getRef());
+
+        // int getint();
+        addFunction("getint", i32);
+
+        // int getch();
+        addFunction("getch", i32);
+
+        // float getfloat();
+        addFunction("getfloat", f32);
+
+        // int getarray(int[])
+        addFunction("getarray", i32, LLVMPointerType(i32, 0));
+
+        // int getfarray(float[])
+        addFunction("getfarray", i32, LLVMPointerType(f32, 0));
+
+        // void putint(int)
+        addFunction("putint", voidTy, i32);
+
+        // void putch(int)
+        addFunction("putch", voidTy, i32);
+
+        // void putfloat(float)
+        addFunction("putfloat", voidTy, f32);
+
+        // void putarray(int, int[])
+        addFunction("putarray", voidTy, i32, LLVMPointerType(i32, 0));
+
+        // void putfarray(int, float[])
+        addFunction("putfarray", voidTy, i32, LLVMPointerType(f32, 0));
+
+        // void starttime()
+        addFunction("starttime", voidTy);
+
+        // void stoptime()
+        addFunction("stoptime", voidTy);
+    }
+
+
+
     public void dump(Option<File> of) {
         mod.dump(of);
     }
@@ -567,9 +620,20 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             Value lValAddr = symbolTable.getSymbol(lValName);
             Value var = builder.buildLoad(lValAddr, Option.of(lValName+"tem"));
             if(var.getType().isPointerType() || var.getType().isArrayType()){
+                ArrayType arrayType = new ArrayType(var.getType().getRef());
+                if (rVal.getType().isFloatingPointType() && arrayType.getElementType().isIntegerType()) {
+                    rVal = builder.buildFloatToSigned(rVal, i32, Option.of("iLVar"));
+                } else if (rVal.getType().isIntegerType() && arrayType.getElementType().isFloatingPointType()) {
+                    rVal = builder.buildSignedToFloat(rVal, f32, Option.of("fLVar"));
+                }
                 Value gep = visitLVal(ctx.lVal());
                 builder.buildStore(gep, rVal);
             } else {
+                if (rVal.getType().isFloatingPointType() && var.getType().isIntegerType()) {
+                    rVal = builder.buildFloatToSigned(rVal, i32, Option.of("iLVar"));
+                } else if (rVal.getType().isIntegerType() && var.getType().isFloatingPointType()) {
+                    rVal = builder.buildSignedToFloat(rVal, f32, Option.of("fLVar"));
+                }
                 builder.buildStore(lValAddr, rVal);
             }
         } else if(ctx.block() != null) {
@@ -672,7 +736,23 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         } else if (ctx.number() != null) {
             return visitNumber(ctx.number());
         } else if (ctx.IDENT() != null) { // 函数调用
+            String funcName = ctx.IDENT().getText();
+            if (!((symbolTable.getSymbol(funcName)) instanceof Function)){
+                throw new RuntimeException("Function not found: " + funcName);
+            }
 
+            Function function = (Function) symbolTable.getSymbol(funcName);
+            Value[] params = new Value[function.getParameterCount()];
+
+            if (ctx.funcRParams() != null) {
+                for (int i = 0; i < params.length; i++) {
+                    params[i] = visit(ctx.funcRParams().param(i));
+                }
+            }
+
+            Value funcRet = builder.buildCall(function, params, Option.empty());
+
+            return funcRet;
         } else if (ctx.unaryOp() != null) {
             String op = ctx.unaryOp().getText();
             Value value = visit(ctx.exp(0));
@@ -756,7 +836,6 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         } else {
             throw new RuntimeException("visitExp error");
         }
-        return null;
     }
     /*
     下面需要做特殊处理的原因是，||优先级低，当出现a||b&&c的情况，会在进入到||的计算时先计算（b&&c)导致
@@ -966,8 +1045,6 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                 needLoad = false;
             }
 
-
-
             return buildArrayAccess(varAddr, indices, isFunctionArg, needLoad); // 这里得传地址...
 
         } else {
@@ -994,7 +1071,20 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         Value gep = builder.buildGetElementPtr(ptr, gepIndices.toArray(new Value[0]), Option.of("array_element_ptr"), true); // 最后一个是true，表示数组不能越界
 
         // load 出值
-        return needLoad ? builder.buildLoad(gep, Option.of("array_element")): gep;
+        Value ans =  needLoad ? builder.buildLoad(gep, Option.of("array_element")): gep;
+        /*
+            对于 exp 中的 lVal 有两种情况：
+            1. 在函数参数（其中也有两种情况，一种是传入 int 一种是传入 array ，前者是传值，后者是传指针）
+            2. 是右值（这里与参数中传入 int 是一样的处理）
+         */
+        if (needLoad) {
+            if(ans.getType().isIntegerType() || ans.getType().isFloatingPointType()){
+                return ans;
+            } else {
+                return gep;
+            }
+        }
+        return ans;
     }
 
 

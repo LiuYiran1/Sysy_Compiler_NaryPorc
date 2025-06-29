@@ -9,6 +9,30 @@ source_filename = "module"
 @f = global float 1.900000e+01
 @g = global float 0x40617BBBA0000000
 
+declare i32 @getint()
+
+declare i32 @getch()
+
+declare float @getfloat()
+
+declare i32 @getarray(i32*)
+
+declare i32 @getfarray(float*)
+
+declare void @putint(i32)
+
+declare void @putch(i32)
+
+declare void @putfloat(float)
+
+declare void @putarray(i32, i32*)
+
+declare void @putfarray(i32, float*)
+
+declare void @starttime()
+
+declare void @stoptime()
+
 define i32 @main() {
 mainEntry:
   %a = alloca i32, align 4
