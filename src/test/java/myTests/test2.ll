@@ -21,12 +21,36 @@ source_filename = "module"
 @H = global i32 100
 @t = global [1 x i32] [i32 200]
 
+declare i32 @getint()
+
+declare i32 @getch()
+
+declare float @getfloat()
+
+declare i32 @getarray(i32*)
+
+declare i32 @getfarray(float*)
+
+declare void @putint(i32)
+
+declare void @putch(i32)
+
+declare void @putfloat(float)
+
+declare void @putarray(i32, i32*)
+
+declare void @putfarray(i32, float*)
+
+declare void @starttime()
+
+declare void @stoptime()
+
 define i32 @main() {
 mainEntry:
   %m = alloca i32, align 4
   store i32 1, i32* %m, align 4
   %aArr = alloca [2 x [3 x i32]], align 4
-  %lVar = load i32, i32* %m, align 4
+  %val = load i32, i32* %m, align 4
   %aFlatPtr = bitcast [2 x [3 x i32]]* %aArr to i32*
   %aElem0 = getelementptr i32, i32* %aFlatPtr, i64 0
   store i32 1, i32* %aElem0, align 4
@@ -39,10 +63,10 @@ mainEntry:
   %aElem4 = getelementptr i32, i32* %aFlatPtr, i64 4
   store i32 5, i32* %aElem4, align 4
   %aElem5 = getelementptr i32, i32* %aFlatPtr, i64 5
-  store i32 %lVar, i32* %aElem5, align 4
+  store i32 %val, i32* %aElem5, align 4
   %bArr = alloca [2 x [3 x float]], align 4
-  %lVar1 = load i32, i32* %m, align 4
-  %fArr = sitofp i32 %lVar1 to float
+  %val1 = load i32, i32* %m, align 4
+  %fArr = sitofp i32 %val1 to float
   %bFlatPtr = bitcast [2 x [3 x float]]* %bArr to float*
   %bElem0 = getelementptr float, float* %bFlatPtr, i64 0
   store float 1.000000e+00, float* %bElem0, align 4
