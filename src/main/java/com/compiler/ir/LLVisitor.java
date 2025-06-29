@@ -720,7 +720,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                 }
             }
 
-            Value funcRet = builder.buildCall(function, params, Option.empty());
+            Value funcRet = builder.buildCall(function, params, Option.of("callRet"));
 
             return funcRet;
         } else if (ctx.unaryOp() != null) {
@@ -940,7 +940,11 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         Value varAddr = symbolTable.getSymbol(varName);
         Constant constGlobal = globalValues.get(varAddr);
         if (constGlobal != null) {
-            return constGlobal;
+            if (constGlobal.getType().isIntegerType()){
+                return i32.getConstant(LLVMConstIntGetSExtValue(constGlobal.getRef()),true);
+            } else {
+                return f32.getConstant(LLVMConstRealGetDouble(constGlobal.getRef(), new IntPointer(0)));
+            }
         }
         if (varAddr == null) {
             throw new RuntimeException("Variable '" + varName + "' not found");
@@ -954,7 +958,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             // 数组访问
             List<Value> indices = new ArrayList<>();
             for (SysYParser.ExpContext expCtx : ctx.exp()) {
-                indices.add(visit(expCtx));
+                indices.add(visitExp(expCtx));
             }
 
             // 函数参数得先 load
