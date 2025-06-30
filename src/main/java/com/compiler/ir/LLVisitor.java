@@ -122,7 +122,18 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             for (LLVMBasicBlockRef bb = LLVMGetFirstBasicBlock(func); bb != null; bb = LLVMGetNextBasicBlock(bb)) {
                 if(LLVMGetBasicBlockTerminator(bb) == null) {
                     builder.positionAfter(new BasicBlock(bb));
-                    builder.buildReturn(Option.empty());
+                    String funcName = LLVMGetValueName(func).getString();
+                    Type retType = retTypes.get(funcName);
+                    if(retType.isIntegerType()){
+                        builder.buildReturn(Option.of(intZero));
+                    } else if(retType.isVoidType()){
+                        builder.buildReturn(Option.empty());
+                    } else if(retType.isFloatingPointType()){
+                        builder.buildReturn(Option.of(floatZero));
+                    } else {
+                        throw new RuntimeException("Unknown return type: " + retType);
+                    }
+
                 }
             }
         }
