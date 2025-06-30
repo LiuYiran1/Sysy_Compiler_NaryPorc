@@ -115,7 +115,9 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         addFunction("stoptime", voidTy);
     }
 
-
+    public void LOG(String msg) {
+        //System.out.println(msg);
+    }
 
     public void dump(Option<File> of) {
         for (LLVMValueRef func = LLVMGetFirstFunction(mod.getRef()); func != null; func = LLVMGetNextFunction(func)) {
@@ -143,7 +145,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                         DCE.add(inst);
                     }
                     if((opcode == LLVMRet || opcode == LLVMBr) && !terminatorFlag){
-                       terminatorFlag = true;
+                        terminatorFlag = true;
                     }
                 }
             }
@@ -177,6 +179,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
     @Override
     public Value visitConstDecl(SysYParser.ConstDeclContext ctx) {
+        LOG("visitConstDecl");
         String typeStr = ctx.bType().getText();
         Type type = switch (typeStr) {
             case "int" -> context.getInt32Type();
@@ -190,6 +193,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
     }
 
     public void myVisitConstDef(SysYParser.ConstDefContext ctx, Type type) {
+        LOG("myVisitConstDef");
         if (ctx.L_BRACKT().isEmpty()) { // 普通变量
             String varName = ctx.IDENT().getText();
             Value init = visitConstInitVal(ctx.constInitVal());
@@ -253,6 +257,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
     @Override
     public Value visitVarDecl(SysYParser.VarDeclContext ctx) {
+        LOG("visitVarDecl");
         String typeStr = ctx.bType().getText();
         Type type = switch (typeStr) {
             case "int" -> context.getInt32Type();
@@ -280,6 +285,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
     }
 
     public void myVisitVarDef(SysYParser.VarDefContext ctx, Type type) {
+        LOG("myVisitVarDef");
         if (ctx.L_BRACKT().isEmpty()) { // 普通变量
             String varName = ctx.IDENT().getText();
 
@@ -492,6 +498,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
     @Override
     public Value visitInitVal(SysYParser.InitValContext ctx) {
+        LOG("visitInitVal");
         if(ctx.exp() != null) {
             return visitExp(ctx.exp());
         } else {
@@ -500,6 +507,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
     }
 
     public void myVisitInitVal(SysYParser.InitValContext ctx, Value[] mem, int index, List<Integer> dimensions, int h) {
+        LOG("myVisitInitVal");
         if (ctx.exp() != null) {
             mem[index] = visitExp(ctx.exp());
             return;
@@ -567,6 +575,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             Value alloc = builder.buildAlloca(paramTypes[i], Option.of(paramNames[i]));
             builder.buildStore(alloc, params[i]);
             symbolTable.addSymbol(paramNames[i], alloc);
+            System.out.println(paramNames[i]+ "  is  " + alloc.getType().getAsString());
         }
 
         visitBlock(ctx.block());
@@ -586,6 +595,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         return super.visitFuncFParams(ctx);
     }
     public LLVMTypeRef myVisitFuncFParam(SysYParser.FuncFParamContext ctx) {
+        LOG("myVisitFuncFParam");
         Type baseType;
         if (ctx.bType().getText().equals("int")) {
             baseType = context.getInt32Type();
@@ -629,6 +639,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
     @Override
     public Value visitStmt(SysYParser.StmtContext ctx) {
+        LOG("visitStmt");
         if (ctx.RETURN() != null) {
             if (ctx.exp() != null) {
                 Value retVal = visit(ctx.exp());
@@ -761,6 +772,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
     @Override
     public Value visitExp(SysYParser.ExpContext ctx) {
+        LOG("visitExp");
         if (ctx.lVal() != null) {
             return visitLVal(ctx.lVal());
 
@@ -873,6 +885,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
      */
     @Override
     public Value visitCond(SysYParser.CondContext ctx) {
+        LOG("visitCond");
         if(ctx.exp() != null){
             return visit(ctx.exp());
         } else if(ctx.AND() != null){
@@ -1043,8 +1056,10 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
     @Override
     public Value visitLVal(SysYParser.LValContext ctx) {
+        LOG("visitLVal");
         String varName = ctx.IDENT().getText();
         Value varAddr = symbolTable.getSymbol(varName);
+        System.out.println(varName+ "  Lval" + varAddr.getType().getAsString());
         Constant constGlobal = globalValues.get(varAddr);
         if (constGlobal != null) {
             if (constGlobal.getType().isIntegerType()){
@@ -1059,8 +1074,9 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
         PointerType pVarType = new PointerType(varAddr.getType().getRef());
         Type varType = pVarType.getElementType();
+        System.out.println(varName+ "  Lval111" + varType.getAsString());
 
-        System.out.println("aaaaaaaaaaaaaaaa" + varType.getAsString());
+        //System.out.println("aaaaaaaaaaaaaaaa" + varType.getAsString());
 
         //Value var = builder.buildLoad(varAddr, Option.of("val"));
 
@@ -1078,6 +1094,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             System.out.println(varType.getAsString());
             boolean isFunctionArg = varType.isPointerType();
             System.out.println("isFunctionArg: " + isFunctionArg);
+            System.out.println("Name: " + varName);
 
             boolean needLoad = false;
             ParserRuleContext parent = ctx.getParent();
@@ -1131,19 +1148,23 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 //    }
 public Value buildArrayAccess(Value var, List<Value> indices, boolean isFunctionArg, boolean needLoad) {
     // 如果是函数参数，先 load 一次（它本质上是一个 ptr-to-array 的参数）
+    // 这里的isFunctionArg表示该数组的来源是不是函数参数
     Value currentPtr = isFunctionArg ? builder.buildLoad(var, Option.of("load_array_param")) : var;
-    System.out.println("currentPtr type"+currentPtr.getType().getAsString());
+    System.out.println("currentPtr typeAAAAAAA"+currentPtr.getType().getAsString());
+    System.out.println(indices.size());
 
-
+    boolean tem = false;
 
     for (int level = 0; level < indices.size(); level++) {
         Value index = indices.get(level);
 
         Value[] gepIndices;
 
+
         if (level == 0 && isFunctionArg) {
             // 第一层：ptr -> [N x T]，GEP 的 index 只有一个
             gepIndices = new Value[]{index};
+
         } else {
             // 后续层：需要两个 index（先进入数组元素，再进入子数组/元素）
             gepIndices = new Value[]{intZero64, index};
@@ -1155,23 +1176,28 @@ public Value buildArrayAccess(Value var, List<Value> indices, boolean isFunction
                 Option.of("arrayidx" + level),
                 true
         );
+        tem = true;
 
         System.out.println("after level " + level + ", currentPtr type: " + currentPtr.getType().getAsString());
     }
 
     // 根据是否需要 load 值来决定是否加载
-    Value ans = needLoad ? builder.buildLoad(currentPtr, Option.of("array_element")) : currentPtr;
+    //Value ans = needLoad ? builder.buildLoad(currentPtr, Option.of("array_element")) : currentPtr;
 
-    // 如果是右值，需要检查类型：基本类型（int/float）才 load；否则仍返回 GEP 结果（如数组/结构体）
+    PointerType pVarType = new PointerType(currentPtr.getType().getRef());
+    Type varType = pVarType.getElementType();
+
+    // 如果是右值，需要检查类型：基本类型（int/float）才 load；否则仍返回 GEP 结果
     if (needLoad) {
-        if (ans.getType().isIntegerType() || ans.getType().isFloatingPointType()) {
-            return ans;
+        if (tem || !isFunctionArg) {
+            System.out.println("loaddddddddd");
+            return builder.buildLoad(currentPtr, Option.of("array_element"));
         } else {
             return currentPtr; // 对于数组或结构体，返回指针
         }
     }
 
-    return ans;
+    return currentPtr;
 }
 
 
