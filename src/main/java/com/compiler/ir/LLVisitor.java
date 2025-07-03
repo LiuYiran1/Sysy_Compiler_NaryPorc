@@ -36,15 +36,16 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
     private final VoidType vo = context.getVoidType();
 
-    private final ConstantInt zero = i1.getConstant(0,false);
+    private final ConstantInt zero = i1.getConstant(0, false);
 
-    private final ConstantInt one = i1.getConstant(1,false);
+    private final ConstantInt one = i1.getConstant(1, false);
 
     private final ConstantInt intZero = i32.getConstant(0, false);
 
     private final ConstantInt intOne = i32.getConstant(1, false);
 
-    private final ConstantInt intZero64 = context.getInt64Type().getConstant(0, true); //////
+    private final ConstantInt intZero64 = context.getInt64Type().getConstant(0, true);
+    /// ///
 
     private final ConstantFP floatZero = f32.getConstant(0.0);
 
@@ -67,6 +68,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
     public LLVisitor() {
         initRunTimeLibrary();
     }
+
     private void addFunction(String name, LLVMTypeRef returnType, LLVMTypeRef... params) {
         LLVMTypeRef funcType = LLVMFunctionType(returnType, new PointerPointer<>(params), params.length, 0);
         LLVMValueRef func = LLVMAddFunction(mod.getRef(), name, funcType);
@@ -122,15 +124,15 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
     public void dump(Option<File> of) {
         for (LLVMValueRef func = LLVMGetFirstFunction(mod.getRef()); func != null; func = LLVMGetNextFunction(func)) {
             for (LLVMBasicBlockRef bb = LLVMGetFirstBasicBlock(func); bb != null; bb = LLVMGetNextBasicBlock(bb)) {
-                if(LLVMGetBasicBlockTerminator(bb) == null) {
+                if (LLVMGetBasicBlockTerminator(bb) == null) {
                     builder.positionAfter(new BasicBlock(bb));
                     String funcName = LLVMGetValueName(func).getString();
                     Type retType = retTypes.get(funcName);
-                    if(retType.isIntegerType()){
+                    if (retType.isIntegerType()) {
                         builder.buildReturn(Option.of(intZero));
-                    } else if(retType.isVoidType()){
+                    } else if (retType.isVoidType()) {
                         builder.buildReturn(Option.empty());
-                    } else if(retType.isFloatingPointType()){
+                    } else if (retType.isFloatingPointType()) {
                         builder.buildReturn(Option.of(floatZero));
                     } else {
                         throw new RuntimeException("Unknown return type: " + retType);
@@ -146,28 +148,27 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         for (LLVMValueRef func = LLVMGetFirstFunction(mod.getRef()); func != null; func = LLVMGetNextFunction(func)) {
             for (LLVMBasicBlockRef bb = LLVMGetFirstBasicBlock(func); bb != null; bb = LLVMGetNextBasicBlock(bb)) {
                 boolean terminatorFlag = false;
-                if(LLVMGetFirstInstruction(bb) == null) {
+                if (LLVMGetFirstInstruction(bb) == null) {
                     DBE.add(bb);
                     continue;
                 }
                 for (LLVMValueRef inst = LLVMGetFirstInstruction(bb); inst != null; inst = LLVMGetNextInstruction(inst)) {
                     int opcode = LLVMGetInstructionOpcode(inst);
-                    if(terminatorFlag){
+                    if (terminatorFlag) {
                         DCE.add(inst);
                     }
-                    if((opcode == LLVMRet || opcode == LLVMBr) && !terminatorFlag){
+                    if ((opcode == LLVMRet || opcode == LLVMBr) && !terminatorFlag) {
                         terminatorFlag = true;
                     }
                 }
             }
         }
-        for(var code : DCE){
+        for (var code : DCE) {
             LLVMInstructionEraseFromParent(code);
         }
-        for(var bb : DBE){
+        for (var bb : DBE) {
             LLVMDeleteBasicBlock(bb);
         }
-
 
 
         mod.dump(of);
@@ -281,14 +282,14 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         return null;
     }
 
-    private Constant calConstInt(Value init){
+    private Constant calConstInt(Value init) {
         if (init.getType().isFloatingPointType()) {
             init = builder.buildFloatToSigned(init, i32, Option.of("iInit"));
         }
         return new ConstantInt(LLVMConstInt(LLVMInt32Type(), LLVMConstIntGetSExtValue(init.getRef()), 0));
     }
 
-    private Constant calConstFloat(Value init){
+    private Constant calConstFloat(Value init) {
         if (init.getType().isIntegerType()) {
             init = builder.buildSignedToFloat(init, f32, Option.of("fInit"));
         }
@@ -383,7 +384,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                         mem[i] = type.isIntegerType() ? intZero : floatZero;
                     }
                     myVisitInitVal(ctx.initVal(), mem, 0, dimensions, memSize);
-                    for(var m : mem){
+                    for (var m : mem) {
                         //System.out.println(m.getAsString());
                     }
 
@@ -437,7 +438,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                         }
                     }
                     // 以线性的方式生成数组
-                    LLVMTypeRef linearPtrType = LLVMPointerType(type.getRef(),0);  // address space 0
+                    LLVMTypeRef linearPtrType = LLVMPointerType(type.getRef(), 0);  // address space 0
                     // 将多维数组压成一维
                     LLVMValueRef linearPtr = LLVMBuildBitCast(builder.getRef(), ptr.getRef(), linearPtrType, varName + "FlatPtr");
                     for (int i = 0; i < memSize; i++) {
@@ -460,6 +461,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
     private static class ArrayBuildResult {
         LLVMValueRef result;
         int nextIndex;
+
         ArrayBuildResult(LLVMValueRef result, int nextIndex) {
             this.result = result;
             this.nextIndex = nextIndex;
@@ -510,7 +512,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
     @Override
     public Value visitInitVal(SysYParser.InitValContext ctx) {
         LOG("visitInitVal");
-        if(ctx.exp() != null) {
+        if (ctx.exp() != null) {
             return visitExp(ctx.exp());
         } else {
             return null;
@@ -532,7 +534,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             myVisitInitVal(ctx.initVal(i), mem, index, subDims, h);
             index = ctx.initVal(i).exp() == null ? index + h : index + 1;
         }
-        for(var m : mem){
+        for (var m : mem) {
             //System.out.println(m.getAsString() + "h: " + h);
         }
     }
@@ -582,11 +584,10 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         // 将参数加入到符号表中
         // 数组
         Value[] params = function.getParameters();
-        for(int i = 0;i < paramTypes.length;i++){
+        for (int i = 0; i < paramTypes.length; i++) {
             Value alloc = builder.buildAlloca(paramTypes[i], Option.of(paramNames[i]));
             builder.buildStore(alloc, params[i]);
             symbolTable.addSymbol(paramNames[i], alloc);
-            System.out.println(paramNames[i]+ "  is  " + alloc.getType().getAsString());
         }
 
         visitBlock(ctx.block());
@@ -605,6 +606,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
     public Value visitFuncFParams(SysYParser.FuncFParamsContext ctx) {
         return super.visitFuncFParams(ctx);
     }
+
     public LLVMTypeRef myVisitFuncFParam(SysYParser.FuncFParamContext ctx) {
         LOG("myVisitFuncFParam");
         Type baseType;
@@ -622,7 +624,6 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             if (exps != null && !exps.isEmpty()) {
                 for (int i = 0; i < exps.size(); i++) {
                     long dim = LLVMConstIntGetSExtValue(calConstInt(visitExp(exps.get(i))).getRef());
-                    System.out.println("dim = " + dim);
                     curType = context.getArrayType(curType, (int) dim).unwrap();
                 }
             }
@@ -684,7 +685,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             Value lValAddr = symbolTable.getSymbol(lValName);
             PointerType pVarType = new PointerType(lValAddr.getType().getRef());
             Type varType = pVarType.getElementType();
-            if(varType.isPointerType() || varType.isArrayType()){
+            if (varType.isPointerType() || varType.isArrayType()) {
                 ArrayType arrayType = new ArrayType(varType.getRef());
                 if (rVal.getType().isFloatingPointType() && arrayType.getElementType().isIntegerType()) {
                     rVal = builder.buildFloatToSigned(rVal, i32, Option.of("iLVar"));
@@ -701,7 +702,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                 }
                 builder.buildStore(lValAddr, rVal);
             }
-        } else if(ctx.block() != null) {
+        } else if (ctx.block() != null) {
             symbolTable.enterScope();
             visitBlock(ctx.block());
             symbolTable.exitScope();
@@ -714,8 +715,8 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             curFunc.addBasicBlock(ifFalse);
             curFunc.addBasicBlock(ifNext);
 
-            var cond = builder.buildIntCompare(IntPredicate.NotEqual,visitCond(ctx.cond()),intZero,Option.of("cond"));
-            builder.buildConditionalBranch(cond,ifTrue,ifFalse);
+            var cond = builder.buildIntCompare(IntPredicate.NotEqual, visitCond(ctx.cond()), intZero, Option.of("cond"));
+            builder.buildConditionalBranch(cond, ifTrue, ifFalse);
 
             builder.positionAfter(ifTrue);
             visitStmt(ctx.stmt(0));
@@ -748,14 +749,14 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
             var cond = visitCond(ctx.cond());
 
-            if(cond.getType().isIntegerType()){
-                cond = builder.buildIntCompare(IntPredicate.NotEqual,cond,intZero,Option.of("cond"));
-            } else if(cond.getType().isFloatingPointType()){
-                cond = builder.buildFloatCompare(FloatPredicate.OrderedNotEqual,cond,floatZero,Option.of("cond"));
+            if (cond.getType().isIntegerType()) {
+                cond = builder.buildIntCompare(IntPredicate.NotEqual, cond, intZero, Option.of("cond"));
+            } else if (cond.getType().isFloatingPointType()) {
+                cond = builder.buildFloatCompare(FloatPredicate.OrderedNotEqual, cond, floatZero, Option.of("cond"));
             } else {
                 throw new RuntimeException("type not supported");
             }
-            builder.buildConditionalBranch(cond,whileBody,whileNext);
+            builder.buildConditionalBranch(cond, whileBody, whileNext);
 
             builder.positionAfter(whileBody);
             visitStmt(ctx.stmt(0));
@@ -773,7 +774,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             builder.buildBranch(basicBlock);
         } else {
             //处理 1 + 2 + 3；
-            if(ctx.exp() != null){
+            if (ctx.exp() != null) {
                 visitExp(ctx.exp());
             }
         }
@@ -791,7 +792,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             return visitNumber(ctx.number());
         } else if (ctx.IDENT() != null) { // 函数调用
             String funcName = ctx.IDENT().getText();
-            if (!((symbolTable.getSymbol(funcName)) instanceof Function)){
+            if (!((symbolTable.getSymbol(funcName)) instanceof Function)) {
                 throw new RuntimeException("Function not found: " + funcName);
             }
 
@@ -891,15 +892,16 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         }
         return null;
     }
+
     /*
     下面需要做特殊处理的原因是，||优先级低，当出现a||b&&c的情况，会在进入到||的计算时先计算（b&&c)导致
      */
     @Override
     public Value visitCond(SysYParser.CondContext ctx) {
         LOG("visitCond");
-        if(ctx.exp() != null){
+        if (ctx.exp() != null) {
             return visit(ctx.exp());
-        } else if(ctx.AND() != null){
+        } else if (ctx.AND() != null) {
             Value left = visitCond(ctx.cond(0));
             BasicBlock andTrue = context.newBasicBlock("andTrue");
             BasicBlock andFalse = context.newBasicBlock("andFalse");
@@ -911,7 +913,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
             inBT = andNext; //
 
-            if(left.getType().isIntegerType()){
+            if (left.getType().isIntegerType()) {
                 left = builder.buildIntCompare(IntPredicate.NotEqual, left, intZero, Option.of("cond"));
             } else if (left.getType().isFloatingPointType()) {
                 left = builder.buildFloatCompare(FloatPredicate.OrderedNotEqual, left, floatZero, Option.of("cond"));
@@ -930,23 +932,23 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
             builder.positionAfter(andNext);
 
-            if(right.getType().isIntegerType()){
+            if (right.getType().isIntegerType()) {
                 var phi = builder.buildPhi(i32, Option.of("andPhi"));
 
-                phi.addIncoming(new Pair<>(andFalse,intZero));
-                phi.addIncoming(new Pair<>(andTrue,right));
+                phi.addIncoming(new Pair<>(andFalse, intZero));
+                phi.addIncoming(new Pair<>(andTrue, right));
                 return phi;
-            } else if(right.getType().isFloatingPointType()){
+            } else if (right.getType().isFloatingPointType()) {
                 var phi = builder.buildPhi(f32, Option.of("andPhi"));
 
-                phi.addIncoming(new Pair<>(andFalse,floatZero));
-                phi.addIncoming(new Pair<>(andTrue,right));
+                phi.addIncoming(new Pair<>(andFalse, floatZero));
+                phi.addIncoming(new Pair<>(andTrue, right));
                 return phi;
             } else {
                 throw new RuntimeException("type error");
             }
 
-        } else if(ctx.OR() != null){
+        } else if (ctx.OR() != null) {
             Value left = visitCond(ctx.cond(0));
             inBT = null;
             BasicBlock orTrue = context.newBasicBlock("orTrue");
@@ -957,7 +959,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             curFunc.addBasicBlock(orFalse);
             curFunc.addBasicBlock(orNext);
 
-            if(left.getType().isIntegerType()){
+            if (left.getType().isIntegerType()) {
                 left = builder.buildIntCompare(IntPredicate.NotEqual, left, intZero, Option.of("cond"));
             } else if (left.getType().isFloatingPointType()) {
                 left = builder.buildFloatCompare(FloatPredicate.OrderedNotEqual, left, floatZero, Option.of("cond"));
@@ -976,26 +978,26 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             builder.buildBranch(orNext);
             builder.positionAfter(orNext);
 
-            if(right.getType().isIntegerType()){
+            if (right.getType().isIntegerType()) {
                 var phi = builder.buildPhi(i32, Option.of("orPhi"));
 
-                phi.addIncoming(new Pair<>(orTrue,intOne));
-                if(inBT != null){
-                    phi.addIncoming(new Pair<>(inBT,right));
+                phi.addIncoming(new Pair<>(orTrue, intOne));
+                if (inBT != null) {
+                    phi.addIncoming(new Pair<>(inBT, right));
                     inBT = null;
                 } else {
-                    phi.addIncoming(new Pair<>(orFalse,right));
+                    phi.addIncoming(new Pair<>(orFalse, right));
                 }
                 return phi;
-            } else if(right.getType().isFloatingPointType()){
+            } else if (right.getType().isFloatingPointType()) {
                 var phi = builder.buildPhi(f32, Option.of("orPhi"));
 
-                phi.addIncoming(new Pair<>(orTrue,floatOne));
-                if(inBT != null){
-                    phi.addIncoming(new Pair<>(inBT,right));
+                phi.addIncoming(new Pair<>(orTrue, floatOne));
+                if (inBT != null) {
+                    phi.addIncoming(new Pair<>(inBT, right));
                     inBT = null;
                 } else {
-                    phi.addIncoming(new Pair<>(orFalse,right));
+                    phi.addIncoming(new Pair<>(orFalse, right));
                 }
                 return phi;
             } else {
@@ -1018,44 +1020,44 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             }
 
             if (leftType.isIntegerType() && rightType.isIntegerType()) {
-                if(ctx.LT() != null){
-                    var lt = builder.buildIntCompare(IntPredicate.SignedLessThan,left,right,Option.of("lt"));
-                    return builder.buildZeroExt(lt,i32,Option.of("zextForLt"));
+                if (ctx.LT() != null) {
+                    var lt = builder.buildIntCompare(IntPredicate.SignedLessThan, left, right, Option.of("lt"));
+                    return builder.buildZeroExt(lt, i32, Option.of("zextForLt"));
                 } else if (ctx.LE() != null) {
-                    var le = builder.buildIntCompare(IntPredicate.SignedLessEqual,left,right,Option.of("le"));
-                    return builder.buildZeroExt(le,i32,Option.of("zextForLe"));
-                } else if (ctx.GT() != null){
-                    var gt = builder.buildIntCompare(IntPredicate.SignedGreaterThan,left,right,Option.of("gt"));
-                    return builder.buildZeroExt(gt,i32,Option.of("zextForGt"));
+                    var le = builder.buildIntCompare(IntPredicate.SignedLessEqual, left, right, Option.of("le"));
+                    return builder.buildZeroExt(le, i32, Option.of("zextForLe"));
+                } else if (ctx.GT() != null) {
+                    var gt = builder.buildIntCompare(IntPredicate.SignedGreaterThan, left, right, Option.of("gt"));
+                    return builder.buildZeroExt(gt, i32, Option.of("zextForGt"));
                 } else if (ctx.GE() != null) {
-                    var ge = builder.buildIntCompare(IntPredicate.SignedGreaterEqual,left,right,Option.of("ge"));
-                    return builder.buildZeroExt(ge,i32,Option.of("zextForGe"));
+                    var ge = builder.buildIntCompare(IntPredicate.SignedGreaterEqual, left, right, Option.of("ge"));
+                    return builder.buildZeroExt(ge, i32, Option.of("zextForGe"));
                 } else if (ctx.EQ() != null) {
-                    var eq = builder.buildIntCompare(IntPredicate.Equal,left,right,Option.of("eq"));
-                    return builder.buildZeroExt(eq,i32,Option.of("zextForEq"));
+                    var eq = builder.buildIntCompare(IntPredicate.Equal, left, right, Option.of("eq"));
+                    return builder.buildZeroExt(eq, i32, Option.of("zextForEq"));
                 } else if (ctx.NEQ() != null) {
-                    var neq = builder.buildIntCompare(IntPredicate.NotEqual,left,right,Option.of("neq"));
-                    return builder.buildZeroExt(neq,i32,Option.of("zextForNeq"));
+                    var neq = builder.buildIntCompare(IntPredicate.NotEqual, left, right, Option.of("neq"));
+                    return builder.buildZeroExt(neq, i32, Option.of("zextForNeq"));
                 }
             } else if (leftType.isFloatingPointType() && rightType.isFloatingPointType()) {
-                if(ctx.LT() != null){
-                    var lt = builder.buildFloatCompare(FloatPredicate.OrderedLessThan,left,right,Option.of("olt"));
-                    return builder.buildZeroExt(lt,i32,Option.of("zextForOLt"));
+                if (ctx.LT() != null) {
+                    var lt = builder.buildFloatCompare(FloatPredicate.OrderedLessThan, left, right, Option.of("olt"));
+                    return builder.buildZeroExt(lt, i32, Option.of("zextForOLt"));
                 } else if (ctx.LE() != null) {
-                    var le = builder.buildFloatCompare(FloatPredicate.OrderedLessEqual,left,right,Option.of("ole"));
-                    return builder.buildZeroExt(le,i32,Option.of("zextForOLe"));
-                } else if (ctx.GT() != null){
-                    var gt = builder.buildFloatCompare(FloatPredicate.OrderedGreaterThan,left,right,Option.of("ogt"));
-                    return builder.buildZeroExt(gt,i32,Option.of("zextForOGt"));
+                    var le = builder.buildFloatCompare(FloatPredicate.OrderedLessEqual, left, right, Option.of("ole"));
+                    return builder.buildZeroExt(le, i32, Option.of("zextForOLe"));
+                } else if (ctx.GT() != null) {
+                    var gt = builder.buildFloatCompare(FloatPredicate.OrderedGreaterThan, left, right, Option.of("ogt"));
+                    return builder.buildZeroExt(gt, i32, Option.of("zextForOGt"));
                 } else if (ctx.GE() != null) {
-                    var ge = builder.buildFloatCompare(FloatPredicate.OrderedGreaterEqual,left,right,Option.of("oge"));
-                    return builder.buildZeroExt(ge,i32,Option.of("zextForOGe"));
+                    var ge = builder.buildFloatCompare(FloatPredicate.OrderedGreaterEqual, left, right, Option.of("oge"));
+                    return builder.buildZeroExt(ge, i32, Option.of("zextForOGe"));
                 } else if (ctx.EQ() != null) {
-                    var eq = builder.buildFloatCompare(FloatPredicate.OrderedEqual,left,right,Option.of("oeq"));
-                    return builder.buildZeroExt(eq,i32,Option.of("zextForOEq"));
+                    var eq = builder.buildFloatCompare(FloatPredicate.OrderedEqual, left, right, Option.of("oeq"));
+                    return builder.buildZeroExt(eq, i32, Option.of("zextForOEq"));
                 } else if (ctx.NEQ() != null) {
-                    var neq = builder.buildFloatCompare(FloatPredicate.OrderedNotEqual,left,right,Option.of("oneq"));
-                    return builder.buildZeroExt(neq,i32,Option.of("zextForONeq"));
+                    var neq = builder.buildFloatCompare(FloatPredicate.OrderedNotEqual, left, right, Option.of("oneq"));
+                    return builder.buildZeroExt(neq, i32, Option.of("zextForONeq"));
                 }
             } else {
                 throw new RuntimeException("cond binary type error");
@@ -1070,11 +1072,12 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         LOG("visitLVal");
         String varName = ctx.IDENT().getText();
         Value varAddr = symbolTable.getSymbol(varName);
-        System.out.println(varName+ "  Lval" + varAddr.getType().getAsString());
+        //System.out.println(varName);
+        //System.out.println(varName + "  Lval" + varAddr.getType().getAsString());
         Constant constGlobal = globalValues.get(varAddr);
         if (constGlobal != null) {
-            if (constGlobal.getType().isIntegerType()){
-                return i32.getConstant(LLVMConstIntGetSExtValue(constGlobal.getRef()),true);
+            if (constGlobal.getType().isIntegerType()) {
+                return i32.getConstant(LLVMConstIntGetSExtValue(constGlobal.getRef()), true);
             } else {
                 return f32.getConstant(LLVMConstRealGetDouble(constGlobal.getRef(), new IntPointer(0)));
             }
@@ -1085,7 +1088,6 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
         PointerType pVarType = new PointerType(varAddr.getType().getRef());
         Type varType = pVarType.getElementType();
-        System.out.println(varName+ "  Lval111" + varType.getAsString());
 
         //System.out.println("aaaaaaaaaaaaaaaa" + varType.getAsString());
 
@@ -1097,26 +1099,24 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             for (SysYParser.ExpContext expCtx : ctx.exp()) {
                 Value idx = visitExp(expCtx);
                 // LLVM数组中的索引类型默认为i64
-                idx = builder.buildSignExt(idx, context.getInt64Type(), Option.of("idx64"));
+                //idx = builder.buildSignExt(idx, context.getInt64Type(), Option.of("idx64"));
+                idx = builder.buildZeroExt(idx, context.getInt64Type(), Option.of("idx64"));
                 indices.add(idx);
             }
 
             // 函数参数得先 load
-            System.out.println(varType.getAsString());
             boolean isFunctionArg = varType.isPointerType();
-            System.out.println("isFunctionArg: " + isFunctionArg);
-            System.out.println("Name: " + varName);
 
             boolean needLoad = false;
             ParserRuleContext parent = ctx.getParent();
 
-            if (parent instanceof SysYParser.ExpContext) {
+            if (parent instanceof SysYParser.ExpContext) { // a[1] = b[1];中 a[1] 不需要 load
                 needLoad = true;
             } else if (parent instanceof SysYParser.StmtContext) {
                 needLoad = false;
             }
 
-            return buildArrayAccess(varAddr, indices, isFunctionArg, needLoad); // 这里得传地址...
+            return buildArrayAccess(varAddr, indices, isFunctionArg, needLoad);
 
         } else {
             // 普通变量访问
@@ -1157,60 +1157,86 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 //        }
 //        return ans;
 //    }
-public Value buildArrayAccess(Value var, List<Value> indices, boolean isFunctionArg, boolean needLoad) {
-    // 如果是函数参数，先 load 一次（它本质上是一个 ptr-to-array 的参数）
-    // 这里的isFunctionArg表示该数组的来源是不是函数参数
-    Value currentPtr = isFunctionArg ? builder.buildLoad(var, Option.of("load_array_param")) : var;
-    System.out.println("currentPtr typeAAAAAAA"+currentPtr.getType().getAsString());
-    System.out.println(indices.size());
-
-    boolean tem = false;
-
-    for (int level = 0; level < indices.size(); level++) {
-        Value index = indices.get(level);
-
-        Value[] gepIndices;
 
 
-        if (level == 0 && isFunctionArg) {
-            // 第一层：ptr -> [N x T]，GEP 的 index 只有一个
-            gepIndices = new Value[]{index};
+    public int getArrayDimension(Type type) {
+        int dim = 0;
 
-        } else {
-            // 后续层：需要两个 index（先进入数组元素，再进入子数组/元素）
-            gepIndices = new Value[]{intZero64, index};
+        // 先转换地址
+        if (type.isPointerType()) {
+            type = new PointerType(type.getRef()).getElementType();
         }
 
-        currentPtr = builder.buildGetElementPtr(
-                currentPtr,
-                gepIndices,
-                Option.of("arrayidx" + level),
-                true
-        );
-        tem = true;
-
-        System.out.println("after level " + level + ", currentPtr type: " + currentPtr.getType().getAsString());
-    }
-
-    // 根据是否需要 load 值来决定是否加载
-    //Value ans = needLoad ? builder.buildLoad(currentPtr, Option.of("array_element")) : currentPtr;
-
-    PointerType pVarType = new PointerType(currentPtr.getType().getRef());
-    Type varType = pVarType.getElementType();
-
-    // 如果是右值，需要检查类型：基本类型（int/float）才 load；否则仍返回 GEP 结果
-    if (needLoad) {
-        if (tem || !isFunctionArg) {
-            System.out.println("loaddddddddd");
-            return builder.buildLoad(currentPtr, Option.of("array_element"));
-        } else {
-            return currentPtr; // 对于数组或结构体，返回指针
+        // 为函数参数数组再做一次判断
+        if (type.isPointerType()) {
+            dim++;
+            type = new PointerType(type.getRef()).getElementType();
         }
+
+        // 递归统计 ArrayType 层数
+        while (type.isArrayType()) {
+            dim++;
+            type = new ArrayType(type.getRef()).getElementType();
+        }
+
+        return dim;
     }
 
-    return currentPtr;
-}
 
+    public Value buildArrayAccess(Value var, List<Value> indices, boolean isFunctionArg, boolean needLoad) {
+        // 如果是函数参数，先 load 一次（它本质上是一个 ptr-to-array 的参数）
+        // 这里的isFunctionArg表示该数组的来源是不是函数参数
+        Value currentPtr = isFunctionArg ? builder.buildLoad(var, Option.of("load_array_param")) : var;
+        //System.out.println("currentPtr typeAAAAAAA"+currentPtr.getType().getAsString());
+        ArrayType varType = new ArrayType(var.getType().getRef());
+        int dim = getArrayDimension(var.getType());
+
+
+        for (int level = 0; level < indices.size(); level++) {
+            Value index = indices.get(level);
+
+            Value[] gepIndices;
+
+
+            if (level == 0 && isFunctionArg) {
+                // 第一层：ptr -> [N x T]，GEP 的 index 只有一个
+                gepIndices = new Value[]{index};
+
+            } else {
+                // 后续层：需要两个 index（先进入数组元素，再进入子数组/元素）
+                gepIndices = new Value[]{intZero64, index};
+            }
+
+            currentPtr = builder.buildGetElementPtr(
+                    currentPtr,
+                    gepIndices,
+                    Option.of("arrayidx" + level),
+                    true
+            );
+
+        }
+
+        // 根据是否需要 load 值来决定是否加载
+        //Value ans = needLoad ? builder.buildLoad(currentPtr, Option.of("array_element")) : currentPtr;
+
+
+        // 如果是右值，需要检查类型：基本类型（int/float）才 load；否则仍返回 GEP 结果
+        if (needLoad) {
+            if (indices.size() == dim) {
+                return builder.buildLoad(currentPtr, Option.of("array_element"));
+            } else { // 那么如下一定是函数参数，那么就需要再gep一次
+//                currentPtr = builder.buildGetElementPtr(
+//                        currentPtr,
+//                        new Value[]{intZero64, intZero64},
+//                        Option.of("arrayidx" + "param"),
+//                        true
+//                );
+                return currentPtr; // 对于数组或结构体，返回指针
+            }
+        }
+
+        return currentPtr;
+    }
 
 
     @Override
@@ -1227,7 +1253,7 @@ public Value buildArrayAccess(Value var, List<Value> indices, boolean isFunction
                 value = Long.parseLong(text);
             }
 
-            return i32.getConstant((int)value, false);
+            return i32.getConstant((int) value, false);
         } else if (ctx.FLOAT_CONST() != null) {
             String text = ctx.FLOAT_CONST().getText();
             double value = Double.parseDouble(text);

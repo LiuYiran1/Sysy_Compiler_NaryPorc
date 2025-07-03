@@ -1,11 +1,5 @@
-const int mod = 998244353;
-int d;
-
-int multiply(int a, int b){
-    if (b == 0) return 0;
-    if (b == 1) return a % mod;
-    int cur = multiply(a, b/2);
-    cur = (cur + cur) % mod;
-    if (b % 2 == 1) return (cur + a) % mod;
-    else return cur;
+//test const local var define
+int main(){
+    const int a = 10, b = 5;
+    return b;
 }

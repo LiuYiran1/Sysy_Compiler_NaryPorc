@@ -20,6 +20,8 @@ import java.nio.file.Paths;
 import java.util.List;
 
 public class Main {
+    static String inputFile;
+
     static SysYLexer lexer;
     static LexerListener lexerListener;
 
@@ -29,7 +31,7 @@ public class Main {
     static ParseTree tree;
 
     public static void main(String[] args) throws IOException {
-        Path inputDir = Paths.get("src/test/java/tem");
+        Path inputDir = Paths.get("src/test/java/functional9");
 
         // 找出所有 .sy 文件
         List<Path> syFiles = Files.walk(inputDir)
@@ -47,6 +49,7 @@ public class Main {
 
         for (int i = 0; i < syFiles.size(); i++) {
             Path inputPath = syFiles.get(i);
+            inputFile = inputPath.toString();
             Path outputPath = llFiles.get(i);
 
             processLexer(inputPath.toString());
@@ -87,9 +90,13 @@ public class Main {
     }
 
     private static void irGen(ParseTree tree, String outputPath) {
-        LLVisitor llVisitor = new LLVisitor();
-        llVisitor.visit(tree);
-        llVisitor.dump(Option.of(new File(outputPath)));
+        try{
+            LLVisitor llVisitor = new LLVisitor();
+            llVisitor.visit(tree);
+            llVisitor.dump(Option.of(new File(outputPath)));
+        }catch (Exception e){
+            System.err.println(inputFile);
+        }
     }
 
     private static void clear(){
