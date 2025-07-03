@@ -252,8 +252,118 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
             }
 
-        } else {
+        } else { // 数组
 
+            String varName = ctx.IDENT().getText();
+
+            if (symbolTable.isBottom()) {
+                // 获取所有维数信息
+                List<Integer> dimensions = new LinkedList<>();
+                for (var constExp : ctx.constExp()) {
+                    long dim = LLVMConstIntGetSExtValue(calConstInt(visitConstExp(constExp)).getRef());
+                    dimensions.add((int) dim); // 这里的强制转换是否会有问题？
+                }
+                // 构建数组类型
+                Type arrayType = type;
+                for (int i = dimensions.size() - 1; i >= 0; i--) {
+                    arrayType = context.getArrayType(arrayType, dimensions.get(i)).unwrap();
+                }
+                // 处理数组赋值
+                var globalVar = mod.addGlobalVariable(varName, arrayType, Option.empty()).unwrap();
+                if (ctx.ASSIGN() != null) {
+                    int memSize = 1;
+                    for (int dim : dimensions) {
+                        memSize *= dim;
+                    }
+                    Value[] mem = new Value[memSize + 5];
+                    for (int i = 0; i < mem.length; i++) {
+                        mem[i] = type.isIntegerType() ? intZero : floatZero;
+                    }
+                    myVisitConstInitVal(ctx.constInitVal(), mem, 0, dimensions, memSize);
+                    for (var m : mem) {
+                        //System.out.println(m.getAsString());
+                    }
+
+                    LLVMValueRef[] newMem = new LLVMValueRef[mem.length];
+                    for (int i = 0; i < mem.length; i++) {
+                        newMem[i] = type.isIntegerType() ? calConstInt(mem[i]).getRef() : calConstFloat(mem[i]).getRef();
+                    }
+
+                    LLVMValueRef initializer = buildNestedArray(context.getRef(), newMem, dimensions, type.getRef());
+                    LLVMSetInitializer(globalVar.getRef(), initializer);
+
+                } else {
+                    globalVar.setInitializer(arrayType.getConstantArray()); /////
+                }
+
+                // 存符号表
+                symbolTable.addSymbol(varName, globalVar);
+            } else {
+                // 获取所有维数信息
+                List<Integer> dimensions = new LinkedList<>();
+                for (var constExp : ctx.constExp()) {
+                    long dim = LLVMConstIntGetSExtValue(calConstInt(visitConstExp(constExp)).getRef());
+                    dimensions.add((int) dim); // 这里的强制转换是否会有问题？
+                }
+                // 构建数组类型
+                Type arrayType = type;
+                for (int i = dimensions.size() - 1; i >= 0; i--) {
+                    arrayType = context.getArrayType(arrayType, dimensions.get(i)).unwrap();
+                }
+                Value ptr = builder.buildAlloca(arrayType, Option.of(varName + "Arr"));
+                symbolTable.addSymbol(varName, ptr);
+                if (ctx.ASSIGN() != null) {
+                    int memSize = 1;
+                    for (int dim : dimensions) {
+                        memSize *= dim;
+                    }
+                    Value[] mem = new Value[memSize + 5];
+                    for (int i = 0; i < mem.length; i++) {
+                        mem[i] = type.isIntegerType() ? intZero : floatZero;
+                    }
+                    myVisitConstInitVal(ctx.constInitVal(), mem, 0, dimensions, memSize);
+                    for (int i = 0; i < mem.length; i++) {
+                        if (type.isIntegerType()) {
+                            if (mem[i].getType().isFloatingPointType()) {
+                                mem[i] = builder.buildFloatToSigned(mem[i], i32, Option.of("iArr"));
+                            }
+                        } else if (type.isFloatingPointType()) {
+                            if (mem[i].getType().isIntegerType()) {
+                                mem[i] = builder.buildSignedToFloat(mem[i], f32, Option.of("fArr"));
+                            }
+                        }
+                    }
+                    // 以线性的方式生成数组
+                    LLVMTypeRef linearPtrType = LLVMPointerType(type.getRef(), 0);  // address space 0
+                    // 将多维数组压成一维
+                    LLVMValueRef linearPtr = LLVMBuildBitCast(builder.getRef(), ptr.getRef(), linearPtrType, varName + "FlatPtr");
+                    for (int i = 0; i < memSize; i++) {
+                        LLVMValueRef idx = LLVMConstInt(LLVMInt64Type(), i, 0); // i64 index
+                        PointerPointer<Pointer> indices = new PointerPointer<>(1).put(0, idx);
+                        LLVMValueRef gep = LLVMBuildGEP(builder.getRef(), linearPtr, indices, 1, varName + "Elem" + i);
+                        LLVMBuildStore(builder.getRef(), mem[i].getRef(), gep);
+                    }
+                }
+
+            }
+
+        }
+    }
+
+    private void myVisitConstInitVal(SysYParser.ConstInitValContext cxt, Value[] mem, int index, List<Integer> dimensions, int h) {
+        LOG("myVisitInitVal");
+        if (cxt.constExp() != null) {
+            mem[index] = visitConstExp(cxt.constExp());
+            return;
+        }
+        h = h / dimensions.get(0);
+
+        List<Integer> subDims = new LinkedList<>(dimensions);
+        subDims.remove(0);
+        for (int i = 0; i < cxt.constInitVal().size(); i++) {
+
+            myVisitConstInitVal(cxt.constInitVal(i), mem, index, subDims, h);
+            index = cxt.constInitVal(i).constExp() == null ? index + h : index + 1;
         }
     }
 
@@ -724,6 +834,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             } else {
                 throw new RuntimeException("type not supported");
             }
+
             builder.buildConditionalBranch(cond, ifTrue, ifFalse);
 
             builder.positionAfter(ifTrue);

@@ -95,7 +95,9 @@ public class Main {
             llVisitor.visit(tree);
             llVisitor.dump(Option.of(new File(outputPath)));
         }catch (Exception e){
-            System.err.println(inputFile);
+            System.err.println("exception in " + inputFile);
+        }catch (Error e){
+            System.err.println("error in " + inputFile);
         }
     }
 
