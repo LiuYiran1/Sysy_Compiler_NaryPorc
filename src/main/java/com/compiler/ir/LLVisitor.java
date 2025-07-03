@@ -715,7 +715,15 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             curFunc.addBasicBlock(ifFalse);
             curFunc.addBasicBlock(ifNext);
 
-            var cond = builder.buildIntCompare(IntPredicate.NotEqual, visitCond(ctx.cond()), intZero, Option.of("cond"));
+            var cond = visitCond(ctx.cond());
+
+            if (cond.getType().isIntegerType()) {
+                cond = builder.buildIntCompare(IntPredicate.NotEqual, cond, intZero, Option.of("cond"));
+            } else if (cond.getType().isFloatingPointType()) {
+                cond = builder.buildFloatCompare(FloatPredicate.OrderedNotEqual, cond, floatZero, Option.of("cond"));
+            } else {
+                throw new RuntimeException("type not supported");
+            }
             builder.buildConditionalBranch(cond, ifTrue, ifFalse);
 
             builder.positionAfter(ifTrue);
