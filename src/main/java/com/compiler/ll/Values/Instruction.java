@@ -6,7 +6,7 @@ import com.compiler.ll.Values.Instructions.Opcode;
 import java.util.ArrayList;
 import java.util.List;
 
-public abstract class Instruction extends Value {
+public abstract class Instruction extends User {
     protected final Opcode opcode;
     protected final List<Value> operands = new ArrayList<>();
 

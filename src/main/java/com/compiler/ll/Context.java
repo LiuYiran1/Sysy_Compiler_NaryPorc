@@ -1,6 +1,7 @@
 package com.compiler.ll;
 
 import com.compiler.ll.Types.*;
+import com.compiler.ll.utils.NameManager;
 
 import java.util.*;
 
@@ -69,5 +70,14 @@ public class Context {
         public int hashCode() {
             return Objects.hash(a, b);
         }
+    }
+
+    // 是否要加一个module的成员变量
+    public Module getModule(String name) {
+        return new Module(name, this);
+    }
+
+    public IRBuilder getIRBuilder() {
+        return new IRBuilder(this, new NameManager());
     }
 }

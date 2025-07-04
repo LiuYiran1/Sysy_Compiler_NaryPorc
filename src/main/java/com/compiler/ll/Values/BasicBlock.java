@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class BasicBlock extends Value {
+public class BasicBlock extends User {
     private final List<Instruction> instructions = new ArrayList<>();
 
     public BasicBlock(String name) {
