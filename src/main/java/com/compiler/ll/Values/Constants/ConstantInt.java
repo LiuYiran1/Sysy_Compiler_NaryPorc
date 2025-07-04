@@ -16,6 +16,11 @@ public class ConstantInt extends Constant {
     }
 
     @Override
+    public String getName() {
+        return "" + value;
+    }
+
+    @Override
     public String toIR() {
         return Integer.toString(value);
     }

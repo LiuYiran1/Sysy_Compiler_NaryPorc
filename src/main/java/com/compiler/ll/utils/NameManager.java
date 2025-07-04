@@ -11,7 +11,7 @@ public class NameManager {
      * 获取一个匿名变量的唯一名字，如 %0, %1, %2...
      */
     public String getUniqueName() {
-        return "%" + (unnamedCount++);
+        return "" + (unnamedCount++);
     }
 
     /**
@@ -20,11 +20,13 @@ public class NameManager {
     public String getUniqueName(String varName) {
         if (!nameCountMap.containsKey(varName)) {
             nameCountMap.put(varName, 0);
-            return "%" + varName;
+            return varName;
         } else {
             int count = nameCountMap.get(varName) + 1;
             nameCountMap.put(varName, count);
-            return "%" + varName + "." + count;
+            String newName = varName + "." + count;
+            nameCountMap.put(newName, 0);
+            return newName;
         }
     }
 

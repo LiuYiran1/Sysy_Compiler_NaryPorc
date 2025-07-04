@@ -11,6 +11,10 @@ public abstract class Value {
         this.name = name;
     }
 
+    public boolean isConstant() {
+        return false;
+    }
+
     public Type getType() {
         return type;
     }

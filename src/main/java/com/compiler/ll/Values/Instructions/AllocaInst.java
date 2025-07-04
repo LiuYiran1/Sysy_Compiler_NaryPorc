@@ -10,6 +10,6 @@ public class AllocaInst extends Instruction {
 
     @Override
     public String toIR() {
-        return "%" + name + " = alloca " + type.toIR();
+        return name + " = alloca " + type.toIR();
     }
 }

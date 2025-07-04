@@ -13,6 +13,11 @@ public class ReturnInst extends Instruction {
 
     @Override
     public String toIR() {
-        return "ret " + operands.get(0).getType().toIR() + " " + operands.get(0).getName();
+        Value op = operands.get(0);
+        if (op.isConstant()){
+            return "ret " + operands.get(0).getType().toIR() + " " + operands.get(0).getName();
+        } else {
+            return "ret " + operands.get(0).getType().toIR() + " %" + operands.get(0).getName();
+        }
     }
 }

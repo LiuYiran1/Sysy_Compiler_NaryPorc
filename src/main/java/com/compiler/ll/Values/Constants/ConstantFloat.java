@@ -16,6 +16,11 @@ public class ConstantFloat extends Constant {
     }
 
     @Override
+    public String getName() {
+        return "" + value;
+    }
+
+    @Override
     public String toIR() {
         return Float.toString(value);
     }

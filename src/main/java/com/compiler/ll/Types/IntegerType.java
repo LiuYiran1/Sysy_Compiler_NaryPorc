@@ -1,6 +1,7 @@
 package com.compiler.ll.Types;
 
 import com.compiler.ll.Context;
+import com.compiler.ll.Values.Constants.ConstantInt;
 
 import java.util.Objects;
 
@@ -10,6 +11,10 @@ public class IntegerType extends Type {
     public IntegerType(Context context, int bitWidth) {
         super(context, TypeID.INTEGER);
         this.bitWidth = bitWidth;
+    }
+
+    public ConstantInt getConstantInt(int value) {
+        return new ConstantInt(this, value);
     }
 
     public int getBitWidth() {
