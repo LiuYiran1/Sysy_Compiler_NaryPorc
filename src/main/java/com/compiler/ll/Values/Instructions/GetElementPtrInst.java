@@ -6,8 +6,13 @@ import com.compiler.ll.Values.Value;
 import java.util.*;
 
 public class GetElementPtrInst extends Instruction {
+    private final Value basePointer;
+    private final List<Value> indices;
+
     public GetElementPtrInst(Type type, String name, Value base, List<Value> indices) {
         super(type, name, Opcode.GEP);
+        this.basePointer = base;
+        this.indices = indices;
         addOperand(base);
         indices.forEach(this::addOperand);
     }
@@ -20,5 +25,13 @@ public class GetElementPtrInst extends Instruction {
             sb.append(", " + operands.get(i).getType().toIR() + " " + operands.get(i).getName());
         }
         return sb.toString();
+    }
+
+    public List<Value> getIndices() {
+        return indices;
+    }
+
+    public Value getBasePointer() {
+        return basePointer;
     }
 }

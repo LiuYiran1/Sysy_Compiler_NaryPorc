@@ -9,6 +9,7 @@ import com.compiler.ll.Values.GlobalValues.Function;
 import com.compiler.ll.Values.Instructions.*;
 import com.compiler.ll.Values.Value;
 import com.compiler.ll.exceptions.CondException;
+import com.compiler.ll.exceptions.GEPException;
 import com.compiler.ll.exceptions.LoadException;
 import com.compiler.ll.exceptions.ZeroExtException;
 import com.compiler.ll.utils.NameManager;
@@ -311,6 +312,21 @@ public class IRBuilder {
         currentBlock.addInstruction(inst);
         return inst;
     }
+
+    public Value buildGetElementPtr(Value basePointer, List<Value> indices, String varName) {
+        if (!basePointer.getType().isPointerType()) {
+            throw new GEPException("GEP base must be a pointer");
+        }
+
+        Type elementType = ((PointerType) basePointer.getType()).getPointeeType();
+        Type resultType = new PointerType(context, elementType); // GEP 返回的仍然是指针类型
+
+        String name = nameManager.getUniqueName(varName);
+        GetElementPtrInst inst = new GetElementPtrInst(resultType, name, basePointer, indices);
+        currentBlock.addInstruction(inst);
+        return inst;
+    }
+
 
 
 
