@@ -5,18 +5,23 @@ import com.compiler.ll.Values.Instruction;
 import com.compiler.ll.Values.Value;
 
 public class FCmpInst extends Instruction {
-    private final String cond;
+    private final FloatPredicate predicate;
 
-    public FCmpInst(String cond, Value lhs, Value rhs, String name) {
-        super(lhs.getType(), name, Opcode.FCMP);
-        this.cond = cond;
+    public FCmpInst(Type resultType, String name, FloatPredicate predicate, Value lhs, Value rhs) {
+        super(resultType, name, Opcode.FCMP);
+        this.predicate = predicate;
         addOperand(lhs);
         addOperand(rhs);
     }
 
+    public FloatPredicate getPredicate() {
+        return predicate;
+    }
+
     @Override
     public String toIR() {
-        return "%" + name + " = fcmp " + cond + " " + operands.get(0).getType().toIR()
-                + " " + operands.get(0).getName() + ", " + operands.get(1).getName();
+        return "%" + name + " = fcmp " + predicate.getIRName() + " "
+                + operands.get(0).getType().toIR() + " "
+                + operands.get(0).getName() + ", " + operands.get(1).getName();
     }
 }

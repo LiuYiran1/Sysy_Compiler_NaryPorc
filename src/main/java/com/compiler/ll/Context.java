@@ -1,6 +1,7 @@
 package com.compiler.ll;
 
 import com.compiler.ll.Types.*;
+import com.compiler.ll.Values.BasicBlock;
 import com.compiler.ll.utils.NameManager;
 
 import java.util.*;
@@ -12,6 +13,9 @@ public class Context {
     private final Map<ListKey, ArrayType> arrayTypes = new HashMap<>();
     private final VoidType voidType = new VoidType(this);
     private final FloatType floatType = new FloatType(this);
+
+    private Module module;
+    private IRBuilder builder;
 
     public VoidType getVoidType() {
         return voidType;
@@ -74,10 +78,22 @@ public class Context {
 
     // 是否要加一个module的成员变量
     public Module getModule(String name) {
-        return new Module(name, this);
+        if(module == null) {
+            this.module = new Module(name, this, getIRBuilder());
+        }
+        return module;
     }
 
     public IRBuilder getIRBuilder() {
-        return new IRBuilder(this, new NameManager());
+        if(builder == null) {
+            this.builder = new IRBuilder(this, new NameManager());
+        }
+        return builder;
+    }
+
+    public BasicBlock newBasicBlock(String name) {
+        BasicBlock nb = new BasicBlock(name);
+        this.builder.addBlock(nb);
+        return nb;
     }
 }

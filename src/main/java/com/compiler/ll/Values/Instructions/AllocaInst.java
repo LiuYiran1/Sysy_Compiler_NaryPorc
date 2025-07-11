@@ -1,15 +1,22 @@
 package com.compiler.ll.Values.Instructions;
 
+import com.compiler.ll.Types.PointerType;
 import com.compiler.ll.Types.Type;
 import com.compiler.ll.Values.Instruction;
+import com.compiler.ll.exceptions.AllocException;
 
 public class AllocaInst extends Instruction {
-    public AllocaInst(Type pointeeType, String name) {
-        super(pointeeType, name, Opcode.ALLOCA);
+    public AllocaInst(Type pointerType, String name) {
+        super(pointerType, name, Opcode.ALLOCA);
     }
 
     @Override
     public String toIR() {
-        return name + " = alloca " + type.toIR();
+        if (type.isPointerType()){
+            return name + " = alloca " + ((PointerType)type).getPointeeType().toIR();
+        } else {
+            throw new AllocException("Cannot allocate " + type + " into " + name);
+        }
+
     }
 }

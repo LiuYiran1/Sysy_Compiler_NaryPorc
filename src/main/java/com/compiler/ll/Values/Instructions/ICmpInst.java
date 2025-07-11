@@ -5,18 +5,23 @@ import com.compiler.ll.Values.Instruction;
 import com.compiler.ll.Values.Value;
 
 public class ICmpInst extends Instruction {
-    private final String cond;
+    private final IntPredicate predicate;
 
-    public ICmpInst(String cond, Value lhs, Value rhs, String name) {
-        super(lhs.getType(), name, Opcode.ICMP);
-        this.cond = cond;
+    public ICmpInst(Type resultType, String name, IntPredicate predicate, Value lhs, Value rhs) {
+        super(resultType, name, Opcode.ICMP);
+        this.predicate = predicate;
         addOperand(lhs);
         addOperand(rhs);
     }
 
+    public IntPredicate getPredicate() {
+        return predicate;
+    }
+
     @Override
     public String toIR() {
-        return "%" + name + " = icmp " + cond + " " + operands.get(0).getType().toIR()
-                + " " + operands.get(0).getName() + ", " + operands.get(1).getName();
+        return "%" + name + " = icmp " + predicate.getIRName() + " "
+                + operands.get(0).getType().toIR() + " "
+                + operands.get(0).getName() + ", " + operands.get(1).getName();
     }
 }

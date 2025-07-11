@@ -22,6 +22,7 @@ public class CallInst extends Instruction {
         String argsStr = operands.stream()
                 .map(op -> op.getType().toIR() + " " + op.getName())
                 .collect(Collectors.joining(", "));
-        return "%" + name + " = call " + type.toIR() + " @" + calleeName + "(" + argsStr + ")";
+        return name.isEmpty() ? "call " + type.toIR() + " @" + calleeName + "(" + argsStr + ")"
+                              : "%" + name + " = call " + type.toIR() + " @" + calleeName + "(" + argsStr + ")";
     }
 }

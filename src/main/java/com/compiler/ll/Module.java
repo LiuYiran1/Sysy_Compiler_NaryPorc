@@ -5,11 +5,14 @@ import java.util.*;
 
 public class Module {
     private Context context;
+    private IRBuilder builder;
     private final String name;
     private final List<Function> functions = new ArrayList<>();
 
-    public Module(String name, Context context) {
+    public Module(String name, Context context, IRBuilder irBuilder) {
         this.name = name;
+        this.context = context;
+        this.builder = irBuilder;
     }
 
     public String getName() {
@@ -18,6 +21,7 @@ public class Module {
 
     public void addFunction(Function func) {
         functions.add(func);
+        this.builder.setCurFunc(func);
     }
 
     public List<Function> getFunctions() {
