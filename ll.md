@@ -7,3 +7,4 @@
 5. IntegerType中的getConstantInt默认返回有符号数
 6. constant中的array没有交给类型管理
 7. 在处理arrayType时，ll中没有关注数组的维度的长度即[]中的数是多少 ~_~ ，默认是0
+8. GlobalVariable的类型是指针类型，这是为了进行局部和全局的同一处理，也可以从其中得到其指向的类型

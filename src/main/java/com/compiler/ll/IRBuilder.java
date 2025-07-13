@@ -57,6 +57,7 @@ public class IRBuilder {
 
     public Value buildLoad(Value pointer, String varName) {
         if (!pointer.getType().isPointerType()) {
+            System.out.println(pointer.getName() + "  " + pointer.getType().toIR());
             throw new LoadException("load expects a pointer type");
         }
 
@@ -349,7 +350,4 @@ public class IRBuilder {
         this.currentFunction = func;
     }
 
-    public void addBlock(BasicBlock block) {
-        this.currentFunction.addBasicBlock(block);
-    }
 }

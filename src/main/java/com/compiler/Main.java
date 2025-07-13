@@ -112,15 +112,11 @@ public class Main {
     }
 
     private static void irGen2(ParseTree tree, String outputPath2) {
-        try{
+
             LLVisitor llVisitor2 = new LLVisitor();
             llVisitor2.visit(tree);
             llVisitor2.dump(new File(outputPath2));
-        }catch (Exception e){
-            System.err.println("exception in " + inputFile);
-        }catch (Error e){
-            System.err.println("error in " + inputFile);
-        }
+
     }
 
     private static void clear(){

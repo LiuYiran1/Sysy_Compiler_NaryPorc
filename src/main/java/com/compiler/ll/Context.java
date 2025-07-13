@@ -96,8 +96,6 @@ public class Context {
     }
 
     public BasicBlock newBasicBlock(String name) {
-        BasicBlock nb = new BasicBlock(name);
-        this.builder.addBlock(nb);
-        return nb;
+        return new BasicBlock(name);
     }
 }

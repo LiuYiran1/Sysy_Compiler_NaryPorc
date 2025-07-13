@@ -44,13 +44,15 @@ public class Module {
     }
 
     public GlobalVariable addGlobalVariable(String varName, Type type) {
-        GlobalVariable gv = new GlobalVariable(type, varName, null);
+        GlobalVariable gv = new GlobalVariable(context, type, varName, null);
         globalVariables.add(gv);
         return gv;
     }
 
     public String toIR() {
         StringBuilder sb = new StringBuilder();
+        // 前缀
+        sb.append("; ModuleID = '" + name + "'").append("\n").append("source_filename = \"" + name + "\"").append("\n\n");
         // 全局变量定义
         for (GlobalVariable gv : globalVariables) {
             sb.append(gv.toIR()).append("\n");

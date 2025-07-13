@@ -333,16 +333,22 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                             }
                         }
                     }
-                    // 以线性的方式生成数组
-                    Type linearPtrType = context.getPointerType(type); // LLVMPointerType(type.getRef(), 0);  // address space 0
-                    // 将多维数组压成一维
-                    Value linearPtr = builder.buildBitCast(ptr, linearPtrType, varName + "FlatPtr"); // LLVMValueRef linearPtr = LLVMBuildBitCast(builder.getRef(), ptr.getRef(), linearPtrType, varName + "FlatPtr");
-                    for (int i = 0; i < memSize; i++) {
-                        Value idx = new ConstInt(LLVMInt64Type(), i, 0); // i64 index
-                        PointerPointer<Pointer> indices = new PointerPointer<>(1).put(0, idx);
-                        LLVMValueRef gep = LLVMBuildGEP(builder.getRef(), linearPtr, indices, 1, varName + "Elem" + i);
-                        LLVMBuildStore(builder.getRef(), mem[i].getRef(), gep);
-                    }
+
+
+
+//                    // 以线性的方式生成数组
+//                    Type linearPtrType = context.getPointerType(type); // LLVMPointerType(type.getRef(), 0);  // address space 0
+//                    // 将多维数组压成一维
+//                    Value linearPtr = builder.buildBitCast(ptr, linearPtrType, varName + "FlatPtr"); // LLVMValueRef linearPtr = LLVMBuildBitCast(builder.getRef(), ptr.getRef(), linearPtrType, varName + "FlatPtr");
+//                    for (int i = 0; i < memSize; i++) {
+//                        Value idx = new ConstInt(LLVMInt64Type(), i, 0); // i64 index
+//                        PointerPointer<Pointer> indices = new PointerPointer<>(1).put(0, idx);
+//                        LLVMValueRef gep = LLVMBuildGEP(builder.getRef(), linearPtr, indices, 1, varName + "Elem" + i);
+//                        LLVMBuildStore(builder.getRef(), mem[i].getRef(), gep);
+//                    }
+
+
+
                 }
 
             }
@@ -547,16 +553,22 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                             }
                         }
                     }
-                    // 以线性的方式生成数组
-                    LLVMTypeRef linearPtrType = LLVMPointerType(type.getRef(), 0);  // address space 0
-                    // 将多维数组压成一维
-                    LLVMValueRef linearPtr = LLVMBuildBitCast(builder.getRef(), ptr.getRef(), linearPtrType, varName + "FlatPtr");
-                    for (int i = 0; i < memSize; i++) {
-                        LLVMValueRef idx = LLVMConstInt(LLVMInt64Type(), i, 0); // i64 index
-                        PointerPointer<Pointer> indices = new PointerPointer<>(1).put(0, idx);
-                        LLVMValueRef gep = LLVMBuildGEP(builder.getRef(), linearPtr, indices, 1, varName + "Elem" + i);
-                        LLVMBuildStore(builder.getRef(), mem[i].getRef(), gep);
-                    }
+
+
+
+//                    // 以线性的方式生成数组
+//                    LLVMTypeRef linearPtrType = LLVMPointerType(type.getRef(), 0);  // address space 0
+//                    // 将多维数组压成一维
+//                    LLVMValueRef linearPtr = LLVMBuildBitCast(builder.getRef(), ptr.getRef(), linearPtrType, varName + "FlatPtr");
+//                    for (int i = 0; i < memSize; i++) {
+//                        LLVMValueRef idx = LLVMConstInt(LLVMInt64Type(), i, 0); // i64 index
+//                        PointerPointer<Pointer> indices = new PointerPointer<>(1).put(0, idx);
+//                        LLVMValueRef gep = LLVMBuildGEP(builder.getRef(), linearPtr, indices, 1, varName + "Elem" + i);
+//                        LLVMBuildStore(builder.getRef(), mem[i].getRef(), gep);
+//                    }
+
+
+
                 }
 
             }
@@ -1214,7 +1226,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             throw new RuntimeException("Variable '" + varName + "' not found");
         }
 
-        PointerType pVarType = context.getPointerType(varAddr.getType());
+        PointerType pVarType = (PointerType) varAddr.getType();
         Type varType = pVarType.getPointeeType();
 
         //System.out.println("aaaaaaaaaaaaaaaa" + varType.getAsString());
