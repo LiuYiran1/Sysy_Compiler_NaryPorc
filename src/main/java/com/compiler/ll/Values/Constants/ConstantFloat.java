@@ -1,7 +1,10 @@
 package com.compiler.ll.Values.Constants;
 
 import com.compiler.ll.Types.FloatType;
+import com.compiler.ll.Types.Type;
 import com.compiler.ll.Values.Constant;
+import com.compiler.ll.Values.Value;
+import com.compiler.ll.exceptions.ConstantException;
 
 public class ConstantFloat extends Constant {
     private final float value;
@@ -9,6 +12,18 @@ public class ConstantFloat extends Constant {
     public ConstantFloat(FloatType type, float value) {
         super(type);
         this.value = value;
+    }
+
+    public ConstantFloat(Value val, Type targetType) {
+        super(targetType);
+        Type valType = val.getType();
+        if (valType.isIntegerType()){
+            this.value = (float) ((ConstantInt)val).getValue();
+        } else if (valType.isFloatType()){
+            this.value = ((ConstantFloat)val).getValue();
+        } else {
+            throw new ConstantException("ConstantFloat type error");
+        }
     }
 
     public float getValue() {

@@ -83,7 +83,7 @@ public class IRBuilder {
 
     public Value buildSignedToFloat(Value value, Type type, String varName) {
         if (value.isConstant()){
-            int raw = ((ConstantInt)value).getValue();
+            long raw = ((ConstantInt)value).getValue();
             float casted = (float) raw;
             return f32.getConstantFloat(casted);
         }
@@ -101,8 +101,8 @@ public class IRBuilder {
 
     public Value buildIntCompare(IntPredicate cond, Value lhs, Value rhs, String varName) {
         if (lhs.isConstant() && rhs.isConstant()) {
-            int a = ((ConstantInt) lhs).getValue();
-            int b = ((ConstantInt) rhs).getValue();
+            long a = ((ConstantInt) lhs).getValue();
+            long b = ((ConstantInt) rhs).getValue();
             boolean result = switch (cond) {
                 case EQ -> a == b;
                 case NE -> a != b;
@@ -172,7 +172,7 @@ public class IRBuilder {
         }
         // 常量折叠
         if (from.isConstant()){
-            int value = ((ConstantInt)from).getValue();
+            long value = ((ConstantInt)from).getValue();
             return new ConstantInt((IntegerType) toType, value);
         }
 
@@ -193,7 +193,7 @@ public class IRBuilder {
 
     public Value buildIntMul(Value lhs, Value rhs, String varName) {
         if (lhs.isConstant() && rhs.isConstant()) {
-            int res = ((ConstantInt) lhs).getValue() * ((ConstantInt) rhs).getValue();
+            long res = ((ConstantInt) lhs).getValue() * ((ConstantInt) rhs).getValue();
             return new ConstantInt((IntegerType) lhs.getType(), res);
         }
         String name = nameManager.getUniqueName(varName);
@@ -204,9 +204,9 @@ public class IRBuilder {
 
     public Value buildSignedDiv(Value lhs, Value rhs, String varName) {
         if (lhs.isConstant() && rhs.isConstant()) {
-            int divisor = ((ConstantInt) rhs).getValue();
+            long divisor = ((ConstantInt) rhs).getValue();
             if (divisor == 0) throw new ArithmeticException("division by zero");
-            int res = ((ConstantInt) lhs).getValue() / divisor;
+            long res = ((ConstantInt) lhs).getValue() / divisor;
             return new ConstantInt((IntegerType) lhs.getType(), res);
         }
         String name = nameManager.getUniqueName(varName);
@@ -217,9 +217,9 @@ public class IRBuilder {
 
     public Value buildSignedRem(Value lhs, Value rhs, String varName) {
         if (lhs.isConstant() && rhs.isConstant()) {
-            int divisor = ((ConstantInt) rhs).getValue();
+            long divisor = ((ConstantInt) rhs).getValue();
             if (divisor == 0) throw new ArithmeticException("remainder by zero");
-            int res = ((ConstantInt) lhs).getValue() % divisor;
+            long res = ((ConstantInt) lhs).getValue() % divisor;
             return new ConstantInt((IntegerType) lhs.getType(), res);
         }
         String name = nameManager.getUniqueName(varName);
@@ -230,7 +230,7 @@ public class IRBuilder {
 
     public Value buildIntAdd(Value lhs, Value rhs, String varName) {
         if (lhs.isConstant() && rhs.isConstant()) {
-            int res = ((ConstantInt) lhs).getValue() + ((ConstantInt) rhs).getValue();
+            long res = ((ConstantInt) lhs).getValue() + ((ConstantInt) rhs).getValue();
             return new ConstantInt((IntegerType) lhs.getType(), res);
         }
         String name = nameManager.getUniqueName(varName);
@@ -241,7 +241,7 @@ public class IRBuilder {
 
     public Value buildIntSub(Value lhs, Value rhs, String varName) {
         if (lhs.isConstant() && rhs.isConstant()) {
-            int res = ((ConstantInt) lhs).getValue() - ((ConstantInt) rhs).getValue();
+            long res = ((ConstantInt) lhs).getValue() - ((ConstantInt) rhs).getValue();
             return new ConstantInt((IntegerType) lhs.getType(), res);
         }
         String name = nameManager.getUniqueName(varName);
@@ -325,6 +325,10 @@ public class IRBuilder {
         GetElementPtrInst inst = new GetElementPtrInst(resultType, name, basePointer, indices);
         currentBlock.addInstruction(inst);
         return inst;
+    }
+
+    public Value buildBitCast(Value value, Type targetType, String varName){
+        return null;
     }
 
 

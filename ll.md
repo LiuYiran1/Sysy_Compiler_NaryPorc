@@ -4,3 +4,6 @@
 2. 自动生成的 %1、%2等变量的名字就是1、2...
 3. 注意区分pointerType、pointeeType
 4. 接收函数调用返回值的变量由ll自动生成
+5. IntegerType中的getConstantInt默认返回有符号数
+6. constant中的array没有交给类型管理
+7. 在处理arrayType时，ll中没有关注数组的维度的长度即[]中的数是多少 ~_~ ，默认是0

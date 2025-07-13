@@ -26,6 +26,10 @@ public class Function extends GlobalValue {
         return arguments;
     }
 
+    public int getArgumentCount() {
+        return arguments.size();
+    }
+
     public void addBasicBlock(BasicBlock block) {
         blocks.add(block);
     }
@@ -34,6 +38,7 @@ public class Function extends GlobalValue {
         return blocks;
     }
 
+    // 这里要区分声明和定义
     @Override
     public String toIR() {
         FunctionType ft = (FunctionType) type;
@@ -41,13 +46,23 @@ public class Function extends GlobalValue {
                 .map(Argument::toIR)
                 .collect(Collectors.joining(", "));
 
+        if (blocks.isEmpty()) {
+            // 没有基本块 → 是声明
+            return "declare " + ft.getReturnType().toIR() +
+                    " @" + name + "(" + argsIR + ")";
+        }
+
+        // 否则是定义
         StringBuilder sb = new StringBuilder();
         sb.append("define ").append(ft.getReturnType().toIR())
                 .append(" @").append(name).append("(").append(argsIR).append(") {\n");
+
         for (BasicBlock bb : blocks) {
             sb.append(bb.toIR()).append("\n");
         }
+
         sb.append("}");
         return sb.toString();
     }
+
 }

@@ -1,17 +1,32 @@
 package com.compiler.ll.Values.Constants;
 
+import com.compiler.ll.Types.Type;
 import com.compiler.ll.Values.Constant;
 import com.compiler.ll.Types.IntegerType;
+import com.compiler.ll.Values.Value;
+import com.compiler.ll.exceptions.ConstantException;
 
 public class ConstantInt extends Constant {
-    private final int value;
+    private final long value;
 
-    public ConstantInt(IntegerType type, int value) {
+    public ConstantInt(IntegerType type, long value) {
         super(type);
         this.value = value;
     }
 
-    public int getValue() {
+    public ConstantInt(Value val, Type targetType) {
+        super(targetType);
+        Type valType = val.getType();
+        if (valType.isIntegerType()){
+            this.value = ((ConstantInt)val).getValue();
+        } else if (valType.isFloatType()){
+            this.value = (long) ((ConstantFloat)val).getValue();
+        } else {
+            throw new ConstantException("ConstantInt type error");
+        }
+    }
+
+    public long getValue() {
         return value;
     }
 
@@ -20,9 +35,20 @@ public class ConstantInt extends Constant {
         return "" + value;
     }
 
+    public long getSExtValue() {
+        return value;
+    }
+
+    public long getZExtValue() {
+        IntegerType intType = (IntegerType) getType();
+        int bitWidth = intType.getBitWidth();
+        return value & ((1L << bitWidth) - 1);
+    }
+
+
     @Override
     public String toIR() {
-        return Integer.toString(value);
+        return Long.toString(value);
     }
 
     @Override
@@ -34,6 +60,6 @@ public class ConstantInt extends Constant {
 
     @Override
     public int hashCode() {
-        return value + 31 * getType().hashCode();
+        return Long.hashCode(value) + 31 * getType().hashCode();
     }
 }

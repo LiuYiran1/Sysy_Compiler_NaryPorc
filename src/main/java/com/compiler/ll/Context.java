@@ -45,6 +45,10 @@ public class Context {
         return pointerTypes.computeIfAbsent(pointee, pt -> new PointerType(this, pt));
     }
 
+    public ArrayType getArrayType(Type elem) {
+        return arrayTypes.computeIfAbsent(new ListKey(elem, 0), k -> new ArrayType(this, elem, 0));
+    }
+
     public ArrayType getArrayType(Type elem, int num) {
         return arrayTypes.computeIfAbsent(new ListKey(elem, num), k -> new ArrayType(this, elem, num));
     }

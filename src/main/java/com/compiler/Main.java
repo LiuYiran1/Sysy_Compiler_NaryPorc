@@ -2,10 +2,10 @@ package com.compiler;
 
 import com.compiler.frontend.SysYLexer;
 import com.compiler.frontend.SysYParser;
+import com.compiler.ir2.LLVisitor;
 import com.compiler.listeners.LexerListener;
 import com.compiler.listeners.ParserListener;
 import com.compiler.utils.Checker;
-import com.compiler.ir.LLVisitor;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -31,7 +31,7 @@ public class Main {
     static ParseTree tree;
 
     public static void main(String[] args) throws IOException {
-        Path inputDir = Paths.get("src/test/java/h_functional");
+        Path inputDir = Paths.get("src/test/java/temtem");
 
         // 找出所有 .sy 文件
         List<Path> syFiles = Files.walk(inputDir)
@@ -47,14 +47,24 @@ public class Main {
                 })
                 .toList();
 
+        // 构造对应的 .ll 输出路径
+        List<Path> llFiles2 = syFiles.stream()
+                .map(path -> {
+                    String fileName = path.getFileName().toString().replaceAll("\\.sy$", ".llyy");
+                    return path.getParent().resolve(fileName);
+                })
+                .toList();
+
         for (int i = 0; i < syFiles.size(); i++) {
             Path inputPath = syFiles.get(i);
             inputFile = inputPath.toString();
             Path outputPath = llFiles.get(i);
+            Path outputPath2 = llFiles2.get(i);
 
             processLexer(inputPath.toString());
             processParser(lexer, inputPath.toString());
             irGen(tree, outputPath.toString());
+            irGen2(tree, outputPath2.toString());
             clear();
         }
 
@@ -91,9 +101,21 @@ public class Main {
 
     private static void irGen(ParseTree tree, String outputPath) {
         try{
-            LLVisitor llVisitor = new LLVisitor();
+            com.compiler.ir.LLVisitor llVisitor = new com.compiler.ir.LLVisitor();
             llVisitor.visit(tree);
             llVisitor.dump(Option.of(new File(outputPath)));
+        }catch (Exception e){
+            System.err.println("exception in " + inputFile);
+        }catch (Error e){
+            System.err.println("error in " + inputFile);
+        }
+    }
+
+    private static void irGen2(ParseTree tree, String outputPath2) {
+        try{
+            LLVisitor llVisitor2 = new LLVisitor();
+            llVisitor2.visit(tree);
+            llVisitor2.dump(new File(outputPath2));
         }catch (Exception e){
             System.err.println("exception in " + inputFile);
         }catch (Error e){
