@@ -24,7 +24,7 @@ public class ConstantArray extends Constant {
     @Override
     public String toIR() {
         return "[" + elements.stream()
-                .map(e -> e.getType().toString() + " " + e.toIR())
+                .map(e -> e.getType().toIR() + " " + e.toIR())
                 .collect(Collectors.joining(", ")) + "]";
     }
 }

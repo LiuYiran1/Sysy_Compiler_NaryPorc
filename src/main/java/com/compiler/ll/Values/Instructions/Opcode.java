@@ -24,5 +24,6 @@ public enum Opcode {
     FSUB,
     PHI,
     LOAD,
-    GEP
+    GEP,
+    BC // bitCast
 }

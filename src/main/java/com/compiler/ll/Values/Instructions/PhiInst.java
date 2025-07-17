@@ -25,7 +25,7 @@ public class PhiInst extends Instruction {
         StringBuilder sb = new StringBuilder("%" + name + " = phi " + type.toIR() + " ");
         for (int i = 0; i < operands.size(); i++) {
             if (i > 0) sb.append(", ");
-            sb.append("[ " + operands.get(i).getName() + ", %" + incomingBlocks.get(i).getName() + " ]");
+            sb.append("[ " + getOpStr(operands.get(i)) + ", %" + incomingBlocks.get(i).getName() + " ]");
         }
         return sb.toString();
     }

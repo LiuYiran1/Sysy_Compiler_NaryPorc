@@ -15,6 +15,10 @@ public abstract class Value {
         return false;
     }
 
+    public boolean isGlobalVariable() {
+        return false;
+    }
+
     public Type getType() {
         return type;
     }

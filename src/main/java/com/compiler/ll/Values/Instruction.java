@@ -1,7 +1,10 @@
 package com.compiler.ll.Values;
 
 import com.compiler.ll.Types.Type;
+import com.compiler.ll.Values.Constants.ConstantFloat;
+import com.compiler.ll.Values.Constants.ConstantInt;
 import com.compiler.ll.Values.Instructions.Opcode;
+import com.compiler.ll.exceptions.StoreException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,4 +31,20 @@ public abstract class Instruction extends User {
     }
 
     public abstract String toIR();
+
+    protected String getOpStr(Value op) {
+        if (op.isConstant()) {
+            if (op.getType().isIntegerType()){
+                return ((ConstantInt) op).getValue() + "";
+            } else if (op.getType().isFloatType()){
+                return ((ConstantFloat) op).getValue() + "";
+            } else {
+                throw new RuntimeException("Store type not supported");
+            }
+        } else if (op.isGlobalVariable()) {
+            return "@" + op.getName();
+        } else {
+            return "%" + op.getName();
+        }
+    }
 }

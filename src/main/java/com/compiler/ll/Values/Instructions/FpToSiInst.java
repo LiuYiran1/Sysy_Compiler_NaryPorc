@@ -12,7 +12,9 @@ public class FpToSiInst extends Instruction {
 
     @Override
     public String toIR() {
-        return "%" + name + " = fptosi " + operands.get(0).getType().toIR() + " " + operands.get(0).getName()
+        Value op1 = operands.get(0);
+        String op1Str = getOpStr(op1);
+        return "%" + name + " = fptosi " + operands.get(0).getType().toIR() + " " + op1Str
                 + " to " + type.toIR();
     }
 }

@@ -13,7 +13,11 @@ public class FSubInst extends Instruction {
 
     @Override
     public String toIR() {
-        return "%" + name + " = fsub " + type.toIR() + " " + operands.get(0).getName()
-                + ", " + operands.get(1).getName();
+        Value op1 = operands.get(0);
+        Value op2 = operands.get(1);
+        String op1Str = getOpStr(op1);
+        String op2Str = getOpStr(op2);
+        return "%" + name + " = fsub " + type.toIR() + " " + op1Str
+                + ", " + op2Str;
     }
 }

@@ -1,8 +1,11 @@
 package com.compiler.ll.Values.Instructions;
 
 import com.compiler.ll.Types.Type;
+import com.compiler.ll.Values.Constants.ConstantFloat;
+import com.compiler.ll.Values.Constants.ConstantInt;
 import com.compiler.ll.Values.Instruction;
 import com.compiler.ll.Values.Value;
+import com.compiler.ll.exceptions.StoreException;
 
 public class StoreInst extends Instruction {
     public StoreInst(Value value, Value ptr) {
@@ -13,7 +16,14 @@ public class StoreInst extends Instruction {
 
     @Override
     public String toIR() {
-        return "store " + operands.get(0).getType().toIR() + " " + operands.get(0).getName()
-                + ", " + operands.get(1).getType().toIR() + "* " + operands.get(1).getName();
+        Value op1 = operands.get(0);
+        Value op2 = operands.get(1);
+        String op1Str = getOpStr(op1);
+        String op2Str = getOpStr(op2);
+
+        return "store " + operands.get(0).getType().toIR() + " " + op1Str
+                + ", " + operands.get(1).getType().toIR() + " " + op2Str;
     }
+
+
 }

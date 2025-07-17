@@ -16,6 +16,10 @@ public class GlobalVariable extends GlobalValue {
         this.valueType = type;
     }
 
+    public boolean isGlobalVariable() {
+        return true;
+    }
+
     public Constant getInitializer() {
         return initializer;
     }
@@ -27,11 +31,11 @@ public class GlobalVariable extends GlobalValue {
     @Override
     public String toIR() {
         StringBuilder sb = new StringBuilder();
-        sb.append("@").append(name).append(" = global ").append(type.toIR());
+        sb.append("@").append(name).append(" = global ").append(valueType.toIR());
 
         // 自动默认初始化为 0
         if (initializer == null) {
-            initializer = ConstantZero.get(type);
+            initializer = ConstantZero.get(valueType);
         }
 
         sb.append(" ").append(initializer.toIR());

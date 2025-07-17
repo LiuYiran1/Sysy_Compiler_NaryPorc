@@ -164,7 +164,7 @@ public class IRBuilder {
         return inst;
     }
 
-    public Value buildZeroExt(Value from, Type toType, String name){
+    public Value buildZeroExt(Value from, Type toType, String varName){
         if (!from.getType().isIntegerType()){
             throw new ZeroExtException("from is not integer!!!");
         }
@@ -176,6 +176,8 @@ public class IRBuilder {
             long value = ((ConstantInt)from).getValue();
             return new ConstantInt((IntegerType) toType, value);
         }
+
+        String name = nameManager.getUniqueName(varName);
 
         ZExtInst inst = new ZExtInst(from, toType, name);
         currentBlock.addInstruction(inst);
@@ -319,17 +321,32 @@ public class IRBuilder {
             throw new GEPException("GEP base must be a pointer");
         }
 
-        Type elementType = ((PointerType) basePointer.getType()).getPointeeType();
-        Type resultType = new PointerType(context, elementType); // GEP 返回的仍然是指针类型
+        Type objectType = ((PointerType) basePointer.getType()).getPointeeType();
+        Type elementType;
+        if (objectType.isArrayType()) {
+            elementType = ((ArrayType) objectType).getElementType();
+        } else {
+            elementType = objectType;
+        }
+        PointerType resultType = context.getPointerType(elementType); // GEP 返回的仍然是指针类型
 
         String name = nameManager.getUniqueName(varName);
-        GetElementPtrInst inst = new GetElementPtrInst(resultType, name, basePointer, indices);
+        GetElementPtrInst inst = new GetElementPtrInst(resultType, objectType,name, basePointer, indices);
         currentBlock.addInstruction(inst);
         return inst;
     }
 
     public Value buildBitCast(Value value, Type targetType, String varName){
-        return null;
+        // 常量折叠（可选）
+        if (value instanceof Constant) {
+            // 暂不处理常量 bitcast，可扩展为 ConstantExpr 系统
+            // return new ConstantBitCast((Constant) value, targetType);
+        }
+
+        // 创建指令
+        BitCastInst inst = new BitCastInst(value.getType(), targetType, value, varName);
+        currentBlock.addInstruction(inst);
+        return inst;
     }
 
 

@@ -12,7 +12,9 @@ public class LoadInst extends Instruction {
 
     @Override
     public String toIR() {
+        Value op1 = operands.get(0);
+        String op1Str = getOpStr(op1);
         return "%" + name + " = load " + type.toIR() + ", " + operands.get(0).getType().toIR()
-                + " " + operands.get(0).getName();
+                + " " + op1Str;
     }
 }

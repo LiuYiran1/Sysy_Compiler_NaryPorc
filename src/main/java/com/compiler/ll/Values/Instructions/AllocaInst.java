@@ -13,7 +13,7 @@ public class AllocaInst extends Instruction {
     @Override
     public String toIR() {
         if (type.isPointerType()){
-            return name + " = alloca " + ((PointerType)type).getPointeeType().toIR();
+            return "%" + name + " = alloca " + ((PointerType)type).getPointeeType().toIR();
         } else {
             throw new AllocException("Cannot allocate " + type + " into " + name);
         }

@@ -26,6 +26,10 @@ public class ConstantInt extends Constant {
         }
     }
 
+    public boolean isZero(){
+        return value == 0;
+    }
+
     public long getValue() {
         return value;
     }

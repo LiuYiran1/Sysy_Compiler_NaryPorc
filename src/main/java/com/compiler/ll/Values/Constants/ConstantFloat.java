@@ -26,6 +26,10 @@ public class ConstantFloat extends Constant {
         }
     }
 
+    public boolean isZeroFloat(){
+        return value == 0;
+    }
+
     public float getValue() {
         return value;
     }

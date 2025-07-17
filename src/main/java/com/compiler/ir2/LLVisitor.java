@@ -35,6 +35,8 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
     private final IntegerType i32 = context.getInt32Type();
 
+    private final IntegerType i64 = context.getInt64Type();
+
     private final FloatType f32 = context.getFloatType();
 
     private final VoidType vo = context.getVoidType();
@@ -334,18 +336,24 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                         }
                     }
 
+                    // 以线性的方式生成数组
+                    Type linearPtrType = context.getPointerType(type); // LLVMPointerType(type.getRef(), 0);  // address space 0
+                    // 将多维数组压成一维
+                    Value linearPtr = builder.buildBitCast(ptr, linearPtrType, varName + "FlatPtr"); // LLVMValueRef linearPtr = LLVMBuildBitCast(builder.getRef(), ptr.getRef(), linearPtrType, varName + "FlatPtr");
+                    for (int i = 0; i < memSize; i++) {
+                        Value val = mem[i];
+                        // 优化：如果是 Constant 且为 0，跳过
+                        if (false) {
+                            if (val.getType().isIntegerType() && ((ConstantInt) val).isZero()) continue;
+                            if (val.getType().isFloatType() && ((ConstantFloat) val).isZeroFloat()) continue;
+                        }
 
-
-//                    // 以线性的方式生成数组
-//                    Type linearPtrType = context.getPointerType(type); // LLVMPointerType(type.getRef(), 0);  // address space 0
-//                    // 将多维数组压成一维
-//                    Value linearPtr = builder.buildBitCast(ptr, linearPtrType, varName + "FlatPtr"); // LLVMValueRef linearPtr = LLVMBuildBitCast(builder.getRef(), ptr.getRef(), linearPtrType, varName + "FlatPtr");
-//                    for (int i = 0; i < memSize; i++) {
-//                        Value idx = new ConstInt(LLVMInt64Type(), i, 0); // i64 index
-//                        PointerPointer<Pointer> indices = new PointerPointer<>(1).put(0, idx);
-//                        LLVMValueRef gep = LLVMBuildGEP(builder.getRef(), linearPtr, indices, 1, varName + "Elem" + i);
-//                        LLVMBuildStore(builder.getRef(), mem[i].getRef(), gep);
-//                    }
+                        Value idx = i64.getConstantInt(i); // i64 index
+                        List<Value> indices = new ArrayList<Value>();
+                        indices.add(idx);
+                        Value gep = builder.buildGetElementPtr(linearPtr, indices, varName + "Elem" + i);
+                        builder.buildStore(gep, val);
+                    }
 
 
 
@@ -554,18 +562,24 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                         }
                     }
 
+                    // 以线性的方式生成数组
+                    PointerType linearPtrType = context.getPointerType(type); // LLVMPointerType(type.getRef(), 0);  // address space 0
+                    // 将多维数组压成一维
+                    Value linearPtr = builder.buildBitCast(ptr, linearPtrType, varName + "FlatPtr"); // LLVMValueRef linearPtr = LLVMBuildBitCast(builder.getRef(), ptr.getRef(), linearPtrType, varName + "FlatPtr");
+                    for (int i = 0; i < memSize; i++) {
+                        Value val = mem[i];
+                        // 优化：如果是 Constant 且为 0，跳过
+                        if (false) {
+                            if (val.getType().isIntegerType() && ((ConstantInt) val).isZero()) continue;
+                            if (val.getType().isFloatType() && ((ConstantFloat) val).isZeroFloat()) continue;
+                        }
 
-
-//                    // 以线性的方式生成数组
-//                    LLVMTypeRef linearPtrType = LLVMPointerType(type.getRef(), 0);  // address space 0
-//                    // 将多维数组压成一维
-//                    LLVMValueRef linearPtr = LLVMBuildBitCast(builder.getRef(), ptr.getRef(), linearPtrType, varName + "FlatPtr");
-//                    for (int i = 0; i < memSize; i++) {
-//                        LLVMValueRef idx = LLVMConstInt(LLVMInt64Type(), i, 0); // i64 index
-//                        PointerPointer<Pointer> indices = new PointerPointer<>(1).put(0, idx);
-//                        LLVMValueRef gep = LLVMBuildGEP(builder.getRef(), linearPtr, indices, 1, varName + "Elem" + i);
-//                        LLVMBuildStore(builder.getRef(), mem[i].getRef(), gep);
-//                    }
+                        Value idx = i64.getConstantInt(i); // i64 index
+                        List<Value> indices = new ArrayList<Value>();
+                        indices.add(idx);
+                        Value gep = builder.buildGetElementPtr(linearPtr, indices, varName + "Elem" + i);
+                        builder.buildStore(gep, val);
+                    }
 
 
 
@@ -1256,7 +1270,8 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                 needLoad = false;
             }
 
-            return buildArrayAccess(varAddr, indices, isFunctionArg, needLoad);
+            Value tem = buildArrayAccess(varAddr, indices, isFunctionArg, needLoad);
+            return tem;
 
         } else {
             // 普通变量访问
@@ -1352,6 +1367,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                     List.of(gepIndices),
                     "arrayidx" + level
             );
+
 
         }
 

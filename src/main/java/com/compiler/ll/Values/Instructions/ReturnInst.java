@@ -14,10 +14,7 @@ public class ReturnInst extends Instruction {
     @Override
     public String toIR() {
         Value op = operands.get(0);
-        if (op.isConstant()){
-            return "ret " + operands.get(0).getType().toIR() + " " + operands.get(0).getName();
-        } else {
-            return "ret " + operands.get(0).getType().toIR() + " %" + operands.get(0).getName();
-        }
+        String opStr = getOpStr(op);
+        return "ret " + operands.get(0).getType().toIR() + " " + opStr;
     }
 }

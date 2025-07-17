@@ -20,9 +20,9 @@ public class CallInst extends Instruction {
     @Override
     public String toIR() {
         String argsStr = operands.stream()
-                .map(op -> op.getType().toIR() + " " + op.getName())
+                .map(op -> op.getType().toIR() + " " + getOpStr(op))
                 .collect(Collectors.joining(", "));
-        return name.isEmpty() ? "call " + type.toIR() + " @" + calleeName + "(" + argsStr + ")"
+        return name == null ? "call " + type.toIR() + " @" + calleeName + "(" + argsStr + ")"
                               : "%" + name + " = call " + type.toIR() + " @" + calleeName + "(" + argsStr + ")";
     }
 }

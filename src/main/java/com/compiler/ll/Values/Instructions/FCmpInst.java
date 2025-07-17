@@ -20,8 +20,12 @@ public class FCmpInst extends Instruction {
 
     @Override
     public String toIR() {
+        Value op1 = operands.get(0);
+        Value op2 = operands.get(1);
+        String op1Str = getOpStr(op1);
+        String op2Str = getOpStr(op2);
         return "%" + name + " = fcmp " + predicate.getIRName() + " "
                 + operands.get(0).getType().toIR() + " "
-                + operands.get(0).getName() + ", " + operands.get(1).getName();
+                + op1Str + ", " + op2Str;
     }
 }

@@ -17,6 +17,6 @@ public class CondBranchInst extends Instruction {
 
     @Override
     public String toIR() {
-        return "br i1 " + operands.get(0).getName() + ", label %" + trueBlock.getName() + ", label %" + falseBlock.getName();
+        return "br i1 " + getOpStr(operands.get(0)) + ", label %" + trueBlock.getName() + ", label %" + falseBlock.getName();
     }
 }
