@@ -1080,7 +1080,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             if (left.getType().isIntegerType()) {
                 left = builder.buildIntCompare(IntPredicate.NE, left, intZero, "cond");
             } else if (left.getType().isFloatType()) {
-                left = builder.buildFloatCompare(FloatPredicate.OEQ, left, floatZero, "cond");
+                left = builder.buildFloatCompare(FloatPredicate.ONE, left, floatZero, "cond");
             } else {
                 throw new RuntimeException("type error");
             }

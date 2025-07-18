@@ -52,6 +52,9 @@ public class ConstantInt extends Constant {
 
     @Override
     public String toIR() {
+        if(((IntegerType)this.type).getBitWidth() == 1){
+            return value == 0 ? "false" : "true";
+        }
         return Long.toString(value);
     }
 
