@@ -952,8 +952,20 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             Value[] params = new Value[function.getArgumentCount()];
 
             if (ctx.funcRParams() != null) {
+                List<Argument> arguments = function.getArguments();
                 for (int i = 0; i < params.length; i++) {
-                    params[i] = visit(ctx.funcRParams().param(i));
+                    Value argVal = visit(ctx.funcRParams().param(i));
+                    Type argType = argVal.getType();
+                    Type expectedType = arguments.get(i).getType();
+
+                    // 函数参数隐式转换
+                    if (argType.isFloatType() && expectedType.isIntegerType()) {
+                        argVal = builder.buildFloatToSigned(argVal, expectedType, "funcFToI");
+                    } else if (argType.isIntegerType() && expectedType.isFloatType()) {
+                        argVal = builder.buildSignedToFloat(argVal, expectedType, "funcIToF");
+                    }
+
+                    params[i] = argVal;
                 }
             }
 
