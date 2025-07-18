@@ -1,12 +1,13 @@
 package com.compiler.ll.Values.Instructions;
 
 import com.compiler.ll.Types.Type;
+import com.compiler.ll.Values.BasicBlock;
 import com.compiler.ll.Values.Instruction;
 import com.compiler.ll.Values.Value;
 
 public class SDivInst extends Instruction {
-    public SDivInst(Type type, String name, Value lhs, Value rhs) {
-        super(type, name, Opcode.SDIV);
+    public SDivInst(Type type, String name, Value lhs, Value rhs, BasicBlock block) {
+        super(type, name, Opcode.SDIV, block);
         addOperand(lhs);
         addOperand(rhs);
     }

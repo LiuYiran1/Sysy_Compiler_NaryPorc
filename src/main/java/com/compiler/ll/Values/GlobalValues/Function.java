@@ -1,5 +1,6 @@
 package com.compiler.ll.Values.GlobalValues;
 
+import com.compiler.ll.Module;
 import com.compiler.ll.Types.FunctionType;
 import com.compiler.ll.Types.Type;
 import com.compiler.ll.Values.Argument;
@@ -11,16 +12,35 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class Function extends GlobalValue {
+    private final Module mod;
     private final List<Argument> arguments = new ArrayList<>();
     private final List<BasicBlock> blocks = new ArrayList<>();
 
-    public Function(FunctionType type, String name) {
+    public Function(FunctionType type, String name, Module mod) {
         super(type, name);
+        this.mod = mod;
         for (int i = 0; i < type.getParamTypes().size(); i++) {
             Type argType = type.getParamTypes().get(i);
             arguments.add(new Argument(argType, "arg" + i));
         }
     }
+
+    public Function getNextFunction() {
+        if (mod == null) return null;
+        List<Function> funcs = mod.getFunctions();
+        int idx = funcs.indexOf(this);
+        if (idx == -1 || idx + 1 >= funcs.size()) return null;
+        return funcs.get(idx + 1);
+    }
+
+    public BasicBlock getFirstBasicBlock() {
+        return blocks.isEmpty() ? null : blocks.get(0);
+    }
+
+    public List<BasicBlock> getBasicBlocks() {
+        return blocks;
+    }
+
 
     public List<Argument> getArguments() {
         return arguments;

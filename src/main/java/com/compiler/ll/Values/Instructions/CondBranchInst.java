@@ -4,12 +4,12 @@ import com.compiler.ll.Values.BasicBlock;
 import com.compiler.ll.Values.Instruction;
 import com.compiler.ll.Values.Value;
 
-public class CondBranchInst extends Instruction {
+public class CondBranchInst extends TerminatorInst {
     private final BasicBlock trueBlock;
     private final BasicBlock falseBlock;
 
-    public CondBranchInst(Value condition, BasicBlock trueBlock, BasicBlock falseBlock) {
-        super(null, "", Opcode.CBR);
+    public CondBranchInst(Value condition, BasicBlock trueBlock, BasicBlock falseBlock, BasicBlock block) {
+        super(null, "", Opcode.CBR, block);
         addOperand(condition);
         this.trueBlock = trueBlock;
         this.falseBlock = falseBlock;

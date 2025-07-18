@@ -11,8 +11,8 @@ import java.util.List;
 public class PhiInst extends Instruction {
     private final List<BasicBlock> incomingBlocks = new ArrayList<>();
 
-    public PhiInst(Type type, String name) {
-        super(type, name, Opcode.PHI);
+    public PhiInst(Type type, String name, BasicBlock block) {
+        super(type, name, Opcode.PHI, block);
     }
 
     public void addIncoming(BasicBlock block, Value value) {

@@ -4,6 +4,8 @@
 4. 处理phi
 5. 数组待优化部分: 1.对于myVisitInitVal的处理机制和官方不同  2. 对于局部数组要分成初始化是否包含变量两种
 7. 03_sort  o4_spmv
+8. 65 栈空间爆了
+9. 对 79 ，要在符号表中处理变量名，切换变量名称
 
 IR visit:
 - 函数作用域：Stack<SymTable> 、curFunc 

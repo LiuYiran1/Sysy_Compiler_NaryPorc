@@ -1,12 +1,13 @@
 package com.compiler.ll.Values.Instructions;
 
 import com.compiler.ll.Types.Type;
+import com.compiler.ll.Values.BasicBlock;
 import com.compiler.ll.Values.Instruction;
 import com.compiler.ll.Values.Value;
 
 public class AddInst extends Instruction {
-    public AddInst(Type type, String name, Value lhs, Value rhs) {
-        super(type, name, Opcode.ADD);
+    public AddInst(Type type, String name, Value lhs, Value rhs, BasicBlock block) {
+        super(type, name, Opcode.ADD, block);
         addOperand(lhs);
         addOperand(rhs);
     }

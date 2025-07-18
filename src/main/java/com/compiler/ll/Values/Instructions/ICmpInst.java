@@ -1,14 +1,15 @@
 package com.compiler.ll.Values.Instructions;
 
 import com.compiler.ll.Types.Type;
+import com.compiler.ll.Values.BasicBlock;
 import com.compiler.ll.Values.Instruction;
 import com.compiler.ll.Values.Value;
 
 public class ICmpInst extends Instruction {
     private final IntPredicate predicate;
 
-    public ICmpInst(Type resultType, String name, IntPredicate predicate, Value lhs, Value rhs) {
-        super(resultType, name, Opcode.ICMP);
+    public ICmpInst(Type resultType, String name, IntPredicate predicate, Value lhs, Value rhs, BasicBlock block) {
+        super(resultType, name, Opcode.ICMP, block);
         this.predicate = predicate;
         addOperand(lhs);
         addOperand(rhs);

@@ -19,9 +19,8 @@ public class LLTest {
     static final Module mod = context.getModule("module");
 
     public static void main(String[] args) {
-        Function function = new Function(context.getFunctionType(context.getInt32Type(), new ArrayList<>()), "main");
-        mod.addFunction(function);
-        BasicBlock bb = new BasicBlock("mainEntry");
+        Function function = new Function(context.getFunctionType(context.getInt32Type(), new ArrayList<>()), "main", mod);
+        BasicBlock bb = context.newBasicBlock("mainEntry");
         function.addBasicBlock(bb);
         builder.positionAfter(bb);
 

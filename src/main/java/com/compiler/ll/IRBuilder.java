@@ -38,19 +38,19 @@ public class IRBuilder {
     }
 
     public ReturnInst buildReturn(Value val) {
-        ReturnInst inst = new ReturnInst(val);
+        ReturnInst inst = new ReturnInst(val, currentBlock);
         currentBlock.addInstruction(inst);
         return inst;
     }
 
     public void buildReturnVoid() {
-        ReturnVoidInst inst = new ReturnVoidInst(context.getVoidType());
+        ReturnVoidInst inst = new ReturnVoidInst(context.getVoidType(), currentBlock);
         currentBlock.addInstruction(inst);
     }
 
     public AllocaInst buildAlloca(Type allocType, String varName) {
         String name = nameManager.getUniqueName(varName);
-        AllocaInst inst = new AllocaInst(context.getPointerType(allocType), name);
+        AllocaInst inst = new AllocaInst(context.getPointerType(allocType), name, currentBlock);
         currentBlock.addInstruction(inst);
         return inst;
     }
@@ -64,7 +64,7 @@ public class IRBuilder {
         Type pointeeType = ((PointerType) pointer.getType()).getPointeeType();
         String name = nameManager.getUniqueName(varName);
 
-        LoadInst inst = new LoadInst(pointeeType, name, pointer);
+        LoadInst inst = new LoadInst(pointeeType, name, pointer, currentBlock);
         currentBlock.addInstruction(inst);
         return inst;
     }
@@ -77,7 +77,8 @@ public class IRBuilder {
             return i32.getConstantInt(casted);
         }
 
-        FpToSiInst inst = new FpToSiInst(value, type, varName);
+        String name = nameManager.getUniqueName(varName);
+        FpToSiInst inst = new FpToSiInst(value, type, name, currentBlock);
         currentBlock.addInstruction(inst);
         return inst;
     }
@@ -89,13 +90,14 @@ public class IRBuilder {
             return f32.getConstantFloat(casted);
         }
 
-        SiToFpInst inst = new SiToFpInst(value, type, varName);
+        String name = nameManager.getUniqueName(varName);
+        SiToFpInst inst = new SiToFpInst(value, type, name, currentBlock);
         currentBlock.addInstruction(inst);
         return inst;
     }
 
     public StoreInst buildStore(Value pointer, Value value) { // 注意顺序
-        StoreInst inst = new StoreInst(value, pointer); // 注意：StoreInst 返回值为 null（void）
+        StoreInst inst = new StoreInst(value, pointer, currentBlock); // 注意：StoreInst 返回值为 null（void）
         currentBlock.addInstruction(inst);
         return inst;
     }
@@ -116,7 +118,7 @@ public class IRBuilder {
         }
 
         String name = nameManager.getUniqueName(varName);
-        ICmpInst inst = new ICmpInst(context.getInt1Type(), name, cond, lhs, rhs);
+        ICmpInst inst = new ICmpInst(context.getInt1Type(), name, cond, lhs, rhs, currentBlock);
         currentBlock.addInstruction(inst);
         return inst;
     }
@@ -138,13 +140,13 @@ public class IRBuilder {
 
 
         String name = nameManager.getUniqueName(varName);
-        FCmpInst inst = new FCmpInst(context.getInt1Type(), name, cond, lhs, rhs);
+        FCmpInst inst = new FCmpInst(context.getInt1Type(), name, cond, lhs, rhs, currentBlock);
         currentBlock.addInstruction(inst);
         return inst;
     }
 
     public BranchInst buildBranch(BasicBlock target){
-        BranchInst inst = new BranchInst(target);
+        BranchInst inst = new BranchInst(target, currentBlock);
         currentBlock.addInstruction(inst);
         return inst;
     }
@@ -159,7 +161,7 @@ public class IRBuilder {
         } else {
             throw new CondException("cond is not integer!!!");
         }
-        CondBranchInst inst = new CondBranchInst(condition, trueBlock, falseBlock);
+        CondBranchInst inst = new CondBranchInst(condition, trueBlock, falseBlock, currentBlock);
         currentBlock.addInstruction(inst);
         return inst;
     }
@@ -179,7 +181,7 @@ public class IRBuilder {
 
         String name = nameManager.getUniqueName(varName);
 
-        ZExtInst inst = new ZExtInst(from, toType, name);
+        ZExtInst inst = new ZExtInst(from, toType, name, currentBlock);
         currentBlock.addInstruction(inst);
         return inst;
     }
@@ -189,7 +191,7 @@ public class IRBuilder {
         Type retType = ((FunctionType)(function.getType())).getReturnType();
 
         String retName = retType.isVoidType() ? null : nameManager.getUniqueName("call");
-        CallInst inst = new CallInst(retType, retName, function.getName(), params.toArray(new Value[0]));
+        CallInst inst = new CallInst(retType, retName, function.getName(), currentBlock, params.toArray(new Value[0]));
         currentBlock.addInstruction(inst);
         return inst;
     }
@@ -200,7 +202,7 @@ public class IRBuilder {
             return new ConstantInt((IntegerType) lhs.getType(), res);
         }
         String name = nameManager.getUniqueName(varName);
-        MulInst inst = new MulInst(lhs.getType(), name, lhs, rhs);
+        MulInst inst = new MulInst(lhs.getType(), name, lhs, rhs, currentBlock);
         currentBlock.addInstruction(inst);
         return inst;
     }
@@ -213,7 +215,7 @@ public class IRBuilder {
             return new ConstantInt((IntegerType) lhs.getType(), res);
         }
         String name = nameManager.getUniqueName(varName);
-        SDivInst inst = new SDivInst(lhs.getType(), name, lhs, rhs);
+        SDivInst inst = new SDivInst(lhs.getType(), name, lhs, rhs, currentBlock);
         currentBlock.addInstruction(inst);
         return inst;
     }
@@ -226,7 +228,7 @@ public class IRBuilder {
             return new ConstantInt((IntegerType) lhs.getType(), res);
         }
         String name = nameManager.getUniqueName(varName);
-        SRemInst inst = new SRemInst(lhs.getType(), name, lhs, rhs);
+        SRemInst inst = new SRemInst(lhs.getType(), name, lhs, rhs, currentBlock);
         currentBlock.addInstruction(inst);
         return inst;
     }
@@ -237,7 +239,7 @@ public class IRBuilder {
             return new ConstantInt((IntegerType) lhs.getType(), res);
         }
         String name = nameManager.getUniqueName(varName);
-        AddInst inst = new AddInst(lhs.getType(), name, lhs, rhs);
+        AddInst inst = new AddInst(lhs.getType(), name, lhs, rhs, currentBlock);
         currentBlock.addInstruction(inst);
         return inst;
     }
@@ -248,7 +250,7 @@ public class IRBuilder {
             return new ConstantInt((IntegerType) lhs.getType(), res);
         }
         String name = nameManager.getUniqueName(varName);
-        SubInst inst = new SubInst(lhs.getType(), name, lhs, rhs);
+        SubInst inst = new SubInst(lhs.getType(), name, lhs, rhs, currentBlock);
         currentBlock.addInstruction(inst);
         return inst;
     }
@@ -259,7 +261,7 @@ public class IRBuilder {
             return new ConstantFloat((FloatType) lhs.getType(), res);
         }
         String name = nameManager.getUniqueName(varName);
-        FMulInst inst = new FMulInst(lhs.getType(), name, lhs, rhs);
+        FMulInst inst = new FMulInst(lhs.getType(), name, lhs, rhs, currentBlock);
         currentBlock.addInstruction(inst);
         return inst;
     }
@@ -271,7 +273,7 @@ public class IRBuilder {
             return new ConstantFloat((FloatType) lhs.getType(), res);
         }
         String name = nameManager.getUniqueName(varName);
-        FDivInst inst = new FDivInst(lhs.getType(), name, lhs, rhs);
+        FDivInst inst = new FDivInst(lhs.getType(), name, lhs, rhs, currentBlock);
         currentBlock.addInstruction(inst);
         return inst;
     }
@@ -282,7 +284,7 @@ public class IRBuilder {
             return new ConstantFloat((FloatType) lhs.getType(), res);
         }
         String name = nameManager.getUniqueName(varName);
-        FRemInst inst = new FRemInst(lhs.getType(), name, lhs, rhs);
+        FRemInst inst = new FRemInst(lhs.getType(), name, lhs, rhs, currentBlock);
         currentBlock.addInstruction(inst);
         return inst;
     }
@@ -293,7 +295,7 @@ public class IRBuilder {
             return new ConstantFloat((FloatType) lhs.getType(), res);
         }
         String name = nameManager.getUniqueName(varName);
-        FAddInst inst = new FAddInst(lhs.getType(), name, lhs, rhs);
+        FAddInst inst = new FAddInst(lhs.getType(), name, lhs, rhs, currentBlock);
         currentBlock.addInstruction(inst);
         return inst;
     }
@@ -304,14 +306,14 @@ public class IRBuilder {
             return new ConstantFloat((FloatType) lhs.getType(), res);
         }
         String name = nameManager.getUniqueName(varName);
-        FSubInst inst = new FSubInst(lhs.getType(), name, lhs, rhs);
+        FSubInst inst = new FSubInst(lhs.getType(), name, lhs, rhs, currentBlock);
         currentBlock.addInstruction(inst);
         return inst;
     }
 
     public PhiInst buildPhi(Type type, String varName) {
         String name = nameManager.getUniqueName(varName);
-        PhiInst inst = new PhiInst(type, name);
+        PhiInst inst = new PhiInst(type, name, currentBlock);
         currentBlock.addInstruction(inst);
         return inst;
     }
@@ -321,9 +323,13 @@ public class IRBuilder {
             throw new GEPException("GEP base must be a pointer");
         }
 
+        if (indices.size() != 1 && indices.size() != 2) {
+            throw new GEPException("GEP indices must be 1 or 2");
+        }
+
         Type objectType = ((PointerType) basePointer.getType()).getPointeeType();
         Type elementType;
-        if (objectType.isArrayType()) {
+        if (objectType.isArrayType() && indices.size() == 2) {
             elementType = ((ArrayType) objectType).getElementType();
         } else {
             elementType = objectType;
@@ -331,7 +337,7 @@ public class IRBuilder {
         PointerType resultType = context.getPointerType(elementType); // GEP 返回的仍然是指针类型
 
         String name = nameManager.getUniqueName(varName);
-        GetElementPtrInst inst = new GetElementPtrInst(resultType, objectType,name, basePointer, indices);
+        GetElementPtrInst inst = new GetElementPtrInst(resultType, objectType,name, basePointer, indices, currentBlock);
         currentBlock.addInstruction(inst);
         return inst;
     }
@@ -344,7 +350,8 @@ public class IRBuilder {
         }
 
         // 创建指令
-        BitCastInst inst = new BitCastInst(value.getType(), targetType, value, varName);
+        String name = nameManager.getUniqueName(varName);
+        BitCastInst inst = new BitCastInst(value.getType(), targetType, value, name, currentBlock);
         currentBlock.addInstruction(inst);
         return inst;
     }
@@ -366,5 +373,14 @@ public class IRBuilder {
     public void setCurFunc(Function func) {
         this.currentFunction = func;
     }
+
+    public NameManager getNameManager() {
+        return nameManager;
+    }
+
+    public Function getCurFunc() {
+        return currentFunction;
+    }
+
 
 }

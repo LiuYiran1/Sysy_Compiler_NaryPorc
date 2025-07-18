@@ -34,15 +34,15 @@ public abstract class Value {
     public abstract String toIR();
 
     // 便于调试和符号表使用
-    @Override
-    public boolean equals(Object obj) {
-        if (!(obj instanceof Value)) return false;
-        Value other = (Value) obj;
-        return name != null && name.equals(other.name);
-    }
-
-    @Override
-    public int hashCode() {
-        return name == null ? 0 : name.hashCode();
-    }
+//    @Override
+//    public boolean equals(Object obj) {
+//        if (!(obj instanceof Value)) return false;
+//        Value other = (Value) obj;
+//        return name != null && name.equals(other.name);
+//    }
+//
+//    @Override
+//    public int hashCode() {
+//        return name == null ? 0 : name.hashCode();
+//    }
 }

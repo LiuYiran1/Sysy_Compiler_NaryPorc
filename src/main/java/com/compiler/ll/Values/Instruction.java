@@ -10,12 +10,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 public abstract class Instruction extends User {
+    protected BasicBlock block;
     protected final Opcode opcode;
     protected final List<Value> operands = new ArrayList<>();
 
-    public Instruction(Type type, String name, Opcode opcode) {
+    public Instruction(Type type, String name, Opcode opcode, BasicBlock block) {
         super(type, name);
         this.opcode = opcode;
+        this.block = block;
     }
 
     public Opcode getOpcode() {
@@ -32,15 +34,31 @@ public abstract class Instruction extends User {
 
     public abstract String toIR();
 
+    public boolean isTerminator(){
+        return false;
+    }
+
+    public Instruction getNextInstruction() {
+        BasicBlock parent = this.block;
+        if (parent == null) return null;
+
+        List<Instruction> list = parent.getInstructions();
+        int index = list.indexOf(this);
+        if (index == -1 || index + 1 >= list.size()) return null;
+        return list.get(index + 1);
+    }
+
+    public void eraseFromParent() {
+        if (block != null) {
+            block.getInstructions().remove(this);
+            this.block = null; // 解除引用
+        }
+    }
+
+
     protected String getOpStr(Value op) {
         if (op.isConstant()) {
-            if (op.getType().isIntegerType()){
-                return ((ConstantInt) op).getValue() + "";
-            } else if (op.getType().isFloatType()){
-                return ((ConstantFloat) op).getValue() + "";
-            } else {
-                throw new RuntimeException("Store type not supported");
-            }
+            return op.toIR();
         } else if (op.isGlobalVariable()) {
             return "@" + op.getName();
         } else {

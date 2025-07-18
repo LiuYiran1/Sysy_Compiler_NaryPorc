@@ -95,7 +95,8 @@ public class Context {
         return builder;
     }
 
-    public BasicBlock newBasicBlock(String name) {
-        return new BasicBlock(name);
+    public BasicBlock newBasicBlock(String blockName) {
+        String name = this.builder.getNameManager().getUniqueName(blockName);
+        return new BasicBlock(name, this.builder.getCurFunc());
     }
 }

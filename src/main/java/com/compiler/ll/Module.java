@@ -27,16 +27,15 @@ public class Module {
         return name;
     }
 
-    public void addFunction(Function func) {
-        functions.add(func);
-        this.builder.setCurFunc(func);
-    }
-
     public Function addFunction(String name, FunctionType funcType) {
-        Function function = new Function(funcType, name);
+        Function function = new Function(funcType, name, this);
         functions.add(function);
         this.builder.setCurFunc(function);
         return function;
+    }
+
+    public Function getFirstFunction() {
+        return functions.isEmpty() ? null : functions.get(0);
     }
 
     public List<Function> getFunctions() {

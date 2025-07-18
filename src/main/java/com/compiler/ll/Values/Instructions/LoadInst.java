@@ -1,12 +1,13 @@
 package com.compiler.ll.Values.Instructions;
 
 import com.compiler.ll.Types.Type;
+import com.compiler.ll.Values.BasicBlock;
 import com.compiler.ll.Values.Instruction;
 import com.compiler.ll.Values.Value;
 
 public class LoadInst extends Instruction {
-    public LoadInst(Type type, String name, Value pointer) {
-        super(type, name, Opcode.LOAD);
+    public LoadInst(Type type, String name, Value pointer, BasicBlock block) {
+        super(type, name, Opcode.LOAD, block);
         addOperand(pointer);
     }
 

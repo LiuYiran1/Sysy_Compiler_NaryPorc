@@ -8,16 +8,14 @@ import com.compiler.ll.Context;
 import com.compiler.ll.IRBuilder;
 import com.compiler.ll.Module;
 import com.compiler.ll.Types.*;
-import com.compiler.ll.Values.Argument;
-import com.compiler.ll.Values.BasicBlock;
-import com.compiler.ll.Values.Constant;
+import com.compiler.ll.Values.*;
 import com.compiler.ll.Values.Constants.ConstantArray;
 import com.compiler.ll.Values.Constants.ConstantFloat;
 import com.compiler.ll.Values.Constants.ConstantInt;
 import com.compiler.ll.Values.GlobalValues.Function;
 import com.compiler.ll.Values.Instructions.FloatPredicate;
 import com.compiler.ll.Values.Instructions.IntPredicate;
-import com.compiler.ll.Values.Value;
+import com.compiler.ll.Values.Instructions.Opcode;
 import org.antlr.v4.runtime.ParserRuleContext;
 
 
@@ -123,53 +121,53 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
     }
 
     public void dump(File file) {
-//        for (LLVMValueRef func = LLVMGetFirstFunction(mod.getRef()); func != null; func = LLVMGetNextFunction(func)) {
-//            for (LLVMBasicBlockRef bb = LLVMGetFirstBasicBlock(func); bb != null; bb = LLVMGetNextBasicBlock(bb)) {
-//                if (LLVMGetBasicBlockTerminator(bb) == null) {
-//                    builder.positionAfter(new BasicBlock(bb));
-//                    String funcName = LLVMGetValueName(func).getString();
-//                    Type retType = retTypes.get(funcName);
-//                    if (retType.isIntegerType()) {
-//                        builder.buildReturn(Option.of(intZero));
-//                    } else if (retType.isVoidType()) {
-//                        builder.buildReturn(Option.empty());
-//                    } else if (retType.isFloatType()) {
-//                        builder.buildReturn(Option.of(floatZero));
-//                    } else {
-//                        throw new RuntimeException("Unknown return type: " + retType);
-//                    }
-//
-//                }
-//            }
-//        }
-//
-//        // 遍历所有指令,消除终止指令后的冗余指令
-//        List<LLVMValueRef> DCE = new ArrayList<>();
-//        List<LLVMBasicBlockRef> DBE = new ArrayList<>();
-//        for (LLVMValueRef func = LLVMGetFirstFunction(mod.getRef()); func != null; func = LLVMGetNextFunction(func)) {
-//            for (LLVMBasicBlockRef bb = LLVMGetFirstBasicBlock(func); bb != null; bb = LLVMGetNextBasicBlock(bb)) {
-//                boolean terminatorFlag = false;
-//                if (LLVMGetFirstInstruction(bb) == null) {
-//                    DBE.add(bb);
-//                    continue;
-//                }
-//                for (LLVMValueRef inst = LLVMGetFirstInstruction(bb); inst != null; inst = LLVMGetNextInstruction(inst)) {
-//                    int opcode = LLVMGetInstructionOpcode(inst);
-//                    if (terminatorFlag) {
-//                        DCE.add(inst);
-//                    }
-//                    if ((opcode == LLVMRet || opcode == LLVMBr) && !terminatorFlag) {
-//                        terminatorFlag = true;
-//                    }
-//                }
-//            }
-//        }
-//        for (var code : DCE) {
-//            LLVMInstructionEraseFromParent(code);
-//        }
-//        for (var bb : DBE) {
-//            LLVMDeleteBasicBlock(bb);
-//        }
+        for (Function func = mod.getFirstFunction(); func != null; func = func.getNextFunction()) {
+            for (BasicBlock bb = func.getFirstBasicBlock(); bb != null; bb = bb.getNextBasicBlock()) {
+                if (bb.getTerminator() == null) {
+                    builder.positionAfter(bb);
+                    String funcName = func.getName();
+                    Type retType = retTypes.get(funcName);
+                    if (retType.isIntegerType()) {
+                        builder.buildReturn(intZero);
+                    } else if (retType.isVoidType()) {
+                        builder.buildReturnVoid();
+                    } else if (retType.isFloatType()) {
+                        builder.buildReturn(floatZero);
+                    } else {
+                        throw new RuntimeException("Unknown return type: " + retType);
+                    }
+
+                }
+            }
+        }
+
+        // 遍历所有指令,消除终止指令后的冗余指令
+        List<Instruction> DCE = new ArrayList<>();
+        List<BasicBlock> DBE = new ArrayList<>();
+        for (Function func = mod.getFirstFunction(); func != null; func = func.getNextFunction()) {
+            for (BasicBlock bb = func.getFirstBasicBlock(); bb != null; bb = bb.getNextBasicBlock()) {
+                boolean terminatorFlag = false;
+                if (bb.getFirstInstruction() == null) {
+                    DBE.add(bb);
+                    continue;
+                }
+                for (Instruction inst = bb.getFirstInstruction(); inst != null; inst = inst.getNextInstruction()) {
+                    int opcode = inst.getOpcode().ordinal();
+                    if (terminatorFlag) {
+                        DCE.add(inst);
+                    }
+                    if ((opcode == Opcode.RET.ordinal() || opcode == Opcode.BR.ordinal()) && !terminatorFlag) {
+                        terminatorFlag = true;
+                    }
+                }
+            }
+        }
+        for (Instruction inst : DCE) {
+            inst.eraseFromParent();
+        }
+        for (BasicBlock bb : DBE) {
+            bb.delete();
+        }
 
 
         mod.dump(file);

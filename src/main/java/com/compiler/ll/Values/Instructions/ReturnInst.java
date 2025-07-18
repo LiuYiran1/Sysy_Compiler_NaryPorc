@@ -2,12 +2,13 @@
 package com.compiler.ll.Values.Instructions;
 
 import com.compiler.ll.Types.Type;
+import com.compiler.ll.Values.BasicBlock;
 import com.compiler.ll.Values.Instruction;
 import com.compiler.ll.Values.Value;
 
-public class ReturnInst extends Instruction {
-    public ReturnInst(Value retVal) {
-        super(retVal.getType(), "", Opcode.RET);
+public class ReturnInst extends TerminatorInst {
+    public ReturnInst(Value retVal, BasicBlock block) {
+        super(retVal.getType(), "", Opcode.RET, block);
         addOperand(retVal);
     }
 
