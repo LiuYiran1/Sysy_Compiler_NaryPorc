@@ -68,6 +68,9 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
     private final Map<Value, Constant> globalValues = new LinkedHashMap<>();
 
+
+    private boolean arrDefaultZero = true;
+
     public LLVisitor() {
         initRunTimeLibrary();
     }
@@ -341,7 +344,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                     for (int i = 0; i < memSize; i++) {
                         Value val = mem[i];
                         // 优化：如果是 Constant 且为 0，跳过
-                        if (false) {
+                        if (arrDefaultZero) {
                             if (val.getType().isIntegerType() && ((ConstantInt) val).isZero()) continue;
                             if (val.getType().isFloatType() && ((ConstantFloat) val).isZeroFloat()) continue;
                         }
@@ -567,7 +570,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                     for (int i = 0; i < memSize; i++) {
                         Value val = mem[i];
                         // 优化：如果是 Constant 且为 0，跳过
-                        if (false) {
+                        if (arrDefaultZero) {
                             if (val.getType().isIntegerType() && ((ConstantInt) val).isZero()) continue;
                             if (val.getType().isFloatType() && ((ConstantFloat) val).isZeroFloat()) continue;
                         }
