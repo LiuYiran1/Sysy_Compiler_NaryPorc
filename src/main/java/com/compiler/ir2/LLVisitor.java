@@ -272,7 +272,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                 }
                 // 处理数组赋值
                 var globalVar = mod.addGlobalVariable(varName, arrayType);
-                if (ctx.ASSIGN() != null) {
+                if (ctx.ASSIGN() != null && (ctx.constInitVal() != null && !ctx.constInitVal().constInitVal().isEmpty())) {
                     int memSize = 1;
                     for (int dim : dimensions) {
                         memSize *= dim;
@@ -312,7 +312,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                 }
                 Value ptr = builder.buildAlloca(arrayType, varName + "Arr");
                 symbolTable.addSymbol(varName, ptr);
-                if (ctx.ASSIGN() != null) {
+                if (ctx.ASSIGN() != null && (ctx.constInitVal() != null && !ctx.constInitVal().constInitVal().isEmpty())) {
                     int memSize = 1;
                     for (int dim : dimensions) {
                         memSize *= dim;
@@ -342,8 +342,8 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                         Value val = mem[i];
                         // 优化：如果是 Constant 且为 0，跳过
                         if (arrDefaultZero) {
-                            if (val.getType().isIntegerType() && ((ConstantInt) val).isZero()) continue;
-                            if (val.getType().isFloatType() && ((ConstantFloat) val).isZero()) continue;
+                            if (val.getType().isIntegerType() && val.isConstant() && ((ConstantInt) val).isZero()) continue;
+                            if (val.getType().isFloatType() && val.isConstant() && ((ConstantFloat) val).isZero()) continue;
                         }
 
                         Value idx = i64.getConstantInt(i); // i64 index
@@ -496,7 +496,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                 }
                 // 处理数组赋值
                 var globalVar = mod.addGlobalVariable(varName, arrayType);
-                if (ctx.ASSIGN() != null) {
+                if (ctx.ASSIGN() != null && (ctx.initVal() != null && !ctx.initVal().initVal().isEmpty())) {
                     int memSize = 1;
                     for (int dim : dimensions) {
                         memSize *= dim;
@@ -538,7 +538,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                 }
                 Value ptr = builder.buildAlloca(arrayType, varName + "Arr");
                 symbolTable.addSymbol(varName, ptr);
-                if (ctx.ASSIGN() != null) {
+                if (ctx.ASSIGN() != null && (ctx.initVal() != null && !ctx.initVal().initVal().isEmpty())) {
                     int memSize = 1;
                     for (int dim : dimensions) {
                         memSize *= dim;
@@ -568,8 +568,8 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                         Value val = mem[i];
                         // 优化：如果是 Constant 且为 0，跳过
                         if (arrDefaultZero) {
-                            if (val.getType().isIntegerType() && ((ConstantInt) val).isZero()) continue;
-                            if (val.getType().isFloatType() && ((ConstantFloat) val).isZero()) continue;
+                            if (val.getType().isIntegerType() && val.isConstant() && ((ConstantInt) val).isZero()) continue;
+                            if (val.getType().isFloatType() && val.isConstant() && ((ConstantFloat) val).isZero()) continue;
                         }
 
                         Value idx = i64.getConstantInt(i); // i64 index
