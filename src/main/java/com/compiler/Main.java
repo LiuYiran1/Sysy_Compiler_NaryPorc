@@ -1,5 +1,6 @@
 package com.compiler;
 
+import com.compiler.frontend.RenamingSysYLexer;
 import com.compiler.frontend.SysYLexer;
 import com.compiler.frontend.SysYParser;
 import com.compiler.ir2.LLVisitor;
@@ -22,7 +23,7 @@ import java.util.List;
 public class Main {
     static String inputFile;
 
-    static SysYLexer lexer;
+    static RenamingSysYLexer lexer;
     static LexerListener lexerListener;
 
     static SysYParser parser;
@@ -63,8 +64,14 @@ public class Main {
 
             processLexer(inputPath.toString());
             processParser(lexer, inputPath.toString());
-            irGen(tree, outputPath.toString());
+            // irGen(tree, outputPath.toString());
             irGen2(tree, outputPath2.toString());
+
+//            System.out.println("== Renamed Variables ==");
+//            lexer.getRenamedMap().forEach((oldName, newName) -> {
+//                System.out.println(oldName + " -> " + newName);
+//            });
+
             clear();
         }
 
@@ -79,7 +86,7 @@ public class Main {
         }catch (IOException e){
             System.err.println("can not get input");
         }
-        lexer = new SysYLexer(input);
+        lexer = new RenamingSysYLexer(input);
         lexerListener = new LexerListener();
         lexer.removeErrorListeners();
         lexer.addErrorListener(lexerListener);
