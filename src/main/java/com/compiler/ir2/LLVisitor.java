@@ -277,15 +277,16 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                     for (int dim : dimensions) {
                         memSize *= dim;
                     }
-                    Value[] mem = new Value[memSize + 5];
-                    for (int i = 0; i < mem.length; i++) {
-                        mem[i] = type.isIntegerType() ? intZero : floatZero;
-                    }
-                    myVisitConstInitVal(ctx.constInitVal(), mem, 0, dimensions, memSize);
+                    // Value[] mem = new Value[memSize + 5];
+                    List<Value> mem = new LinkedList<>();
+//                    for (int i = 0; i < mem.length; i++) {
+//                        mem[i] = type.isIntegerType() ? intZero : floatZero;
+//                    }
+                    myVisitConstInitVal(ctx.constInitVal(), mem, 0, dimensions, memSize, type);
 
-                    Constant[] newMem = new Constant[mem.length];
-                    for (int i = 0; i < mem.length; i++) {
-                        newMem[i] = type.isIntegerType() ? calConstInt(mem[i]) : calConstFloat(mem[i]);
+                    Constant[] newMem = new Constant[mem.size()];
+                    for (int i = 0; i < mem.size(); i++) {
+                        newMem[i] = type.isIntegerType() ? calConstInt(mem.get(i)) : calConstFloat(mem.get(i));
                     }
 
                     Constant initializer = buildNestedArray(newMem, dimensions, type);
@@ -317,19 +318,20 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                     for (int dim : dimensions) {
                         memSize *= dim;
                     }
-                    Value[] mem = new Value[memSize + 5];
-                    for (int i = 0; i < mem.length; i++) {
-                        mem[i] = type.isIntegerType() ? intZero : floatZero;
-                    }
-                    myVisitConstInitVal(ctx.constInitVal(), mem, 0, dimensions, memSize);
-                    for (int i = 0; i < mem.length; i++) {
+                    // Value[] mem = new Value[memSize + 5];
+                    List<Value> mem = new LinkedList<>();
+//                    for (int i = 0; i < mem.length; i++) {
+//                        mem[i] = type.isIntegerType() ? intZero : floatZero;
+//                    }
+                    myVisitConstInitVal(ctx.constInitVal(), mem, 0, dimensions, memSize, type);
+                    for (int i = 0; i < mem.size(); i++) {
                         if (type.isIntegerType()) {
-                            if (mem[i].getType().isFloatType()) {
-                                mem[i] = builder.buildFloatToSigned(mem[i], i32, "iArr");
+                            if (mem.get(i).getType().isFloatType()) {
+                                mem.set(i, builder.buildFloatToSigned(mem.get(i), i32, "iArr"));
                             }
                         } else if (type.isFloatType()) {
-                            if (mem[i].getType().isIntegerType()) {
-                                mem[i] = builder.buildSignedToFloat(mem[i], f32, "fArr");
+                            if (mem.get(i).getType().isIntegerType()) {
+                                mem.set(i, builder.buildSignedToFloat(mem.get(i), f32, "fArr"));
                             }
                         }
                     }
@@ -338,8 +340,8 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                     Type linearPtrType = context.getPointerType(type); // LLVMPointerType(type.getRef(), 0);  // address space 0
                     // 将多维数组压成一维
                     Value linearPtr = builder.buildBitCast(ptr, linearPtrType, varName + "FlatPtr"); // LLVMValueRef linearPtr = LLVMBuildBitCast(builder.getRef(), ptr.getRef(), linearPtrType, varName + "FlatPtr");
-                    for (int i = 0; i < memSize; i++) {
-                        Value val = mem[i];
+                    for (int i = 0; i < mem.size(); i++) {
+                        Value val = mem.get(i);
                         // 优化：如果是 Constant 且为 0，跳过
                         if (arrDefaultZero) {
                             if (val.getType().isIntegerType() && ((ConstantInt) val).isZero()) continue;
@@ -362,10 +364,15 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         }
     }
 
-    private void myVisitConstInitVal(SysYParser.ConstInitValContext cxt, Value[] mem, int index, List<Integer> dimensions, int h) {
+    private void myVisitConstInitVal(SysYParser.ConstInitValContext cxt, List<Value> mem, int index, List<Integer> dimensions, int h, Type type) {
         LOG("myVisitInitVal");
         if (cxt.constExp() != null) {
-            mem[index] = visitConstExp(cxt.constExp());
+            if (mem.size() < index){
+                for (int i = 0; i < index - mem.size() + 20; i++) {
+                    mem.add(type.isIntegerType() ? intZero : floatZero);
+                }
+            }
+            mem.set(index, visitConstExp(cxt.constExp()));
             return;
         }
         h = h / dimensions.get(0);
@@ -374,7 +381,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         subDims.remove(0);
         for (int i = 0; i < cxt.constInitVal().size(); i++) {
 
-            myVisitConstInitVal(cxt.constInitVal(i), mem, index, subDims, h);
+            myVisitConstInitVal(cxt.constInitVal(i), mem, index, subDims, h, type);
             index = cxt.constInitVal(i).constExp() == null ? index + h : index + 1;
         }
     }
