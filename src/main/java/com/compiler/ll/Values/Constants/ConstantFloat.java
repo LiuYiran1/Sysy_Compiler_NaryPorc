@@ -26,7 +26,8 @@ public class ConstantFloat extends Constant {
         }
     }
 
-    public boolean isZeroFloat(){
+    @Override
+    public boolean isZero(){
         return value == 0;
     }
 

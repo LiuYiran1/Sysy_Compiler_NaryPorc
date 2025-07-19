@@ -23,8 +23,18 @@ public class ConstantArray extends Constant {
 
     @Override
     public String toIR() {
+        if (isZero()) return "zeroinitializer";
         return "[" + elements.stream()
                 .map(e -> e.getType().toIR() + " " + e.toIR())
                 .collect(Collectors.joining(", ")) + "]";
+    }
+
+    @Override
+    public boolean isZero(){
+        boolean isZero = true;
+        for (Constant element : elements) {
+            if (!element.isZero()) isZero = false;
+        }
+        return isZero;
     }
 }

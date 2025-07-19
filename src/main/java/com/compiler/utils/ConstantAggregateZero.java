@@ -9,6 +9,11 @@ public class ConstantAggregateZero extends Constant {
     }
 
     @Override
+    public boolean isZero() {
+        return false;
+    }
+
+    @Override
     public String toIR() {
         return "zeroinitializer";
     }

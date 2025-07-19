@@ -26,6 +26,7 @@ public class ConstantInt extends Constant {
         }
     }
 
+    @Override
     public boolean isZero(){
         return value == 0;
     }

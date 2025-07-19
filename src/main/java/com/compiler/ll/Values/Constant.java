@@ -7,6 +7,8 @@ public abstract class Constant extends User {
         super(type, null);
     }
 
+    public abstract boolean isZero();
+
     @Override
     public boolean isConstant() {
         return true;

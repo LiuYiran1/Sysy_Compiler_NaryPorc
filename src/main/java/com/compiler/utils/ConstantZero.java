@@ -3,7 +3,6 @@ package com.compiler.utils;
 import com.compiler.ll.Types.FloatType;
 import com.compiler.ll.Types.IntegerType;
 import com.compiler.ll.Types.Type;
-import com.compiler.ll.Types.TypeID;
 import com.compiler.ll.Values.Constant;
 import com.compiler.ll.Values.Constants.ConstantFloat;
 import com.compiler.ll.Values.Constants.ConstantInt;

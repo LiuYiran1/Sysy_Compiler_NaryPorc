@@ -282,9 +282,6 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                         mem[i] = type.isIntegerType() ? intZero : floatZero;
                     }
                     myVisitConstInitVal(ctx.constInitVal(), mem, 0, dimensions, memSize);
-                    for (var m : mem) {
-                        //System.out.println(m.getAsString());
-                    }
 
                     Constant[] newMem = new Constant[mem.length];
                     for (int i = 0; i < mem.length; i++) {
@@ -346,7 +343,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                         // 优化：如果是 Constant 且为 0，跳过
                         if (arrDefaultZero) {
                             if (val.getType().isIntegerType() && ((ConstantInt) val).isZero()) continue;
-                            if (val.getType().isFloatType() && ((ConstantFloat) val).isZeroFloat()) continue;
+                            if (val.getType().isFloatType() && ((ConstantFloat) val).isZero()) continue;
                         }
 
                         Value idx = i64.getConstantInt(i); // i64 index
@@ -572,7 +569,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                         // 优化：如果是 Constant 且为 0，跳过
                         if (arrDefaultZero) {
                             if (val.getType().isIntegerType() && ((ConstantInt) val).isZero()) continue;
-                            if (val.getType().isFloatType() && ((ConstantFloat) val).isZeroFloat()) continue;
+                            if (val.getType().isFloatType() && ((ConstantFloat) val).isZero()) continue;
                         }
 
                         Value idx = i64.getConstantInt(i); // i64 index
