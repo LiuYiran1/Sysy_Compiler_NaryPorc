@@ -269,6 +269,7 @@ public class IRBuilder {
     public Value buildFloatDiv(Value lhs, Value rhs, String varName) {
         if (lhs.isConstant() && rhs.isConstant()) {
             float divisor = ((ConstantFloat) rhs).getValue();
+            if (divisor == 0) throw new ArithmeticException("division by zero");
             float res = ((ConstantFloat) lhs).getValue() / divisor;
             return new ConstantFloat((FloatType) lhs.getType(), res);
         }

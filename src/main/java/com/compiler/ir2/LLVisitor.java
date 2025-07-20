@@ -69,7 +69,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
     private final Map<Value, Constant> globalValues = new LinkedHashMap<>();
 
 
-    private boolean arrDefaultZero = true;
+    private boolean arrDefaultZero = false;
 
     public LLVisitor() {
         initRunTimeLibrary();
@@ -312,7 +312,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                 }
                 Value ptr = builder.buildAlloca(arrayType, varName + "Arr");
                 symbolTable.addSymbol(varName, ptr);
-                if (ctx.ASSIGN() != null && (ctx.constInitVal() != null && !ctx.constInitVal().constInitVal().isEmpty())) {
+                if (ctx.ASSIGN() != null) {
                     int memSize = 1;
                     for (int dim : dimensions) {
                         memSize *= dim;
@@ -538,7 +538,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                 }
                 Value ptr = builder.buildAlloca(arrayType, varName + "Arr");
                 symbolTable.addSymbol(varName, ptr);
-                if (ctx.ASSIGN() != null && (ctx.initVal() != null && !ctx.initVal().initVal().isEmpty())) {
+                if (ctx.ASSIGN() != null) {
                     int memSize = 1;
                     for (int dim : dimensions) {
                         memSize *= dim;
@@ -1421,9 +1421,9 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             return i32.getConstantInt((int) value);
         } else if (ctx.FLOAT_CONST() != null) {
             String text = ctx.FLOAT_CONST().getText();
-            double value = Double.parseDouble(text);
+            float value = Float.parseFloat(text);
 
-            return f32.getConstantFloat((float) value);
+            return f32.getConstantFloat(value);
         } else {
             throw new RuntimeException("visit number error");
         }

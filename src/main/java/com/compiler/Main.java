@@ -32,7 +32,7 @@ public class Main {
     static ParseTree tree;
 
     public static void main(String[] args) throws IOException {
-        Path inputDir = Paths.get("src/test/java/temtem");
+        Path inputDir = Paths.get("src/test/java/RISCV");
 
         // 找出所有 .sy 文件
         List<Path> syFiles = Files.walk(inputDir)
@@ -48,7 +48,7 @@ public class Main {
                 })
                 .toList();
 
-        // 构造对应的 .ll 输出路径
+        // 构造对应的 .llyy 输出路径
         List<Path> llFiles2 = syFiles.stream()
                 .map(path -> {
                     String fileName = path.getFileName().toString().replaceAll("\\.sy$", ".llyy");
