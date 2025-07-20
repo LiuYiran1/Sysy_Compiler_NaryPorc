@@ -964,6 +964,12 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                     } else if (argType.isIntegerType() && expectedType.isFloatType()) {
                         argVal = builder.buildSignedToFloat(argVal, expectedType, "funcIToF");
                     }
+//                    else if (argType.isPointerType()) {
+//                        List<Value> indices = new ArrayList<>();
+//                        indices.add(i64.getConstantInt(0));
+//                        // indices.add(i64.getConstantInt(0));
+//                        argVal = builder.buildGetElementPtr(argVal, indices, "paramArr");
+//                    }
 
                     params[i] = argVal;
                 }
