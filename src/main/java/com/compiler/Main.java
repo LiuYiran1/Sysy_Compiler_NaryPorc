@@ -64,7 +64,7 @@ public class Main {
 
             processLexer(inputPath.toString());
             processParser(lexer, inputPath.toString());
-            // irGen(tree, outputPath.toString());
+            irGen(tree, outputPath.toString());
             irGen2(tree, outputPath2.toString());
 
 //            System.out.println("== Renamed Variables ==");

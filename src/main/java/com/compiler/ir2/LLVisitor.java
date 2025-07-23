@@ -1357,6 +1357,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
     public Value buildArrayAccess(Value var, List<Value> indices, boolean isFunctionArg, boolean needLoad) {
         // 如果是函数参数，先 load 一次（它本质上是一个 ptr-to-array 的参数）
         // 这里的isFunctionArg表示该数组的来源是不是函数参数
+        // Value currentPtr = isFunctionArg ? builder.buildLoad(var, "load_array_param") : var;
         Value currentPtr = isFunctionArg ? builder.buildLoad(var, "load_array_param") : var;
         //System.out.println("currentPtr typeAAAAAAA"+currentPtr.getType().getAsString());
         ArrayType varType = context.getArrayType(var.getType());
@@ -1392,15 +1393,15 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
 
         // 如果是右值，需要检查类型：基本类型（int/float）才 load；否则仍返回 GEP 结果
+        // 貌似如果不是基本类型也要load
         if (needLoad) {
             if (indices.size() == dim) {
                 return builder.buildLoad(currentPtr, "array_element");
             } else { // 那么如下一定是函数参数，那么就需要再gep一次
 //                currentPtr = builder.buildGetElementPtr(
 //                        currentPtr,
-//                        new Value[]{intZero64, intZero64},
-//                        Option.of("arrayidx" + "param"),
-//                        true
+//                        List.of(new Value[]{intZero64, intZero64}),
+//                        "arrayidxparam"
 //                );
                 return currentPtr; // 对于数组或结构体，返回指针
             }
