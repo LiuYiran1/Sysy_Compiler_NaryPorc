@@ -14,7 +14,9 @@ public abstract class User extends Value {
 
     public void addOperand(Value operand) {
         operands.add(operand);
-        operand.addUser(this); // 注册使用关系
+        if (operand != null) {
+            operand.addUser(this); // 注册使用关系
+        }
     }
 
     public void setOperand(int index, Value newOperand) {

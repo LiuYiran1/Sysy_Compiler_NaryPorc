@@ -127,10 +127,13 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
     }
 
     public void dump(File file) {
+        System.out.println(file.getName());
         for (Function func = mod.getFirstFunction(); func != null; func = func.getNextFunction()) {
+            System.out.println(func.getName());
             for (BasicBlock bb = func.getFirstBasicBlock(); bb != null; bb = bb.getNextBasicBlock()) {
                 if (bb.getTerminator() == null) {
                     builder.positionAfter(bb);
+                    System.out.println(bb.getName());
                     String funcName = func.getName();
                     Type retType = retTypes.get(funcName);
                     if (retType.isIntegerType()) {

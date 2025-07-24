@@ -9,6 +9,7 @@ import com.compiler.ll.Values.Value;
 public class ReturnVoidInst extends TerminatorInst {
     public ReturnVoidInst(VoidType voidType, BasicBlock block) {
         super(voidType, "", Opcode.RET, block);
+        addOperand(null);
     }
 
     @Override
