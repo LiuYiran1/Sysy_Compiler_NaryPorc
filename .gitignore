@@ -8,3 +8,4 @@
 /src/main/java/com/compiler/frontend
 /gen
 /src/test/java
+mem2Reg.md
