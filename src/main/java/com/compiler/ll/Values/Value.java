@@ -2,14 +2,31 @@ package com.compiler.ll.Values;
 
 import com.compiler.ll.Types.Type;
 
+import java.util.LinkedHashSet;
+import java.util.Set;
+
 public abstract class Value {
     protected final Type type;
     protected String name;
+    private final Set<User> users = new LinkedHashSet<>();
 
     public Value(Type type, String name) {
         this.type = type;
         this.name = name;
     }
+
+    public void addUser(User user) {
+        users.add(user);
+    }
+
+    public void removeUser(User user) {
+        users.remove(user);
+    }
+
+    public Set<User> getUsers() {
+        return users;
+    }
+
 
     public boolean isConstant() {
         return false;

@@ -122,6 +122,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
     }
 
     public void dump(Option<File> of) {
+
         for (LLVMValueRef func = LLVMGetFirstFunction(mod.getRef()); func != null; func = LLVMGetNextFunction(func)) {
             for (LLVMBasicBlockRef bb = LLVMGetFirstBasicBlock(func); bb != null; bb = LLVMGetNextBasicBlock(bb)) {
                 if (LLVMGetBasicBlockTerminator(bb) == null) {
@@ -169,6 +170,33 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         for (var bb : DBE) {
             LLVMDeleteBasicBlock(bb);
         }
+
+//        // ============= mem2reg优化 =============
+//
+//        String targetTriple = "riscv64-unknown-elf";
+//        String dataLayout = "e-m:e-p:64:64-i64:64-i128:128-n64-S128";
+//        LLVMSetTarget(mod.getRef(), targetTriple);
+//        LLVMSetDataLayout(mod.getRef(), dataLayout);
+//
+//        LLVMPassManagerRef passManager = LLVMCreateFunctionPassManagerForModule(mod.getRef());
+//
+//        LLVMAddBasicAliasAnalysisPass(passManager);
+//        LLVMAddTypeBasedAliasAnalysisPass(passManager);
+//
+//        LLVMAddPromoteMemoryToRegisterPass(passManager);  // mem2reg - 提升栈变量到寄存器
+//        LLVMAddDCEPass(passManager);                      // 死代码消除 - 移除无用指令
+//        LLVMAddCFGSimplificationPass(passManager);         // 控制流图简化 - 消除不可达块
+//
+//        LLVMInitializeFunctionPassManager(passManager);
+//
+//        for (LLVMValueRef func = LLVMGetFirstFunction(mod.getRef()); func != null; func = LLVMGetNextFunction(func)) {
+//            if (LLVMCountBasicBlocks(func) > 0) {
+//                LLVMRunFunctionPassManager(passManager, func);
+//                System.out.println(LLVMGetValueName(func).getString());
+//            }
+//        }
+//        LLVMFinalizeFunctionPassManager(passManager);
+//        LLVMDisposePassManager(passManager);
 
 
         mod.dump(of);

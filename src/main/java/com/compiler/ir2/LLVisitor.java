@@ -16,6 +16,9 @@ import com.compiler.ll.Values.GlobalValues.Function;
 import com.compiler.ll.Values.Instructions.FloatPredicate;
 import com.compiler.ll.Values.Instructions.IntPredicate;
 import com.compiler.ll.Values.Instructions.Opcode;
+import com.compiler.pass.DominateAnalPass;
+import com.compiler.pass.Mem2RegPass;
+import com.compiler.pass.Pass;
 import org.antlr.v4.runtime.ParserRuleContext;
 
 
@@ -171,6 +174,11 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         for (BasicBlock bb : DBE) {
             bb.delete();
         }
+
+        Pass domPass = new DominateAnalPass();
+        Pass mem2RegPass = new Mem2RegPass();
+        domPass.run(mod);
+        mem2RegPass.run(mod);
 
 
         mod.dump(file);

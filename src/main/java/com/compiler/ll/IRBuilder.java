@@ -148,6 +148,10 @@ public class IRBuilder {
     public BranchInst buildBranch(BasicBlock target){
         BranchInst inst = new BranchInst(target, currentBlock);
         currentBlock.addInstruction(inst);
+
+        // 构建控制流图边
+        currentBlock.addSuccessor(target);
+        target.addPredecessor(currentBlock);
         return inst;
     }
 
@@ -163,6 +167,13 @@ public class IRBuilder {
         }
         CondBranchInst inst = new CondBranchInst(condition, trueBlock, falseBlock, currentBlock);
         currentBlock.addInstruction(inst);
+
+        // 构建控制流图边
+        currentBlock.addSuccessor(trueBlock);
+        currentBlock.addSuccessor(falseBlock);
+        trueBlock.addPredecessor(currentBlock);
+        falseBlock.addPredecessor(currentBlock);
+
         return inst;
     }
 

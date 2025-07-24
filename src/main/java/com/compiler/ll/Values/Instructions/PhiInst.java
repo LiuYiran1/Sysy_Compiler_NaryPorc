@@ -11,6 +11,8 @@ import java.util.List;
 public class PhiInst extends Instruction {
     private final List<BasicBlock> incomingBlocks = new ArrayList<>();
 
+    private AllocaInst variable; // 用来记录在memToReg中这个phi是对应哪个变量的，为了优化方便
+
     public PhiInst(Type type, String name, BasicBlock block) {
         super(type, name, Opcode.PHI, block);
     }
@@ -18,6 +20,18 @@ public class PhiInst extends Instruction {
     public void addIncoming(BasicBlock block, Value value) {
         addOperand(value);
         incomingBlocks.add(block);
+    }
+
+    public List<BasicBlock> getIncomingBlocks() {
+        return incomingBlocks;
+    }
+
+    public void setVariable(AllocaInst variable) {
+        this.variable = variable;
+    }
+
+    public AllocaInst getVariable() {
+        return variable;
     }
 
     @Override

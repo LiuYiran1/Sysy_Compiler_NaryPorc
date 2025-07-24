@@ -12,7 +12,7 @@ import java.util.List;
 public abstract class Instruction extends User {
     protected BasicBlock block;
     protected final Opcode opcode;
-    protected final List<Value> operands = new ArrayList<>();
+
 
     public Instruction(Type type, String name, Opcode opcode, BasicBlock block) {
         super(type, name);
@@ -22,14 +22,6 @@ public abstract class Instruction extends User {
 
     public Opcode getOpcode() {
         return opcode;
-    }
-
-    public void addOperand(Value val) {
-        operands.add(val);
-    }
-
-    public List<Value> getOperands() {
-        return operands;
     }
 
     public abstract String toIR();
