@@ -15,6 +15,14 @@ public class CondBranchInst extends TerminatorInst {
         this.falseBlock = falseBlock;
     }
 
+    public BasicBlock getTrueBlock() {
+        return trueBlock;
+    }
+
+    public BasicBlock getFalseBlock() {
+        return falseBlock;
+    }
+
     @Override
     public String toIR() {
         return "br i1 " + getOpStr(operands.get(0)) + ", label %" + trueBlock.getName() + ", label %" + falseBlock.getName();

@@ -36,7 +36,7 @@ public class Function extends GlobalValue {
 
     public Function getNextFunction() {
         if (mod == null) return null;
-        List<Function> funcs = mod.getFunctionDefs();
+        List<Function> funcs = mod.getFunctions();
         int idx = funcs.indexOf(this);
         if (idx == -1 || idx + 1 >= funcs.size()) return null;
         return funcs.get(idx + 1);

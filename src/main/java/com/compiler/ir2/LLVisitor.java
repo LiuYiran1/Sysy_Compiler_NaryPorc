@@ -127,13 +127,10 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
     }
 
     public void dump(File file) {
-        System.out.println(file.getName());
         for (Function func = mod.getFirstFunction(); func != null; func = func.getNextFunction()) {
-            System.out.println(func.getName());
             for (BasicBlock bb = func.getFirstBasicBlock(); bb != null; bb = bb.getNextBasicBlock()) {
                 if (bb.getTerminator() == null) {
                     builder.positionAfter(bb);
-                    System.out.println(bb.getName());
                     String funcName = func.getName();
                     Type retType = retTypes.get(funcName);
                     if (retType.isIntegerType()) {
@@ -151,8 +148,8 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         }
 
         // 遍历所有指令,消除终止指令后的冗余指令
-        List<Instruction> DCE = new ArrayList<>();
-        List<BasicBlock> DBE = new ArrayList<>();
+        List<Instruction> DCE = new ArrayList<>(); // 死代码
+        List<BasicBlock> DBE = new ArrayList<>(); // 空块
         for (Function func = mod.getFirstFunction(); func != null; func = func.getNextFunction()) {
             for (BasicBlock bb = func.getFirstBasicBlock(); bb != null; bb = bb.getNextBasicBlock()) {
                 boolean terminatorFlag = false;
@@ -180,8 +177,8 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
         Pass domPass = new DominateAnalPass();
         Pass mem2RegPass = new Mem2RegPass();
-//        domPass.run(mod);
-//        mem2RegPass.run(mod);
+        domPass.run(mod);
+        mem2RegPass.run(mod);
 
 
         mod.dump(file);

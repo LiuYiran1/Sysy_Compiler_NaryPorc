@@ -42,7 +42,7 @@ public abstract class Instruction extends User {
 
     public void eraseFromParent() {
         if (block != null) {
-            block.getInstructions().remove(this);
+            block.removeInst(this);
             this.block = null; // 解除引用
         }
     }

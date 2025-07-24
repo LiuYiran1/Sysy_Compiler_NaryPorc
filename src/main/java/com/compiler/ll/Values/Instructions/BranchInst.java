@@ -11,6 +11,10 @@ public class BranchInst extends TerminatorInst {
         this.target = target;
     }
 
+    public BasicBlock getTarget() {
+        return target;
+    }
+
     @Override
     public String toIR() {
         return "br label %" + target.getName();
