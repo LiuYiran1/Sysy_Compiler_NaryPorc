@@ -177,8 +177,8 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
         Pass domPass = new DominateAnalPass();
         Pass mem2RegPass = new Mem2RegPass();
-        domPass.run(mod);
-        mem2RegPass.run(mod);
+//        domPass.run(mod);
+//        mem2RegPass.run(mod);
 
 
         mod.dump(file);
