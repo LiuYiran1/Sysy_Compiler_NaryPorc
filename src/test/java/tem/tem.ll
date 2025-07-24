@@ -31,16 +31,27 @@ mainEntry:
   store i32 1, i32* %a, align 4
   %val = load i32, i32* %a, align 4
   %cond = icmp ne i32 %val, 0
-  br i1 %cond, label %ifTrue, label %ifFalse
+  br i1 %cond, label %orTrue, label %orFalse
 
-ifTrue:                                           ; preds = %mainEntry
+ifTrue:                                           ; preds = %orNext
   store i32 2, i32* %a, align 4
   br label %ifNext
 
-ifFalse:                                          ; preds = %mainEntry
+ifFalse:                                          ; preds = %orNext
   store i32 3, i32* %a, align 4
   br label %ifNext
 
 ifNext:                                           ; preds = %ifFalse, %ifTrue
   ret i32 5
+
+orTrue:                                           ; preds = %mainEntry
+  br label %orNext
+
+orFalse:                                          ; preds = %mainEntry
+  br label %orNext
+
+orNext:                                           ; preds = %orFalse, %orTrue
+  %orPhi = phi i32 [ 1, %orTrue ], [ 1, %orFalse ]
+  %cond1 = icmp ne i32 %orPhi, 0
+  br i1 %cond1, label %ifTrue, label %ifFalse
 }

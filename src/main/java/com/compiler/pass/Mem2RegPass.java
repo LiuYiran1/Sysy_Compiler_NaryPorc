@@ -14,28 +14,49 @@ import java.util.*;
 public class Mem2RegPass implements Pass {
     NameManager nameManager;
 
+    List<AllocaInst> rmAllocas = new ArrayList<>();
+    List<StoreInst> rmStores = new ArrayList<>();
+    List<LoadInst> rmLoads = new ArrayList<>();
+
+
     @Override
     public void run(Module module) {
         this.nameManager = module.getBuilder().getNameManager();
-        for (Function function : module.getFunctionDefs()) {
-            insertPhi(function);
+        for (Function func : module.getFunctionDefs()) {
+
+            insertPhi(func);
+            Map<AllocaInst, Deque<Value>> stacks = getVarStacks(func);
+            Set<BasicBlock> visited = new HashSet<>();
+
+            rename(func, stacks, func.getEntryBlock(), visited);
+
+            // 最后移除
+            for (AllocaInst alloc : rmAllocas) {
+                func.removeInstruction(alloc);
+            }
+            for (StoreInst store : rmStores) {
+                func.removeInstruction(store);
+            }
+            for (LoadInst load : rmLoads) {
+                func.removeInstruction(load);
+            }
         }
     }
 
     // 一、插入 phi
     public void insertPhi(Function function) {
         // Step 1: 找出所有局部 alloca（栈变量）
-        List<AllocaInst> allocas = new ArrayList<>();
+        rmAllocas.clear();
         for (Instruction inst : function.getEntryBlock().getInstructions()) {
             // 只考虑 i32 类型
             if (inst.getOpcode() == Opcode.ALLOCA && ((PointerType)inst.getType()).getPointeeType().isIntegerType()) {
-                allocas.add((AllocaInst) inst);
+                rmAllocas.add((AllocaInst) inst);
             }
         }
 
         // Step 2: 构建 defBlocks: 每个变量在哪些块中 store 过
         Map<AllocaInst, Set<BasicBlock>> defBlocks = new HashMap<>();
-        for (AllocaInst alloca : allocas) {
+        for (AllocaInst alloca : rmAllocas) {
             defBlocks.put(alloca, new HashSet<>());
         }
 
@@ -51,7 +72,7 @@ public class Mem2RegPass implements Pass {
         }
 
         // Step 3: 为每个变量插入 phi 函数
-        for (AllocaInst alloca : allocas) {
+        for (AllocaInst alloca : rmAllocas) {
             Set<BasicBlock> hasAlready = new HashSet<>(); // 已经插过 phi 的 block
             Queue<BasicBlock> workList = new LinkedList<>(defBlocks.get(alloca));
 
@@ -63,7 +84,7 @@ public class Mem2RegPass implements Pass {
 
                     // 插入 phi
                     String varName = nameManager.getUniqueName("Mem2RegPhi");
-                    PhiInst phi = new PhiInst(alloca.getType(),varName, df);
+                    PhiInst phi = new PhiInst(((PointerType)alloca.getType()).getPointeeType(),varName, df);
                     df.insertPhi(phi);
                     phi.setVariable(alloca); // 记录这个 phi 是哪个变量的
 
@@ -76,20 +97,34 @@ public class Mem2RegPass implements Pass {
         }
     }
 
+    private Map<AllocaInst, Deque<Value>> getVarStacks(Function func) {
+        Map<AllocaInst, Deque<Value>> stacks = new HashMap<>();
+
+
+        for (AllocaInst alloca : rmAllocas) {
+            Deque<Value> stack = new ArrayDeque<>();
+            // 如果变量没有phi，就用 undef 作为初始值，或用alloca自己作为初始值
+            //stack.push(getInitialValueFor(alloca));
+            stacks.put(alloca, stack);
+        }
+
+        // 对有phi的变量
+        List<BasicBlock> blocks = func.getBasicBlocks();
+        for (BasicBlock bb : blocks) {
+            for (PhiInst phi : bb.getPhiInsts()) {
+                AllocaInst var = phi.getVariable();
+                stacks.computeIfAbsent(var, k -> new ArrayDeque<>()).push(phi);
+            }
+        }
+        return stacks;
+    }
+
     private void rename(Function function,
                         Map<AllocaInst, Deque<Value>> stacks,
-                        Map<AllocaInst, List<PhiInst>> phiMap,
-                        Map<BasicBlock, List<Instruction>> allocLoads,
                         BasicBlock bb,
                         Set<BasicBlock> visited) {
 
         visited.add(bb);
-
-        // === 处理 phi（提前压栈） ===
-        for (PhiInst phi : bb.getPhiInsts()) {
-            AllocaInst var = phi.getVariable();
-            stacks.computeIfAbsent(var, k -> new ArrayDeque<>()).push(phi);
-        }
 
         List<Instruction> instrs = bb.getInstructions();
         ListIterator<Instruction> iter = instrs.listIterator();
@@ -103,16 +138,19 @@ public class Mem2RegPass implements Pass {
                 if (ptr instanceof Instruction && ((Instruction) ptr).getOpcode() == Opcode.ALLOCA && stacks.containsKey(ptr)) {
                     Value val = stacks.get(ptr).peek();
                     if (val != null) {
-                        //bb.replaceInstruction(load, val); // 用栈顶替换 load
-                        iter.remove(); // 删除 load 指令
+                        bb.replaceButNotDeleteInstruction(load, val); // 用栈顶替换 load
+
+                        rmLoads.add(load);
                     }
                 }
             } else if (inst.getOpcode() == Opcode.STORE) {
-                Value ptr = inst.getOperand(1);
+                StoreInst store = (StoreInst) inst;
+                Value ptr = store.getOperand(1);
                 if (ptr instanceof Instruction && ((Instruction) ptr).getOpcode() == Opcode.ALLOCA && stacks.containsKey(ptr)) {
-                    Value val = inst.getOperand(0);
+                    Value val = store.getOperand(0);
                     stacks.get(ptr).push(val); // 新定义压栈
-                    iter.remove(); // 删除 store 指令
+
+                    rmStores.add(store);
                 }
             }
         }
@@ -131,7 +169,7 @@ public class Mem2RegPass implements Pass {
         // 递归子块（按支配树）
         for (BasicBlock child : function.getDomTree().getOrDefault(bb, List.of())) {
             if (!visited.contains(child)) {
-                rename(function, stacks, phiMap, allocLoads, child, visited);
+                rename(function, stacks, child, visited);
             }
         }
 

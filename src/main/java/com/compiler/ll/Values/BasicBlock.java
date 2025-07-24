@@ -34,6 +34,13 @@ public class BasicBlock extends User {
         phiInsts.add(phiInst);
     }
 
+
+    public void replaceButNotDeleteInstruction(Instruction oldInst, Value newValue) {
+        for (User user : oldInst.getUsers()) {
+            user.replaceOperand(oldInst, newValue);
+        }
+    }
+
     public void addInstruction(Instruction inst) {
         instructions.add(inst);
     }
@@ -63,6 +70,10 @@ public class BasicBlock extends User {
         }
         // 清空指令
         instructions.clear();
+    }
+
+    public void removeInstruction(Instruction inst){
+        instructions.remove(inst);
     }
 
     public List<BasicBlock> getPredecessors() {

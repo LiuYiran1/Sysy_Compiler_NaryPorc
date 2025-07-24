@@ -16,7 +16,7 @@ public class DominateAnalPass implements Pass {
             computeIdom(function, function.getDomMap());
             function.buildDomTreeFromIdom();
             computeDomFrontier(function);
-            debug(function);
+            // debug(function);
         }
     }
 

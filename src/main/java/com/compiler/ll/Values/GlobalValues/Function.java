@@ -6,6 +6,7 @@ import com.compiler.ll.Types.Type;
 import com.compiler.ll.Values.Argument;
 import com.compiler.ll.Values.BasicBlock;
 import com.compiler.ll.Values.GlobalValue;
+import com.compiler.ll.Values.Instruction;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -108,6 +109,12 @@ public class Function extends GlobalValue {
             if (idom != null) {
                 domTree.computeIfAbsent(idom, k -> new ArrayList<>()).add(bb);
             }
+        }
+    }
+
+    public void removeInstruction(Instruction inst) {
+        for (BasicBlock bb : getBasicBlocks()) {
+            bb.removeInstruction(inst);
         }
     }
 
