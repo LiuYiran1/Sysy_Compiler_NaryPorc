@@ -29,29 +29,24 @@ define i32 @main() {
 mainEntry:
   %a = alloca i32, align 4
   store i32 1, i32* %a, align 4
+  %b = alloca i32, align 4
+  store i32 9, i32* %b, align 4
   %val = load i32, i32* %a, align 4
   %cond = icmp ne i32 %val, 0
-  br i1 %cond, label %orTrue, label %orFalse
+  br i1 %cond, label %ifTrue, label %ifFalse
 
-ifTrue:                                           ; preds = %orNext
+ifTrue:                                           ; preds = %mainEntry
   store i32 2, i32* %a, align 4
   br label %ifNext
 
-ifFalse:                                          ; preds = %orNext
-  store i32 3, i32* %a, align 4
+ifFalse:                                          ; preds = %mainEntry
+  store i32 5, i32* %a, align 4
+  store i32 10, i32* %b, align 4
   br label %ifNext
 
 ifNext:                                           ; preds = %ifFalse, %ifTrue
-  ret i32 5
-
-orTrue:                                           ; preds = %mainEntry
-  br label %orNext
-
-orFalse:                                          ; preds = %mainEntry
-  br label %orNext
-
-orNext:                                           ; preds = %orFalse, %orTrue
-  %orPhi = phi i32 [ 1, %orTrue ], [ 1, %orFalse ]
-  %cond1 = icmp ne i32 %orPhi, 0
-  br i1 %cond1, label %ifTrue, label %ifFalse
+  %val1 = load i32, i32* %a, align 4
+  store i32 %val1, i32* %b, align 4
+  %val2 = load i32, i32* %b, align 4
+  ret i32 %val2
 }

@@ -38,7 +38,7 @@ public class BasicBlock extends User {
     }
 
 
-    public void replaceButNotDeleteInstruction(Instruction oldInst, Value newValue) {
+    public void replaceAllUse(Instruction oldInst, Value newValue) {
         for (User user : oldInst.getUsers()) {
             user.replaceOperand(oldInst, newValue);
         }
