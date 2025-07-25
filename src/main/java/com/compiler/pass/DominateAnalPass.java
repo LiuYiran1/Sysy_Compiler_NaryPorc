@@ -21,7 +21,7 @@ public class DominateAnalPass implements Pass {
     }
 
     public void computeDomSet(Function function) {
-        List<BasicBlock> blocks = function.dfsTraversal();
+        List<BasicBlock> blocks = function.getBlocks();
         if (blocks.isEmpty()) return;
 
         BasicBlock entry = function.getEntryBlock();
