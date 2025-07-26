@@ -42,6 +42,15 @@ public class Module {
         return functions;
     }
 
+    public List<Function> getFunctionDefs(){
+        List<Function> functionDefs = new LinkedList<>();
+        for (Function function : functions) {
+            if (function.isDef())
+                functionDefs.add(function);
+        }
+        return functionDefs;
+    }
+
     public GlobalVariable addGlobalVariable(String varName, Type type) {
         GlobalVariable gv = new GlobalVariable(context, type, varName, null);
         globalVariables.add(gv);
@@ -65,6 +74,10 @@ public class Module {
             sb.append(func.toIR()).append("\n\n");
         }
         return sb.toString();
+    }
+
+    public IRBuilder getBuilder() {
+        return builder;
     }
 
     public void dump(){

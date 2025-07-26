@@ -12,7 +12,7 @@ import java.util.List;
 public abstract class Instruction extends User {
     protected BasicBlock block;
     protected final Opcode opcode;
-    protected final List<Value> operands = new ArrayList<>();
+
 
     public Instruction(Type type, String name, Opcode opcode, BasicBlock block) {
         super(type, name);
@@ -22,14 +22,6 @@ public abstract class Instruction extends User {
 
     public Opcode getOpcode() {
         return opcode;
-    }
-
-    public void addOperand(Value val) {
-        operands.add(val);
-    }
-
-    public List<Value> getOperands() {
-        return operands;
     }
 
     public abstract String toIR();
@@ -50,7 +42,7 @@ public abstract class Instruction extends User {
 
     public void eraseFromParent() {
         if (block != null) {
-            block.getInstructions().remove(this);
+            block.removeInst(this);
             this.block = null; // 解除引用
         }
     }
@@ -62,7 +54,11 @@ public abstract class Instruction extends User {
         } else if (op.isGlobalVariable()) {
             return "@" + op.getName();
         } else {
-            return "%" + op.getName();
+            if (op.getName() == null) {
+                System.out.println("op class: " + op.getClass().getSimpleName());
+            }
+            // return op.getName() == null ? "undef" : "%" + op.getName();
+            return op.getName() == null ? "0" : "%" + op.getName();
         }
     }
 }

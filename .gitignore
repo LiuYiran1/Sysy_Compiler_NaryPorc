@@ -5,6 +5,6 @@
 /src/test/java/RISCV_performance
 /lib
 /.idea
-/src/main/java/com/compiler/frontend
 /gen
 /src/test/java
+mem2Reg.md

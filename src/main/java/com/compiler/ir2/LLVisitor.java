@@ -16,6 +16,7 @@ import com.compiler.ll.Values.GlobalValues.Function;
 import com.compiler.ll.Values.Instructions.FloatPredicate;
 import com.compiler.ll.Values.Instructions.IntPredicate;
 import com.compiler.ll.Values.Instructions.Opcode;
+import com.compiler.pass.*;
 import org.antlr.v4.runtime.ParserRuleContext;
 
 
@@ -145,8 +146,8 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         }
 
         // 遍历所有指令,消除终止指令后的冗余指令
-        List<Instruction> DCE = new ArrayList<>();
-        List<BasicBlock> DBE = new ArrayList<>();
+        List<Instruction> DCE = new ArrayList<>(); // 死代码
+        List<BasicBlock> DBE = new ArrayList<>(); // 空块
         for (Function func = mod.getFirstFunction(); func != null; func = func.getNextFunction()) {
             for (BasicBlock bb = func.getFirstBasicBlock(); bb != null; bb = bb.getNextBasicBlock()) {
                 boolean terminatorFlag = false;
@@ -171,6 +172,18 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         for (BasicBlock bb : DBE) {
             bb.delete();
         }
+
+        Pass DFGPass = new DFGPass();
+        Pass deadCodeElimPass = new DeadCodeElimPass();
+        Pass domPass = new DominateAnalPass();
+        Pass mem2RegPass = new Mem2RegPass(context);
+        Pass unUsedVarElimPass = new UnusedVarElimPass();
+
+        DFGPass.run(mod);
+        deadCodeElimPass.run(mod);
+        domPass.run(mod);
+        mem2RegPass.run(mod);
+        unUsedVarElimPass.run(mod);
 
 
         mod.dump(file);

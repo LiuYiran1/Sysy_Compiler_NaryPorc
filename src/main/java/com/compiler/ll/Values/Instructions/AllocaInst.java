@@ -11,6 +11,11 @@ public class AllocaInst extends Instruction {
         super(pointerType, name, Opcode.ALLOCA, block);
     }
 
+    public static AllocaInst getUndef(){
+        AllocaInst tem =  new AllocaInst(null,null,null);
+        return tem;
+    }
+
     @Override
     public String toIR() {
         if (type.isPointerType()){
