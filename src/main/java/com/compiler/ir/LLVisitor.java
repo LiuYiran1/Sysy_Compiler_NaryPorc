@@ -3,13 +3,11 @@ package com.compiler.ir;
 import com.compiler.frontend.SysYParserBaseVisitor;
 import org.antlr.v4.runtime.ParserRuleContext;
 import kotlin.Pair;
+import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.javacpp.IntPointer;
 import org.bytedeco.javacpp.Pointer;
 import org.bytedeco.javacpp.PointerPointer;
-import org.bytedeco.llvm.LLVM.LLVMBasicBlockRef;
-import org.bytedeco.llvm.LLVM.LLVMContextRef;
-import org.bytedeco.llvm.LLVM.LLVMTypeRef;
-import org.bytedeco.llvm.LLVM.LLVMValueRef;
+import org.bytedeco.llvm.LLVM.*;
 import org.llvm4j.llvm4j.*;
 import org.llvm4j.llvm4j.Module;
 import com.compiler.frontend.SysYParser;
@@ -65,9 +63,31 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
     private final Map<Value, Constant> globalValues = new LinkedHashMap<>();
 
+    static {
+        // 初始化RISC-V目标系统
+        LLVMInitializeRISCVTargetInfo();
+        LLVMInitializeRISCVTarget();
+        LLVMInitializeRISCVTargetMC();
+        LLVMInitializeRISCVAsmParser();
+        LLVMInitializeRISCVAsmPrinter();
+        System.out.println("RISC-V64 target system initialized");
+    }
+
     public LLVisitor() {
         initRunTimeLibrary();
     }
+
+    public Module getMod(){
+        return mod;
+    }
+    public Context getContext(){
+        return context;
+    }
+
+    public IRBuilder getBuilder(){
+        return builder;
+    }
+
 
     private void addFunction(String name, LLVMTypeRef returnType, LLVMTypeRef... params) {
         LLVMTypeRef funcType = LLVMFunctionType(returnType, new PointerPointer<>(params), params.length, 0);
@@ -122,6 +142,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
     }
 
     public void dump(Option<File> of) {
+
         for (LLVMValueRef func = LLVMGetFirstFunction(mod.getRef()); func != null; func = LLVMGetNextFunction(func)) {
             for (LLVMBasicBlockRef bb = LLVMGetFirstBasicBlock(func); bb != null; bb = LLVMGetNextBasicBlock(bb)) {
                 if (LLVMGetBasicBlockTerminator(bb) == null) {
@@ -170,8 +191,38 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             LLVMDeleteBasicBlock(bb);
         }
 
+        // ============= mem2reg优化 =============
+
+        String targetTriple = "riscv64-unknown-elf";
+        String dataLayout = "e-m:e-p:64:64-i64:64-i128:128-n64-S128";
+        LLVMSetTarget(mod.getRef(), targetTriple);
+        LLVMSetDataLayout(mod.getRef(), dataLayout);
+
+        LLVMPassManagerRef passManager = LLVMCreateFunctionPassManagerForModule(mod.getRef());
+
+        LLVMAddBasicAliasAnalysisPass(passManager);
+        LLVMAddTypeBasedAliasAnalysisPass(passManager);
+
+        LLVMAddPromoteMemoryToRegisterPass(passManager);  // mem2reg - 提升栈变量到寄存器
+        LLVMAddDCEPass(passManager);                      // 死代码消除 - 移除无用指令
+        LLVMAddCFGSimplificationPass(passManager);         // 控制流图简化 - 消除不可达块
+
+        LLVMInitializeFunctionPassManager(passManager);
+
+        for (LLVMValueRef func = LLVMGetFirstFunction(mod.getRef()); func != null; func = LLVMGetNextFunction(func)) {
+            if (LLVMCountBasicBlocks(func) > 0) {
+                LLVMRunFunctionPassManager(passManager, func);
+                System.out.println(LLVMGetValueName(func).getString());
+            }
+        }
+        LLVMFinalizeFunctionPassManager(passManager);
+        LLVMDisposePassManager(passManager);
+
 
         mod.dump(of);
+        IRTypeAnalyzer analyzer = new IRTypeAnalyzer(this,"src/test/java/tem/temType");
+        analyzer.analyze();
+
     }
 
     @Override

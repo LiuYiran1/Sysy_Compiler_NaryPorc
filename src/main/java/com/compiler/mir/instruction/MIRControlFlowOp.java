@@ -8,12 +8,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class MIRControlFlow extends MIRInstruction {
+
+public class MIRControlFlowOp extends MIRInstruction {
+
     public enum Type {
-        RET,       // 返回
-        JMP,       // 无条件跳转
-        COND_JMP,  // 条件跳转
-        CALL       // 函数调用
+        RET,       // 返回  ret
+        JMP,       // 无条件跳转 j
+        COND_JMP,  // 条件跳转 j + bnez
+        CALL       // 函数调用 call
     }
 
     private final Type type;
@@ -22,7 +24,7 @@ public class MIRControlFlow extends MIRInstruction {
     private final List<MIROperand> args; // CALL时使用
 
     // 返回指令
-    public MIRControlFlow(MIROperand retValue) {
+    public MIRControlFlowOp(MIROperand retValue) {
         super(null);
         this.type = Type.RET;
         this.target = retValue;
@@ -31,7 +33,7 @@ public class MIRControlFlow extends MIRInstruction {
     }
 
     // 无条件跳转
-    public MIRControlFlow(MIRLabel target) {
+    public MIRControlFlowOp(MIRLabel target) {
         super(null);
         this.type = Type.JMP;
         this.target = target;
@@ -40,16 +42,16 @@ public class MIRControlFlow extends MIRInstruction {
     }
 
     // 条件跳转
-    public MIRControlFlow(MIROperand condition, MIRLabel trueTarget, MIRLabel falseTarget) {
+    public MIRControlFlowOp(MIROperand condition, MIRLabel trueTarget) {
         super(null);
         this.type = Type.COND_JMP;
         this.target = trueTarget;
         this.condition = condition;
-        this.args = Arrays.asList(falseTarget);
+        this.args = null;
     }
 
     // 函数调用
-    public MIRControlFlow(MIRLabel func, MIRVirtualReg result, List<MIROperand> args) {
+    public MIRControlFlowOp(MIRLabel func, MIRVirtualReg result, List<MIROperand> args) {
         super(result);
         this.type = Type.CALL;
         this.target = func;

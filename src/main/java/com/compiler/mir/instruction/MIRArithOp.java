@@ -6,17 +6,20 @@ import com.compiler.mir.operand.MIRVirtualReg;
 import java.util.Arrays;
 import java.util.List;
 
-public class MIRArith extends MIRInstruction {
+public class MIRArithOp extends MIRInstruction {
 
+    public enum Type { INT, FLOAT }
     public enum Op { ADD, SUB, MUL, DIV, REM, XOR }
 
+    private final Type type;
     private final Op op;
     private final MIROperand left;
     private final MIROperand right;
 
-    public MIRArith(Op op, MIRVirtualReg result, MIROperand left, MIROperand right) {
+    public MIRArithOp(Op op, MIRVirtualReg result, Type type, MIROperand left, MIROperand right) {
         super(result);
         this.op = op;
+        this.type = type;
         this.left = left;
         this.right = right;
     }
@@ -28,6 +31,6 @@ public class MIRArith extends MIRInstruction {
 
     @Override
     public String toString() {
-        return op.name() + " " + result + ", " + left + ", " + right;
+        return type.name() + op.name() + " " + result + ", " + left + ", " + right;
     }
 }

@@ -1,4 +1,8 @@
 package com.compiler.mir.operand;
 
-public class MIROperand {
+import com.compiler.mir.MIRType;
+
+public abstract class MIROperand {
+    public abstract MIRType getType();
+
 }

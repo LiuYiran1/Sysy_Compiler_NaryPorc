@@ -1,6 +1,8 @@
 package com.compiler.mir.operand;
 
-public class MIRVirturalReg extends MIROperand {
+import com.compiler.mir.MIRType;
+
+public class MIRVirtualReg extends MIROperand {
     private final int id;
     private final MIRType type;
 
