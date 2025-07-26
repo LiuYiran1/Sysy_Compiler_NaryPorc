@@ -31,22 +31,41 @@ mainEntry:
   store i32 1, i32* %a, align 4
   %b = alloca i32, align 4
   store i32 9, i32* %b, align 4
-  %val = load i32, i32* %a, align 4
-  %cond = icmp ne i32 %val, 0
-  br i1 %cond, label %ifTrue, label %ifFalse
+  br label %whileCond
 
-ifTrue:                                           ; preds = %mainEntry
-  store i32 2, i32* %a, align 4
+whileCond:                                        ; preds = %ifNext, %mainEntry
+  %val = load i32, i32* %a, align 4
+  %lt = icmp slt i32 %val, 100
+  %zextForLt = zext i1 %lt to i32
+  %cond = icmp ne i32 %zextForLt, 0
+  br i1 %cond, label %whileBody, label %whileNext
+
+whileBody:                                        ; preds = %whileCond
+  %val1 = load i32, i32* %a, align 4
+  %iRem = srem i32 %val1, 2
+  %eq = icmp eq i32 %iRem, 1
+  %zextForEq = zext i1 %eq to i32
+  %cond2 = icmp ne i32 %zextForEq, 0
+  br i1 %cond2, label %ifTrue, label %ifFalse
+
+whileNext:                                        ; preds = %whileCond
+  %val6 = load i32, i32* %a, align 4
+  store i32 %val6, i32* %b, align 4
+  %val7 = load i32, i32* %b, align 4
+  ret i32 %val7
+
+ifTrue:                                           ; preds = %whileBody
+  %val3 = load i32, i32* %a, align 4
+  %iAdd = add i32 %val3, 1
+  store i32 %iAdd, i32* %a, align 4
   br label %ifNext
 
-ifFalse:                                          ; preds = %mainEntry
-  store i32 5, i32* %a, align 4
-  store i32 10, i32* %b, align 4
+ifFalse:                                          ; preds = %whileBody
+  %val4 = load i32, i32* %a, align 4
+  %iAdd5 = add i32 %val4, 2
+  store i32 %iAdd5, i32* %a, align 4
   br label %ifNext
 
 ifNext:                                           ; preds = %ifFalse, %ifTrue
-  %val1 = load i32, i32* %a, align 4
-  store i32 %val1, i32* %b, align 4
-  %val2 = load i32, i32* %b, align 4
-  ret i32 %val2
+  br label %whileCond
 }

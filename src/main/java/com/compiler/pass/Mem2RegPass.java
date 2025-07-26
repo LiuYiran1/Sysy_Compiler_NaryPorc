@@ -34,16 +34,7 @@ public class Mem2RegPass implements Pass {
 
             rename(func, stacks, func.getEntryBlock(), new HashSet<>());
 
-            // 最后移除
-            for (AllocaInst alloc : rmAllocas) {
-                func.removeInstruction(alloc);
-            }
-            for (StoreInst store : rmStores) {
-                func.removeInstruction(store);
-            }
-            for (LoadInst load : rmLoads) {
-                func.removeInstruction(load);
-            }
+            delete(func);
         }
     }
 
@@ -107,7 +98,7 @@ public class Mem2RegPass implements Pass {
                     if (hasAlready.contains(df)) continue;
                     hasAlready.add(df);
 
-                    if (!isLiveIn(df, loadBlocks, function)) continue;
+                    //if (!isLiveIn(df, loadBlocks, function)) continue; 这不对
 
                     // 插入 phi
                     String varName = nameManager.getUniqueName("Mem2RegPhi_" + alloca.getName());
@@ -135,29 +126,6 @@ public class Mem2RegPass implements Pass {
         return false;
     }
 
-
-    private Map<AllocaInst, Deque<Value>> getVarStacks(Function func) {
-
-
-
-        for (AllocaInst alloca : rmAllocas) {
-            Deque<Value> stack = new ArrayDeque<>();
-            System.out.println(alloca.toIR());
-            // 如果变量没有phi，就用 undef 作为初始值，或用alloca自己作为初始值
-            //stack.push(getInitialValueFor(alloca));
-            stacks.put(AllocaInst.getUndef(), stack);
-        }
-
-        // 对有phi的变量
-        List<BasicBlock> blocks = func.getBasicBlocks();
-        for (BasicBlock bb : blocks) {
-            for (PhiInst phi : bb.getPhiInsts()) {
-                AllocaInst var = phi.getVariable();
-                stacks.computeIfAbsent(var, k -> new ArrayDeque<>()).push(phi);
-            }
-        }
-        return stacks;
-    }
 
     Map<AllocaInst, Deque<Value>> stacks = new HashMap<>(); // 到达定值栈
     private void rename(Function function,
@@ -205,12 +173,17 @@ public class Mem2RegPass implements Pass {
             }
         }
 
-        // === 递归处理子节点 ===
+        // 为后继填入phi
         for (BasicBlock succ : bb.getSuccessors()) {
             for (PhiInst phi : succ.getPhiInsts()) {
                 AllocaInst var = phi.getVariable();
                 if (stacks.containsKey(var)) {
                     Value val = stacks.get(var).peek();
+                    if (val == null){
+                        phi.addIncoming(bb, AllocaInst.getUndef());
+                        continue;
+                    }
+
                     phi.addIncoming(bb, val); // phi 填补来源
                 }
             }
@@ -235,6 +208,19 @@ public class Mem2RegPass implements Pass {
         for (PhiInst phi : bb.getPhiInsts()) {
             AllocaInst var = phi.getVariable();
             stacks.get(var).pop();
+        }
+    }
+
+    private void delete(Function func) {
+        // 最后移除
+        for (AllocaInst alloc : rmAllocas) {
+            func.removeInstruction(alloc);
+        }
+        for (StoreInst store : rmStores) {
+            func.removeInstruction(store);
+        }
+        for (LoadInst load : rmLoads) {
+            func.removeInstruction(load);
         }
     }
 

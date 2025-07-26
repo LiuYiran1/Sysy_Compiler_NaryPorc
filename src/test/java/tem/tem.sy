@@ -1,11 +1,13 @@
 int main(){
     int a = 1;
     int b = 9;
-    if(a){
-        a = 2;
-    } else {
-        a = 5;
-        b = 10;
+
+    while (a < 100){
+        if (a % 2 == 1){
+            a = a + 1;
+        } else {
+            a = a + 2;
+        }
     }
 
     b = a;

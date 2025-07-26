@@ -7,6 +7,7 @@ import com.compiler.ll.Values.Argument;
 import com.compiler.ll.Values.BasicBlock;
 import com.compiler.ll.Values.GlobalValue;
 import com.compiler.ll.Values.Instruction;
+import com.compiler.ll.Values.Instructions.PhiInst;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -63,6 +64,28 @@ public class Function extends GlobalValue {
         if (blocks.isEmpty()) this.entryBlock = block;
         blocks.add(block);
     }
+
+    public void removeBasicBlock(BasicBlock block) {
+        // 从当前 Function 的基本块列表中删除
+        blocks.remove(block);
+
+        // 断开 CFG 中的连接：让其前驱与后继都解除引用
+        for (BasicBlock pred : new ArrayList<>(block.getPredecessors())) {
+            pred.getSuccessors().remove(block);
+        }
+        for (BasicBlock succ : new ArrayList<>(block.getSuccessors())) {
+            succ.getPredecessors().remove(block);
+
+            // 如果后继块中有 Phi，需要把该 block 作为 incoming 的信息删掉
+            for (PhiInst phi : succ.getPhiInsts()) {
+                phi.removeIncomingFrom(block);
+            }
+        }
+
+        // 清理指令等内容
+        block.delete();
+    }
+
 
     public List<BasicBlock> getBlocks() {
         return blocks;

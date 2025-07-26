@@ -34,6 +34,18 @@ public class PhiInst extends Instruction {
         return variable;
     }
 
+    public void removeIncomingFrom(BasicBlock block) {
+        for (int i = 0; i < incomingBlocks.size(); ) {
+            if (incomingBlocks.get(i) == block) {
+                incomingBlocks.remove(i);
+                operands.remove(i);  // 同时移除对应的 value operand
+            } else {
+                i++;
+            }
+        }
+    }
+
+
     @Override
     public String toIR() {
         StringBuilder sb = new StringBuilder("%" + name + " = phi " + type.toIR() + " ");
