@@ -100,28 +100,7 @@ public class BasicBlock extends User {
     }
 
     public void removeInst(Instruction inst) {
-        // 这里要注意删除时还要消除分支指令生成时的控制流图的边
-        if (inst.getOpcode() == Opcode.BR){
-            BranchInst branchInst = (BranchInst) inst;
-            BasicBlock target = branchInst.getTarget();
-            // 删除控制流边
-            this.successors.remove(target);
-            target.getPredecessors().remove(this);
-            instructions.remove(inst);
-
-        } else if (inst.getOpcode() == Opcode.CBR){
-            CondBranchInst condBranchInst = (CondBranchInst) inst;
-            BasicBlock trueBlock = condBranchInst.getTrueBlock();
-            BasicBlock falseBlock = condBranchInst.getFalseBlock();
-            // 删除控制流边
-            this.successors.remove(trueBlock);
-            this.successors.remove(falseBlock);
-            trueBlock.getPredecessors().remove(this);
-            falseBlock.getPredecessors().remove(this);
-            instructions.remove(inst);
-        } else {
-            instructions.remove(inst);
-        }
+        instructions.remove(inst);
     }
 
     @Override

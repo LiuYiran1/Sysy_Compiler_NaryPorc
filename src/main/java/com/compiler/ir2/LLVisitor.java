@@ -16,10 +16,7 @@ import com.compiler.ll.Values.GlobalValues.Function;
 import com.compiler.ll.Values.Instructions.FloatPredicate;
 import com.compiler.ll.Values.Instructions.IntPredicate;
 import com.compiler.ll.Values.Instructions.Opcode;
-import com.compiler.pass.DeadCodeElim;
-import com.compiler.pass.DominateAnalPass;
-import com.compiler.pass.Mem2RegPass;
-import com.compiler.pass.Pass;
+import com.compiler.pass.*;
 import org.antlr.v4.runtime.ParserRuleContext;
 
 
@@ -176,9 +173,12 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
             bb.delete();
         }
 
+        Pass DFGPass = new DFGPass();
         Pass deadCodeElim = new DeadCodeElim();
         Pass domPass = new DominateAnalPass();
         Pass mem2RegPass = new Mem2RegPass(context);
+
+        DFGPass.run(mod);
         deadCodeElim.run(mod);
         domPass.run(mod);
         mem2RegPass.run(mod);
