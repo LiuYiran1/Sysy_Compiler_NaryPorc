@@ -1,11 +1,12 @@
 package com.compiler;
 
+import com.compiler.frontend.RenamingSysYLexer;
 import com.compiler.frontend.SysYLexer;
 import com.compiler.frontend.SysYParser;
+import com.compiler.ir2.LLVisitor;
 import com.compiler.listeners.LexerListener;
 import com.compiler.listeners.ParserListener;
 import com.compiler.utils.Checker;
-import com.compiler.ir.LLVisitor;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -22,7 +23,7 @@ import java.util.List;
 public class Main {
     static String inputFile;
 
-    static SysYLexer lexer;
+    static RenamingSysYLexer lexer;
     static LexerListener lexerListener;
 
     static SysYParser parser;
@@ -47,14 +48,30 @@ public class Main {
                 })
                 .toList();
 
+        // 构造对应的 .llyy 输出路径
+        List<Path> llFiles2 = syFiles.stream()
+                .map(path -> {
+                    String fileName = path.getFileName().toString().replaceAll("\\.sy$", ".llyy");
+                    return path.getParent().resolve(fileName);
+                })
+                .toList();
+
         for (int i = 0; i < syFiles.size(); i++) {
             Path inputPath = syFiles.get(i);
             inputFile = inputPath.toString();
             Path outputPath = llFiles.get(i);
+            Path outputPath2 = llFiles2.get(i);
 
             processLexer(inputPath.toString());
             processParser(lexer, inputPath.toString());
             irGen(tree, outputPath.toString());
+            irGen2(tree, outputPath2.toString());
+
+//            System.out.println("== Renamed Variables ==");
+//            lexer.getRenamedMap().forEach((oldName, newName) -> {
+//                System.out.println(oldName + " -> " + newName);
+//            });
+
             clear();
         }
 
@@ -69,7 +86,7 @@ public class Main {
         }catch (IOException e){
             System.err.println("can not get input");
         }
-        lexer = new SysYLexer(input);
+        lexer = new RenamingSysYLexer(input);
         lexerListener = new LexerListener();
         lexer.removeErrorListeners();
         lexer.addErrorListener(lexerListener);
@@ -91,7 +108,7 @@ public class Main {
 
     private static void irGen(ParseTree tree, String outputPath) {
         try{
-            LLVisitor llVisitor = new LLVisitor();
+            com.compiler.ir.LLVisitor llVisitor = new com.compiler.ir.LLVisitor();
             llVisitor.visit(tree);
             llVisitor.dump(Option.of(new File(outputPath)));
         }catch (Exception e){
@@ -99,6 +116,14 @@ public class Main {
         }catch (Error e){
             System.err.println("error in " + inputFile);
         }
+    }
+
+    private static void irGen2(ParseTree tree, String outputPath2) {
+
+            LLVisitor llVisitor2 = new LLVisitor();
+            llVisitor2.visit(tree);
+            llVisitor2.dump(new File(outputPath2));
+
     }
 
     private static void clear(){
