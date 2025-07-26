@@ -383,6 +383,20 @@ public class MIRConverter {
 
     private void convertCallInst(LLVMValueRef inst, MIRFunction mirFunc, MIRBasicBlock mirBB) {
          // TODO: 实现函数调用指令转换
+        // 保存相关寄存器
+        LLVMValueRef callee = LLVMGetOperand(inst, 0);
+        if (LLVMIsAFunction(callee) == null) {
+            throw new IllegalArgumentException("Expected a function call, but got: " + LLVMGetValueName(callee).getString());
+        }
+        String calleeName = LLVMGetValueName(callee).getString();
+        // 创建调用指令
+        MIRVirtualReg result = mirFunc.newVirtualReg(convertType(LLVMTypeOf(inst)));;
+        valueMap.put(inst, result);
+
+        List<MIROperand> args = new ArrayList<>();
+
+//        MIRLabel funcLabel = new MIRLabel(LLVMGetValueName(inst).getString());
+//        mirBB.getInstructions().add(new MIRControlFlowOp())
     }
 
     private void convertReturnInst(LLVMValueRef inst, MIRFunction mirFunc, MIRBasicBlock mirBB) {
@@ -393,11 +407,22 @@ public class MIRConverter {
     private void convertGEPInst(LLVMValueRef gep, MIRFunction mirFunc, MIRBasicBlock mirBB) {
         MIRType ptrType = convertType(LLVMTypeOf(gep)); // 获取指针类型
         MIRVirtualReg result = mirFunc.newVirtualReg(ptrType);
-
+        valueMap.put(gep, result);
         // TODO: 处理GEP的操作数
         // TODO: 两个操作数的
 
+        LLVMValueRef basePtr = LLVMGetOperand(gep, 0);
+        MIROperand base = getMIRValue(basePtr, mirFunc, mirBB);
 
+        LLVMValueRef index = LLVMGetOperand(gep, 1);
+        MIROperand indexOp = getMIRValue(index, mirFunc, mirBB);
+
+        if(indexOp instanceof MIRImmediate){
+            // 如果是立即数，转换为寄存器
+            indexOp = immToReg(mirFunc, mirBB, ((MIRImmediate) indexOp).getValue());
+        }
+
+        mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.SUB,result,MIRArithOp.Type.INT,base, indexOp));
 
         // TODO: 三个操作数的
 
