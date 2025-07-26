@@ -177,11 +177,13 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         Pass deadCodeElimPass = new DeadCodeElimPass();
         Pass domPass = new DominateAnalPass();
         Pass mem2RegPass = new Mem2RegPass(context);
+        Pass unUsedVarElimPass = new UnusedVarElimPass();
 
         DFGPass.run(mod);
         deadCodeElimPass.run(mod);
         domPass.run(mod);
         mem2RegPass.run(mod);
+        unUsedVarElimPass.run(mod);
 
 
         mod.dump(file);

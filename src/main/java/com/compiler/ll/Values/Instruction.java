@@ -54,7 +54,11 @@ public abstract class Instruction extends User {
         } else if (op.isGlobalVariable()) {
             return "@" + op.getName();
         } else {
-            return op.getName() == null ? "undef" : "%" + op.getName();
+            if (op.getName() == null) {
+                System.out.println("op class: " + op.getClass().getSimpleName());
+            }
+            // return op.getName() == null ? "undef" : "%" + op.getName();
+            return op.getName() == null ? "0" : "%" + op.getName();
         }
     }
 }

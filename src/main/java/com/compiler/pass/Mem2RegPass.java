@@ -180,7 +180,8 @@ public class Mem2RegPass implements Pass {
                 if (stacks.containsKey(var)) {
                     Value val = stacks.get(var).peek();
                     if (val == null){
-                        phi.addIncoming(bb, AllocaInst.getUndef());
+                        // phi.addIncoming(bb, AllocaInst.getUndef());
+                        phi.addIncoming(bb, context.getInt32Type().getConstantInt(0));
                         continue;
                     }
 
