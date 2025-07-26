@@ -32,7 +32,7 @@ public class Main {
     static ParseTree tree;
 
     public static void main(String[] args) throws IOException {
-        Path inputDir = Paths.get("src/test/java/h_functional");
+        Path inputDir = Paths.get("src/test/java/temtem");
 
         // 找出所有 .sy 文件
         List<Path> syFiles = Files.walk(inputDir)

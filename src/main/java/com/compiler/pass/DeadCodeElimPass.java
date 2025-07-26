@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-public class DeadCodeElim implements Pass {
+public class DeadCodeElimPass implements Pass {
     @Override
     public void run(Module module) {
         for(Function function : module.getFunctions()) {
