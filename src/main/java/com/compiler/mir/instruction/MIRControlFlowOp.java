@@ -24,10 +24,10 @@ public class MIRControlFlowOp extends MIRInstruction {
     private final List<MIROperand> args; // CALL时使用
 
     // 返回指令
-    public MIRControlFlowOp(MIROperand retValue) {
+    public MIRControlFlowOp() {
         super(null);
         this.type = Type.RET;
-        this.target = retValue;
+        this.target = null;
         this.condition = null;
         this.args = null;
     }

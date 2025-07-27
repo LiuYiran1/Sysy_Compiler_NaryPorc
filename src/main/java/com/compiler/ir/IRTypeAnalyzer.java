@@ -73,7 +73,13 @@ public class IRTypeAnalyzer {
 //                        if(!opcodeName.equals("icmp") && !opcodeName.equals("fcmp")) {
 //                            continue;
 //                        }
-                        if(!opcodeName.equals("getelementptr")){
+//                        if(!opcodeName.equals("getelementptr")){
+//                            continue;
+//                        }
+//                        if(!opcodeName.equals("call")) {
+//                            continue;
+//                        }
+                        if(!opcodeName.equals("ret")) {
                             continue;
                         }
 

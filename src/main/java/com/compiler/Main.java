@@ -6,6 +6,7 @@ import com.compiler.frontend.SysYParser;
 import com.compiler.ir2.LLVisitor;
 import com.compiler.listeners.LexerListener;
 import com.compiler.listeners.ParserListener;
+import com.compiler.mir.MIRPrinter;
 import com.compiler.utils.Checker;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
@@ -14,7 +15,9 @@ import org.antlr.v4.runtime.tree.ParseTree;
 import org.llvm4j.optional.Option;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -66,6 +69,7 @@ public class Main {
             processParser(lexer, inputPath.toString());
             irGen(tree, outputPath.toString());
             irGen2(tree, outputPath2.toString());
+
 
 //            System.out.println("== Renamed Variables ==");
 //            lexer.getRenamedMap().forEach((oldName, newName) -> {

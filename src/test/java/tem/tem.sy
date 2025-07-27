@@ -9,6 +9,18 @@ int zero_array[5];
 float zero_float_array[3];
 
 
+void test_function() {
+    /* 局部变量 */
+    int local_var = 0;
+
+    /* if-else 语句 */
+    if (local_var > 10) {
+        global_counter = global_counter + local_var;
+    } else {
+        global_float =  global_float + 1.0;
+    }
+}
+
 /* 处理数据的函数 */
 int process_data(int value) {
     /* 局部变量 */

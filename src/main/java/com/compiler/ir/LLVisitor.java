@@ -1,6 +1,9 @@
 package com.compiler.ir;
 
 import com.compiler.frontend.SysYParserBaseVisitor;
+import com.compiler.mir.MIRConverter;
+import com.compiler.mir.MIRModule;
+import com.compiler.mir.MIRPrinter;
 import org.antlr.v4.runtime.ParserRuleContext;
 import kotlin.Pair;
 import org.bytedeco.javacpp.BytePointer;
@@ -14,6 +17,9 @@ import com.compiler.frontend.SysYParser;
 import org.llvm4j.optional.Option;
 
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.*;
 
 import static org.bytedeco.llvm.global.LLVM.*;
@@ -141,7 +147,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         //System.out.println(msg);
     }
 
-    public void dump(Option<File> of) {
+    public void dump(Option<File> of) throws IOException {
 
         for (LLVMValueRef func = LLVMGetFirstFunction(mod.getRef()); func != null; func = LLVMGetNextFunction(func)) {
             for (LLVMBasicBlockRef bb = LLVMGetFirstBasicBlock(func); bb != null; bb = LLVMGetNextBasicBlock(bb)) {
@@ -222,6 +228,12 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         mod.dump(of);
         IRTypeAnalyzer analyzer = new IRTypeAnalyzer(this,"src/test/java/tem/temType");
         analyzer.analyze();
+
+        PrintWriter writer = new PrintWriter(new FileWriter("src/test/java/tem/tem.mir"));
+        MIRConverter converter = new MIRConverter(mod);
+        MIRModule mirModule = converter.convert();
+        MIRPrinter mirPrinter = new MIRPrinter(mirModule, writer);
+        mirPrinter.printModule();
 
     }
 

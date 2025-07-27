@@ -36,6 +36,29 @@ declare void @starttime()
 
 declare void @stoptime()
 
+define void @test_function() {
+test_functionEntry:
+  %gt = icmp sgt i32 0, 10
+  %zextForGt = zext i1 %gt to i32
+  %cond = icmp ne i32 %zextForGt, 0
+  br i1 %cond, label %ifTrue, label %ifFalse
+
+ifTrue:                                           ; preds = %test_functionEntry
+  %val1 = load i32, i32* @global_counter, align 4
+  %iAdd = add i32 %val1, 0
+  store i32 %iAdd, i32* @global_counter, align 4
+  br label %ifNext
+
+ifFalse:                                          ; preds = %test_functionEntry
+  %val3 = load float, float* @global_float, align 4
+  %fAdd = fadd float %val3, 1.000000e+00
+  store float %fAdd, float* @global_float, align 4
+  br label %ifNext
+
+ifNext:                                           ; preds = %ifFalse, %ifTrue
+  ret void
+}
+
 define i32 @process_data(i32 %0) {
 process_dataEntry:
   %iMul = mul i32 %0, 2

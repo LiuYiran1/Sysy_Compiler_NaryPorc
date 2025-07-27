@@ -18,6 +18,12 @@ import static org.bytedeco.llvm.global.LLVM.*;
 
 public class MIRConverter {
 
+    // 添加调试信息字段
+    private String currentFunction = "";
+    private String currentBasicBlock = "";
+    private LLVMValueRef currentInstruction = null;
+    private int instructionCount = 0;
+
     private final Module llvmModule;
     private final MIRModule mirModule = new MIRModule();
     private final Map<LLVMValueRef, MIROperand> valueMap = new LinkedHashMap<>();
@@ -26,19 +32,54 @@ public class MIRConverter {
 //    private final Map<Double, MIRFloatConstant> floatConstantPool = new LinkedHashMap<>();
 //    private final Map<MIRFunction, List<MIRFloatConstant>> functionFloatConstants = new LinkedHashMap<>();
 
+    // 调试日志开关
+    private static final boolean DEBUG = true;
 
     public MIRConverter(Module llvmModule) {
         this.llvmModule = llvmModule;
     }
 
+
+    // 调试方法
+    private void debugLog(String message) {
+        if (DEBUG) {
+            System.out.println("[DEBUG] " + message);
+        }
+    }
+
+    private void debugError(String message, Throwable e) {
+        System.err.println("[ERROR] " + message);
+        if (DEBUG && e != null) {
+            e.printStackTrace();
+        }
+    }
+
+    private void setCurrentContext(LLVMValueRef func, LLVMBasicBlockRef bb, LLVMValueRef inst) {
+        if (func != null) {
+            currentFunction = LLVMGetValueName(func).getString();
+        }
+        if (bb != null) {
+            currentBasicBlock = LLVMGetBasicBlockName(bb).getString();
+        }
+        currentInstruction = inst;
+    }
+
+    private String getCurrentContext() {
+        return String.format("Function: %s, Block: %s, Inst: %s",
+                currentFunction, currentBasicBlock,
+                currentInstruction != null ? LLVMPrintValueToString(currentInstruction).getString() : "N/A");
+    }
+
     public MIRModule convert() {
         // 转换全局变量
         for(var global = LLVMGetFirstGlobal(llvmModule.getRef()); global != null; global = LLVMGetNextGlobal(global)) {
+            debugLog("Converting global: " + LLVMGetValueName(global).getString());
             convertGlobalVariable(global);
         }
 
         // 转换所有函数
         for(var func = LLVMGetFirstFunction(llvmModule.getRef()); func != null; func = LLVMGetNextFunction(func)) {
+            debugLog("Converting function: " + LLVMGetValueName(func).getString());
             convertFunction(func);
         }
         return mirModule;
@@ -47,9 +88,8 @@ public class MIRConverter {
     private void convertGlobalVariable(LLVMValueRef global) {
         // 处理全局变量的初始值
         // TODO: 这里可以添加对全局变量初始值的处理逻辑
-
-
         String name = LLVMGetValueName(global).getString();
+        debugLog("Processing global: " + name);
 
         if (LLVMIsAGlobalVariable(global) == null) {
             throw new IllegalArgumentException("Expected a global variable, but got: " + name);
@@ -59,12 +99,16 @@ public class MIRConverter {
         MIRType mirType = convertType(pointedType);
         if(MIRType.isInt(mirType)) {
             // int型全局变量
-            MIRGlobalVariable intGlobal = new MIRGlobalVariable(name, mirType, LLVMConstIntGetSExtValue(global));
+
+            MIRGlobalVariable intGlobal = new MIRGlobalVariable(name, mirType, LLVMConstIntGetSExtValue(LLVMGetInitializer(global)));
+            System.out.println(intGlobal.getIntValue());
             mirModule.addGlobalVariable(intGlobal);
 
         } else if (MIRType.isFloat(mirType)) {
             // float型全局变量
-            MIRGlobalVariable floatGlobal = new MIRGlobalVariable(name, mirType, LLVMConstRealGetDouble(global, new IntPointer(1)));
+
+            MIRGlobalVariable floatGlobal = new MIRGlobalVariable(name, mirType, LLVMConstRealGetDouble(LLVMGetInitializer(global), new IntPointer(1)));
+            System.out.println(floatGlobal.getFloatValue());
             mirModule.addGlobalVariable(floatGlobal);
 
         } else {
@@ -72,18 +116,20 @@ public class MIRConverter {
             // 获取数组元素类型
             MIRType elementType = convertType(getBaseElementType(pointedType));
             int arraySize = getArrayLength(pointedType);
+            System.out.println(arraySize);
             if(LLVMIsAConstantAggregateZero(global) != null) {
                 // zero-initialized array
                 MIRGlobalVariable mirGlobal = new MIRGlobalVariable(name, elementType,arraySize);
+                System.out.println(name + " is zero-initialized array of type " + elementType);
                 mirModule.addGlobalVariable(mirGlobal);
                 return;
             }
             List<Object> values = new ArrayList<>();
+            LLVMValueRef element = LLVMGetInitializer(global);
             if(MIRType.isInt(elementType)) {
                 // int[][] ……
                 for (int i = 0; i < arraySize; i++) {
-                    LLVMValueRef element = LLVMGetElementAsConstant(global, i);
-                    long value = LLVMConstIntGetSExtValue(element);
+                    int value = (int)LLVMConstIntGetSExtValue(LLVMGetElementAsConstant(element,i));
                     System.out.println(name + i + " : " + value);
                     values.add(value);
                 }
@@ -92,8 +138,9 @@ public class MIRConverter {
             } else if (MIRType.isFloat(elementType)) {
                 // float[][] ……
                 for (int i = 0; i < arraySize; i++) {
-                    LLVMValueRef element = LLVMGetElementAsConstant(global, i);
-                    double value = LLVMConstRealGetDouble(element, new IntPointer(1));
+
+                    double value = LLVMConstRealGetDouble(LLVMGetElementAsConstant(element,i), new IntPointer(1));
+                    System.out.println(name + i + " : " + value);
                     values.add(value);
                 }
                 MIRGlobalVariable mirGlobal = new MIRGlobalVariable(name, elementType, arraySize, values);
@@ -106,9 +153,12 @@ public class MIRConverter {
     }
 
     private void convertFunction(LLVMValueRef llvmFunc) {
-        MIRFunction mirFunc = new MIRFunction(LLVMGetValueName(llvmFunc).getString());
+        String funcName = LLVMGetValueName(llvmFunc).getString();
+
+        MIRFunction mirFunc = new MIRFunction(funcName);
         mirModule.addFunction(mirFunc);
 
+        debugLog("Starting conversion for function: " + funcName);
         // 创建参数虚拟寄存器
         // TODO: 这里可以添加对函数参数的处理逻辑
         int count = LLVMCountParams(llvmFunc);
@@ -123,21 +173,56 @@ public class MIRConverter {
 
         // 转换基本块
         for(var bb = LLVMGetFirstBasicBlock(llvmFunc); bb != null; bb = LLVMGetNextBasicBlock(bb)) {
+            setCurrentContext(llvmFunc, bb, null);
             convertBasicBlock(bb, mirFunc);
         }
 
+        MIRBasicBlock exitBlock = new MIRBasicBlock(mirFunc.getName() + "Return");
+        // 添加函数返回块
+        if(!mirFunc.getName().equals("main")){
+            exitBlock.getInstructions().add(new MIRPseudoOp(MIRPseudoOp.Type.CALLEE_RESTORE_REG,0));
+        }
+        exitBlock.getInstructions().add(new MIRPseudoOp(MIRPseudoOp.Type.EPILOGUE, 0)); // 函数出口
+        exitBlock.getInstructions().add(new MIRControlFlowOp()); // ret
+
+        mirFunc.addBlock(exitBlock);
         // 构建CFG
         //buildControlFlowGraph(mirFunc);
 
         // 消除PHI节点（关键步骤）
         eliminatePhiNodes(mirFunc);
+
+        debugLog("Finished conversion for function: " + funcName);
     }
 
     private void convertBasicBlock(LLVMBasicBlockRef llvmBB, MIRFunction mirFunc) {
-        MIRBasicBlock mirBB = new MIRBasicBlock(LLVMGetBasicBlockName(llvmBB).getString());
+        String bbName = LLVMGetBasicBlockName(llvmBB).getString();
+        MIRBasicBlock mirBB = new MIRBasicBlock(bbName);
+
+        debugLog("Converting basic block: " + bbName);
+        if(mirBB.getLabel().toString().contains("entry")) {
+            // 如果是入口块，添加函数序言
+            mirBB.getInstructions().add(new MIRPseudoOp(
+                        MIRPseudoOp.Type.PROLOGUE,
+                        0 // 初始帧大小为0
+            ));
+            if(!mirFunc.getName().equals("main")){
+                // 如果不是main函数，添加保存寄存器的指令
+                mirBB.getInstructions().add(new MIRPseudoOp(
+                        MIRPseudoOp.Type.CALLEE_SAVE_REG,
+                        0 // 这个0无意义
+                ));
+            }
+        }
 
         for(var inst = LLVMGetFirstInstruction(llvmBB); inst != null; inst = LLVMGetNextInstruction(inst)) {
+            setCurrentContext(null, llvmBB, inst);
+            instructionCount++;
+            debugLog("Converting instruction #" + instructionCount + ": " +
+                    LLVMPrintValueToString(inst).getString().trim());
+            getCurrentContext();
             convertInstruction(inst, mirFunc, mirBB);
+
         }
 
         mirFunc.addBlock(mirBB);
@@ -384,23 +469,64 @@ public class MIRConverter {
     private void convertCallInst(LLVMValueRef inst, MIRFunction mirFunc, MIRBasicBlock mirBB) {
          // TODO: 实现函数调用指令转换
         // 保存相关寄存器
-        LLVMValueRef callee = LLVMGetOperand(inst, 0);
-        if (LLVMIsAFunction(callee) == null) {
-            throw new IllegalArgumentException("Expected a function call, but got: " + LLVMGetValueName(callee).getString());
-        }
-        String calleeName = LLVMGetValueName(callee).getString();
+        // 怎么能在这里做个标记在后端处理时能完成这个操作
+        mirBB.getInstructions().add(new MIRPseudoOp(MIRPseudoOp.Type.CALLER_SAVE_REG,0));
+
         // 创建调用指令
         MIRVirtualReg result = mirFunc.newVirtualReg(convertType(LLVMTypeOf(inst)));;
         valueMap.put(inst, result);
 
         List<MIROperand> args = new ArrayList<>();
+        int numOperands = LLVMGetNumOperands(inst);
+        for (int i = 0; i < numOperands - 1; i++) { // 从0开始，最后一个是callee
+            LLVMValueRef arg = LLVMGetOperand(inst, i);
+            MIROperand mirArg = getMIRValue(arg, mirFunc, mirBB);
+            args.add(mirArg);
+        }
+        LLVMValueRef callee = LLVMGetOperand(inst, numOperands - 1);
+        if (LLVMIsAFunction(callee) == null) {
+            throw new IllegalArgumentException("Expected a function call, but got: " + LLVMGetValueName(callee).getString());
+        }
+        String calleeName = LLVMGetValueName(callee).getString();
 
-//        MIRLabel funcLabel = new MIRLabel(LLVMGetValueName(inst).getString());
-//        mirBB.getInstructions().add(new MIRControlFlowOp())
+        MIRLabel funcLabel = new MIRLabel(calleeName);
+        mirBB.getInstructions().add(new MIRControlFlowOp(funcLabel, result, args));
+
+        // 恢复相关寄存器
+        // 怎么能在这里做个标记在后端处理时能完成这个操作
+        mirBB.getInstructions().add(new MIRPseudoOp(MIRPseudoOp.Type.CALLER_RESTORE_REG,0));
     }
 
     private void convertReturnInst(LLVMValueRef inst, MIRFunction mirFunc, MIRBasicBlock mirBB) {
          // TODO: 实现返回指令转换
+        // 恢复栈空间
+        // 恢复某些寄存器的值
+        // 把返回值存到a0然后跳转到func.name + "Return"
+        LLVMValueRef retVal = LLVMGetOperand(inst, 0);
+        if (retVal == null) {
+            // 无返回值，直接返回
+            mirBB.getInstructions().add(new MIRControlFlowOp(new MIRLabel(mirFunc.getName() + "Return")));
+            return;
+        } else {
+            // 有返回值，处理返回值
+            MIRVirtualReg retReg = mirFunc.newVirtualReg(convertType(LLVMTypeOf(retVal)));
+            valueMap.put(inst, retReg);
+
+            MIROperand retOperand = getMIRValue(retVal, mirFunc, mirBB);
+
+            if(retOperand instanceof MIRImmediate) {
+                // 如果是立即数，转换为寄存器
+                mirBB.getInstructions().add(new MIRLiOp(MIRLiOp.Op.LI, retReg, (MIRImmediate) retOperand));
+                retOperand = immToReg(mirFunc, mirBB, ((MIRImmediate) retOperand).getValue());
+            } else {
+                // 将返回值存储到寄存器
+                mirBB.getInstructions().add(new MIRMoveOp(retReg, retOperand, MIRMoveOp.MoveType.INTEGER));
+            }
+
+            // 跳转到函数返回标签
+            mirBB.getInstructions().add(new MIRControlFlowOp(new MIRLabel(mirFunc.getName() + "Return")));
+        }
+
     }
 
     // 实现GetElementPtr指令转换
@@ -465,6 +591,8 @@ public class MIRConverter {
 
     private void convertPhiInst(LLVMValueRef phi,MIRFunction mirFunc, MIRBasicBlock mirBB) {
         // 收集所有PHI节点
+        MIRVirtualReg phiReg = mirFunc.newVirtualReg(convertType(LLVMTypeOf(phi)));
+        valueMap.put(phi, phiReg);
         if (!phiNodes.containsKey(mirBB)) {
             phiNodes.put(mirBB, new ArrayList<>());
         }
@@ -488,7 +616,16 @@ public class MIRConverter {
                     MIRBasicBlock mirIncomingBB = findMIRBlock(mirFunc, LLVMGetBasicBlockName(incomingBB).getString());
                     MIROperand source = getMIRValue(incomingValue, mirFunc, currentBB);
 
-                    // 在入块末尾插入MOV指令
+                    //在入块末尾插入MOV指令
+                    int size = mirIncomingBB.getInstructions().size();
+                    if (size > 0 && mirIncomingBB.getInstructions().get(size - 1) instanceof MIRControlFlowOp) {
+                        // 如果最后一条指令是控制流指令，插入到前面
+                        mirIncomingBB.getInstructions().add(size - 1, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.INTEGER));
+                    } else {
+                        // 否则直接添加到末尾 这种情况不应该出现
+                        mirIncomingBB.getInstructions().add(new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.INTEGER));
+                        throw new RuntimeException("Unexpected instruction at the end of basic block: " + mirIncomingBB.getLabel());
+                    }
 //                    MIRMoveOp move = new MIRMoveOp(phiReg, source, MIRType.isFloat());
 //                    mirIncomingBB.addInstruction(move);
                 }
