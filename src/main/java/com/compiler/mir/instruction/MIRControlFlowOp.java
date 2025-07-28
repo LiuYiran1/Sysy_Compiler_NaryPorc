@@ -73,7 +73,7 @@ public class MIRControlFlowOp extends MIRInstruction {
         return switch (type) {
             case RET -> "RET " + target;
             case JMP -> "JMP " + target;
-            case COND_JMP -> "COND_JMP " + condition + ", " + target + ", " + args.get(0);
+            case COND_JMP -> "COND_JMP " + condition + ", " + target;
             case CALL -> "CALL " + target + " -> " + result + ", args: " + args;
             default -> "UNKNOWN";
         };

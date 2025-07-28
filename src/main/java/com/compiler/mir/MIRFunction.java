@@ -1,14 +1,18 @@
 package com.compiler.mir;
 
 import com.compiler.mir.operand.MIRVirtualReg;
+import org.bytedeco.llvm.LLVM.LLVMValueRef;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class MIRFunction {
     private final String name;
     private final List<MIRVirtualReg> params = new ArrayList<>();
     private final List<MIRBasicBlock> blocks = new ArrayList<>();
+    private final Map<MIRBasicBlock, List<LLVMValueRef>> phiNodes = new LinkedHashMap<>();
     private int nextRegId = 0;
 
     public MIRFunction(String name){
@@ -27,6 +31,10 @@ public class MIRFunction {
         return blocks;
     }
 
+    public Map<MIRBasicBlock, List<LLVMValueRef>> getPhiNodes() {
+        return phiNodes;
+    }
+
     public MIRVirtualReg newVirtualReg(MIRType type) {
         return new MIRVirtualReg(nextRegId++, type);
     }
@@ -37,6 +45,11 @@ public class MIRFunction {
 
     public void addBlock(MIRBasicBlock block) {
         blocks.add(block);
+    }
+
+    public void addPhiNode(MIRBasicBlock block, LLVMValueRef valueRef) {
+        phiNodes.putIfAbsent(block, new ArrayList<>());
+        phiNodes.get(block).add(valueRef);
     }
 }
 

@@ -232,7 +232,9 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         PrintWriter writer = new PrintWriter(new FileWriter("src/test/java/tem/tem.mir"));
         MIRConverter converter = new MIRConverter(mod);
         MIRModule mirModule = converter.convert();
+        System.out.println("ending");
         MIRPrinter mirPrinter = new MIRPrinter(mirModule, writer);
+        System.out.println("starting print");
         mirPrinter.printModule();
 
     }

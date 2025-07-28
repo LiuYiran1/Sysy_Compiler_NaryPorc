@@ -7,8 +7,6 @@ target triple = "riscv64-unknown-elf"
 @global_float = global float 0x40091EB860000000
 @global_array = global [5 x i32] [i32 1, i32 2, i32 3, i32 4, i32 5]
 @global_float_array = global [3 x float] [float 0x3FB99999A0000000, float 0x3FC99999A0000000, float 0x3FD3333340000000]
-@arrrr = global [2 x [3 x i32]] [[3 x i32] [i32 1, i32 2, i32 0], [3 x i32] [i32 4, i32 5, i32 6]]
-@arrrr_float = global [2 x [3 x float]] [[3 x float] [float 0x3FF19999A0000000, float 0x40019999A0000000, float 0x400A666660000000], [3 x float] [float 0x40119999A0000000, float 5.500000e+00, float 0x401A666660000000]]
 @zero_array = global [5 x i32] zeroinitializer
 @zero_float_array = global [3 x float] zeroinitializer
 

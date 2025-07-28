@@ -12,7 +12,8 @@ public class MIRPseudoOp extends MIRInstruction {
         CALLER_SAVE_REG,   // 保存寄存器
         CALLEE_SAVE_REG,   // 保存寄存器
         CALLER_RESTORE_REG, // 恢复寄存器
-        CALLEE_RESTORE_REG // 恢复寄存器
+        CALLEE_RESTORE_REG, // 恢复寄存器
+        SELECT // 选择指令
     }
 
     private final Type type;

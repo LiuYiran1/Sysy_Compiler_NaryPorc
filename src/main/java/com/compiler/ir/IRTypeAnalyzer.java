@@ -79,9 +79,9 @@ public class IRTypeAnalyzer {
 //                        if(!opcodeName.equals("call")) {
 //                            continue;
 //                        }
-                        if(!opcodeName.equals("ret")) {
-                            continue;
-                        }
+//                        if(!opcodeName.equals("ret")) {
+//                            continue;
+//                        }
 
                         // 打印指令本身
                         writer.println("    Instruction: " + LLVMPrintValueToString(inst).getString());
