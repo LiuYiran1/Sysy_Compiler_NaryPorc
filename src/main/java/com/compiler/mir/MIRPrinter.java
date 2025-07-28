@@ -57,7 +57,7 @@ public class MIRPrinter {
 
     private void printBasicBlock(MIRBasicBlock block) {
         printIndent();
-        writer.printf("%s:\n", block.getLabel().toString());
+        writer.printf("\n%s:\n", block.getLabel().toString());
         indentLevel++;
         for (MIRInstruction inst : block.getInstructions()) {
             printInstruction(inst);

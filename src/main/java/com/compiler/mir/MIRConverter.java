@@ -1,6 +1,5 @@
 package com.compiler.mir;
 
-import com.compiler.mir.*;
 import com.compiler.mir.instruction.*;
 import com.compiler.mir.operand.*;
 import org.bytedeco.javacpp.IntPointer;
@@ -745,8 +744,9 @@ public class MIRConverter {
         MIRVirtualReg reg = mirFunc.newVirtualReg(MIRType.I64);
         System.out.println(LLVMGetValueName(valueRef).getString());
         MIRGlobalVariable globalVar = mirModule.getGlobalVariableMap().get(LLVMGetValueName(valueRef).getString());
-        mirBB.getInstructions().add(new MIRLuiOp(reg,globalVar));
-        mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,reg, MIRArithOp.Type.INT,reg,globalVar));
+//        mirBB.getInstructions().add(new MIRLuiOp(reg,globalVar));
+//        mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,reg, MIRArithOp.Type.INT,reg,globalVar));
+        mirBB.getInstructions().add(new MIRLaOp(MIRLaOp.Op.La, reg, globalVar));
         return reg;
 
     }
@@ -900,7 +900,6 @@ public class MIRConverter {
         return reg;
     }
 
-    // 其他转换方法...
     private MIRBasicBlock findMIRBlock(MIRFunction mirFunc, String name) {
         System.out.println(name);
         return mirFunc.getBlocks().stream()
@@ -908,64 +907,4 @@ public class MIRConverter {
                 .findFirst()
                 .orElseThrow();
     }
-//private MIRBasicBlock findMIRBlock(MIRFunction mirFunc, String name) {
-//    // 1. 输入验证
-//    if (mirFunc == null) {
-//        System.err.println("[ERROR] findMIRBlock: mirFunc is null!");
-//        throw new IllegalArgumentException("mirFunc cannot be null");
-//    }
-//
-//    if (name == null || name.trim().isEmpty()) {
-//        System.err.println("[ERROR] findMIRBlock: Invalid block name: '" + name + "'");
-//        throw new IllegalArgumentException("Block name cannot be null or empty");
-//    }
-//
-//    name = name.trim();  // 处理前后空格
-//
-//    System.out.println("Searching for block: '" + name + "'");
-//    System.out.println("Available blocks in function " + mirFunc.getName() + ":");
-//
-//    // 2. 打印所有可用块信息
-//    List<MIRBasicBlock> blocks = mirFunc.getBlocks();
-//    if (blocks.isEmpty()) {
-//        System.err.println("[WARN] Function has no basic blocks!");
-//    }
-//
-//    blocks.forEach(bb -> {
-//        Object labelObj = bb.getLabel();
-//        String labelStr = (labelObj != null) ? labelObj.toString() : "null";
-//        System.out.printf("  Block: %-20s | Type: %s%n",
-//                labelStr,
-//                labelObj != null ? labelObj.getClass().getSimpleName() : "N/A");
-//    });
-//
-//    // 3. 带调试信息的查找
-//    try {
-//        String finalName = name;
-//        String finalName1 = name;
-//        return blocks.stream()
-//                .peek(bb -> System.out.println("  Checking block: " +
-//                        (bb.getLabel() != null ? bb.getLabel().toString() : "null")))
-//                .filter(bb -> {
-//                    if (bb.getLabel() == null) {
-//                        System.out.println("  [WARN] Found block with null label!");
-//                        return false;
-//                    }
-//                    String label = bb.getLabel().toString().trim();
-//                    boolean match = label.equals(finalName);
-//                    System.out.printf("  Comparing '%s' vs '%s' -> %s%n",
-//                            label, finalName, match ? "MATCH" : "NO MATCH");
-//                    return match;
-//                })
-//                .findFirst()
-//                .orElseThrow(() -> {
-//                    System.err.println("[ERROR] Block not found: " + finalName1);
-//                    return new NoSuchElementException("BasicBlock '" + finalName1 + "' not found in function");
-//                });
-//    } catch (Exception e) {
-//        System.err.println("[EXCEPTION] During block search: " + e.getMessage());
-//        throw e;
-//    }
-//}
-
 }

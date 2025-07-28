@@ -71,7 +71,7 @@ public class MIRControlFlowOp extends MIRInstruction {
     @Override
     public String toString() {
         return switch (type) {
-            case RET -> "RET " + target;
+            case RET -> "RET ";
             case JMP -> "JMP " + target;
             case COND_JMP -> "COND_JMP " + condition + ", " + target;
             case CALL -> "CALL " + target + " -> " + result + ", args: " + args;
