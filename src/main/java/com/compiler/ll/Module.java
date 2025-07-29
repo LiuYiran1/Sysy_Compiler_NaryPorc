@@ -57,6 +57,10 @@ public class Module {
         return gv;
     }
 
+    public List<GlobalVariable> getGlobalVariables() {
+        return globalVariables;
+    }
+
     public String toIR() {
         StringBuilder sb = new StringBuilder();
         // 前缀

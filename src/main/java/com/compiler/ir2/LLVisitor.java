@@ -16,11 +16,17 @@ import com.compiler.ll.Values.GlobalValues.Function;
 import com.compiler.ll.Values.Instructions.FloatPredicate;
 import com.compiler.ll.Values.Instructions.IntPredicate;
 import com.compiler.ll.Values.Instructions.Opcode;
+import com.compiler.mir.MIRConverter;
+import com.compiler.mir.MIRModule;
+import com.compiler.mir.MIRPrinter;
+import com.compiler.mir.operand.MIRConverterLL;
 import com.compiler.pass.*;
 import org.antlr.v4.runtime.ParserRuleContext;
 
 
 import java.io.File;
+import java.io.FileWriter;
+import java.io.PrintWriter;
 import java.util.*;
 
 public class LLVisitor extends SysYParserBaseVisitor<Value> {
@@ -187,6 +193,23 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
 
         mod.dump(file);
+
+
+    }
+
+    private mirGen(){
+        PrintWriter writer = null;
+        try {
+            writer = new PrintWriter(new FileWriter("src/test/java/tem/tem.mir"));
+        } catch (Exception e){
+            System.out.println("mir writer error");
+        }
+        MIRConverterLL converter = new MIRConverterLL(mod);
+        MIRModule mirModule = converter.convert();
+        System.out.println("ending");
+        MIRPrinter mirPrinter = new MIRPrinter(mirModule, writer);
+        System.out.println("starting print");
+        mirPrinter.printModule();
     }
 
     @Override

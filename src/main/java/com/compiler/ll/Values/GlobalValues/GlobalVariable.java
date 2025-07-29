@@ -28,6 +28,10 @@ public class GlobalVariable extends GlobalValue {
         this.initializer = initializer;
     }
 
+    public Type getValueType() {
+        return valueType;
+    }
+
     @Override
     public String toIR() {
         StringBuilder sb = new StringBuilder();
