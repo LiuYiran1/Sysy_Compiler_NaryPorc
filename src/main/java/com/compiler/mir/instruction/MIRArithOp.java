@@ -31,6 +31,6 @@ public class MIRArithOp extends MIRInstruction {
 
     @Override
     public String toString() {
-        return type.name() + op.name() + " " + result + ", " + left + ", " + right;
+        return type.name() + op.name() + " " + resultVirtualReg + ", " + left + ", " + right;
     }
 }

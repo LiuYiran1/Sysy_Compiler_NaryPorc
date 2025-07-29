@@ -15,4 +15,8 @@ public enum MIRType {
     public static boolean isScalar(MIRType t) {
         return isInt(t) || isFloat(t);
     }
+
+    public static boolean isVoid(MIRType mirType) {
+        return mirType == VOID;
+    }
 }

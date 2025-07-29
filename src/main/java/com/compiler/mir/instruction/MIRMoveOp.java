@@ -1,6 +1,7 @@
 package com.compiler.mir.instruction;
 
 import com.compiler.mir.operand.MIROperand;
+import com.compiler.mir.operand.MIRPhysicalReg;
 import com.compiler.mir.operand.MIRVirtualReg;
 
 import java.util.Arrays;
@@ -22,6 +23,12 @@ public class MIRMoveOp extends MIRInstruction {
         this.moveType = moveType;
     }
 
+    public MIRMoveOp(MIRPhysicalReg dest, MIROperand source, MoveType moveType) {
+        super(dest);
+        this.source = source;
+        this.moveType = moveType;
+    }
+
     @Override
     public List<MIROperand> getOperands() {
         return Arrays.asList(source);
@@ -30,10 +37,10 @@ public class MIRMoveOp extends MIRInstruction {
     @Override
     public String toString() {
         return switch (moveType) {
-            case INTEGER -> "MV " + result + ", " + source;
-            case FLOAT -> "FMV_S " + result + ", " + source;
-            case INT_TO_FLOAT -> "FMV_W_X " + result + ", " + source;
-            default -> "MOVE " + result + ", " + source;
+            case INTEGER -> "MV " + (resultVirtualReg != null ? resultVirtualReg : resultPhysicalReg)  + ", " + source;
+            case FLOAT -> "FMV_S " + (resultVirtualReg != null ? resultVirtualReg : resultPhysicalReg) + ", " + source;
+            case INT_TO_FLOAT -> "FMV_W_X " + resultVirtualReg + ", " + source;
+            default -> "MOVE " + resultVirtualReg + ", " + source;
         };
     }
 }

@@ -199,9 +199,31 @@ public class MIRConverter {
             LLVMValueRef param = LLVMGetParam(llvmFunc, i);
             if (param == null) continue; // 忽略空参数
             MIRType mirType = convertType(LLVMTypeOf(param));
-            MIRVirtualReg paramReg = mirFunc.newVirtualReg(mirType);
-            valueMap.put(param, paramReg);
-            mirFunc.addParam(mirType);
+//            MIRVirtualReg paramReg = mirFunc.newVirtualReg(mirType);
+//            valueMap.put(param, paramReg);
+//            mirFunc.addParam(paramReg);
+            if (i < 8) {
+                MIRPhysicalReg paramReg;
+                if (MIRType.isFloat(mirType)) {
+                    // 浮点类型参数
+                    paramReg = new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.FA0.ordinal() + i]);
+                } else {
+                    // ptr + 整数类型
+                    paramReg = new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.A0.ordinal() + i]);
+                }
+                valueMap.put(param, paramReg);
+                mirFunc.addParam(paramReg);
+            } else {
+                int offset = (i - 8) * 8; // 从第9个参数开始，每个参数占8个字节
+                MIRMemory paramMem = new MIRMemory(
+                        new MIRPhysicalReg(MIRPhysicalReg.PREGs.FP), // 使用FP寄存器作为基址
+                        new MIRImmediate(offset, MIRType.I64), // 偏移量为0
+                        mirType
+                );
+                valueMap.put(param, paramMem);
+                mirFunc.addParam(paramMem);
+            }
+
         }
 
         if(LLVMGetFirstBasicBlock(llvmFunc) == null) {
@@ -510,13 +532,14 @@ public class MIRConverter {
             int arraySize = LLVMGetArrayLength(typeRef);
             LLVMTypeRef elementType = LLVMGetElementType(typeRef);
             MIRType mirType = convertType(elementType);
-            offset = arraySize * 4;
+            offset = arraySize * 8; // 每个元素占8个字节（riscV64）
         } else {
             // 单个变量
             offset = 4;
         }
         // 关于sp的offset只需统计所有的alloc指令的size即可
         MIRVirtualReg result = mirFunc.newVirtualReg(MIRType.I64);
+        valueMap.put(inst, result); // 又找出一个bug
         mirBB.getInstructions().add(new MIRAllocOp(result,offset,0));
         // 后期得替换成%0 = sp - offset 类似形式
     }
@@ -527,58 +550,114 @@ public class MIRConverter {
         // 怎么能在这里做个标记在后端处理时能完成这个操作
         mirBB.getInstructions().add(new MIRPseudoOp(MIRPseudoOp.Type.CALLER_SAVE_REG,0));
 
-        // 创建调用指令
-        MIRVirtualReg result = mirFunc.newVirtualReg(convertType(LLVMTypeOf(inst)));;
-        valueMap.put(inst, result);
-
+        // 处理参数 + 传参
         List<MIROperand> args = new ArrayList<>();
         int numOperands = LLVMGetNumOperands(inst);
         for (int i = 0; i < numOperands - 1; i++) { // 从0开始，最后一个是callee
             LLVMValueRef arg = LLVMGetOperand(inst, i);
+            MIRType argType = convertType(LLVMTypeOf(arg));
             MIROperand mirArg = getMIRValue(arg, mirFunc, mirBB);
             args.add(mirArg);
+            if(i < 8){
+                if(MIRType.isFloat(argType)) {
+                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.FA0.ordinal() + i]),mirArg, MIRMoveOp.MoveType.FLOAT));
+                } else {
+                    // 整数类型或指针类型
+                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.A0.ordinal() + i]),mirArg, MIRMoveOp.MoveType.INTEGER));
+                }
+            } else {
+                // 如果参数超过8个，使用栈传递
+                // 这里的偏移量需要计算
+                int offset = (i - 8) * 8; // 每个参数占8个字节
+                MIRMemory argMem = new MIRMemory(new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP), new MIRImmediate(offset, MIRType.I64), mirArg.getType());
+                if(MIRType.isFloat(argType)) {
+                    mirBB.getInstructions().add(new MIRMemoryOp(MIRMemoryOp.Op.STORE, MIRMemoryOp.Type.FLOAT, argMem, mirArg));
+                } else if(MIRType.isInt(argType)) {
+                    // 整数类型
+                    mirBB.getInstructions().add(new MIRMemoryOp(MIRMemoryOp.Op.STORE, MIRMemoryOp.Type.INTEGER, argMem, mirArg));
+                } else {
+                    // 指针类型
+                    mirBB.getInstructions().add(new MIRMemoryOp(MIRMemoryOp.Op.STORE, MIRMemoryOp.Type.POINTER, argMem, mirArg));
+                }
+
+            }
         }
+
+        // 为创建调用指令做准备
         LLVMValueRef callee = LLVMGetOperand(inst, numOperands - 1);
         if (LLVMIsAFunction(callee) == null) {
             throw new IllegalArgumentException("Expected a function call, but got: " + LLVMGetValueName(callee).getString());
         }
         String calleeName = LLVMGetValueName(callee).getString();
-
         MIRLabel funcLabel = new MIRLabel(calleeName);
-        mirBB.getInstructions().add(new MIRControlFlowOp(funcLabel, result, args));
+
+        // 接受返回值，但void呢？
+        MIRType mirType = convertType(LLVMTypeOf(inst));
+        if(MIRType.isVoid(mirType)) {
+            // 如果是void类型,就不用接受返回值了
+            mirBB.getInstructions().add(new MIRControlFlowOp(funcLabel, args));
+        } else {
+            MIRVirtualReg result = mirFunc.newVirtualReg(mirType);
+            valueMap.put(inst, result);
+            mirBB.getInstructions().add(new MIRControlFlowOp(funcLabel, result, args));
+
+            //下面是LLVM处理
+//        %avg = alloca float, align 4
+//        %0 = call float @calculate_average([5 x i32]* %int_arrayArr, i32 5)
+//        store float %0, float* %avg, align 4
+            // 下面是LL处理
+//        %call.2 = call float @calculate_average([5 x i32]* %int_arrayArr, i32 5)
+
+            // 存储返回值 以LL为准处理
+            if (MIRType.isFloat(result.getType())) {
+                // 如果返回值是浮点数
+                mirBB.getInstructions().add(new MIRMoveOp(result, new MIRPhysicalReg(MIRPhysicalReg.PREGs.FA0), MIRMoveOp.MoveType.FLOAT));
+            } else {
+                // 如果返回值是整数
+                mirBB.getInstructions().add(new MIRMoveOp(result, new MIRPhysicalReg(MIRPhysicalReg.PREGs.A0), MIRMoveOp.MoveType.INTEGER));
+            }
+
+        }
 
         // 恢复相关寄存器
         // 怎么能在这里做个标记在后端处理时能完成这个操作
         mirBB.getInstructions().add(new MIRPseudoOp(MIRPseudoOp.Type.CALLER_RESTORE_REG,0));
     }
 
+    // bug4,这个方法写的真是错漏百出
     private void convertReturnInst(LLVMValueRef inst, MIRFunction mirFunc, MIRBasicBlock mirBB) {
          // TODO: 实现返回指令转换
-        // 恢复栈空间
-        // 恢复某些寄存器的值
+        // 恢复栈空间，恢复某些寄存器的值，这些步骤都交给exitbb处理
+
         // 把返回值存到a0然后跳转到func.name + "Return"
-        LLVMTypeRef typeRef = LLVMTypeOf(inst);
-        int kind = LLVMGetTypeKind(typeRef);
+//        LLVMTypeRef typeRef = LLVMTypeOf(inst);
+//        int kind = LLVMGetTypeKind(typeRef);// bug3,比较大的一个问题，这里永远都是void，
+        int kind = LLVMGetNumOperands(inst);
         System.out.println(kind);
-        if (kind == LLVMVoidTypeKind) {
+
+        if (kind == 0) {
             // 无返回值，直接返回
             mirBB.getInstructions().add(new MIRControlFlowOp(new MIRLabel(mirFunc.getName() + "Return")));
             return;
         } else {
             // 有返回值，处理返回值
             LLVMValueRef retVal = LLVMGetOperand(inst, 0);
-            MIRVirtualReg retReg = mirFunc.newVirtualReg(convertType(LLVMTypeOf(retVal)));
-            valueMap.put(inst, retReg);
+            MIRType mirType = convertType(LLVMTypeOf(retVal));
 
             MIROperand retOperand = getMIRValue(retVal, mirFunc, mirBB);
 
             if(retOperand instanceof MIRImmediate) {
                 // 如果是立即数，转换为寄存器
-                mirBB.getInstructions().add(new MIRLiOp(MIRLiOp.Op.LI, retReg, (MIRImmediate) retOperand));
-                retOperand = immToReg(mirFunc, mirBB, ((MIRImmediate) retOperand).getValue());
+                mirBB.getInstructions().add(new MIRLiOp(MIRLiOp.Op.LI, new MIRPhysicalReg(MIRPhysicalReg.PREGs.A0), (MIRImmediate) retOperand));
+                //retOperand = immToReg(mirFunc, mirBB, ((MIRImmediate) retOperand).getValue());
             } else {
                 // 将返回值存储到寄存器
-                mirBB.getInstructions().add(new MIRMoveOp(retReg, retOperand, MIRMoveOp.MoveType.INTEGER));
+                if(MIRType.isFloat(mirType)){
+                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.FA0), retOperand, MIRMoveOp.MoveType.FLOAT));
+                } else {
+                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.A0), retOperand, MIRMoveOp.MoveType.INTEGER));
+                }
+
             }
 
             // 跳转到函数返回标签

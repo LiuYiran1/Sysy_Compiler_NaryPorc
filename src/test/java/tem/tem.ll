@@ -34,6 +34,20 @@ declare void @starttime()
 
 declare void @stoptime()
 
+define i32 @test(i32 %0, i32 %1, i32 %2, i32 %3, i32 %4, i32 %5, i32 %6, i32 %7, i32 %8, i32 %9) {
+testEntry:
+  %iAdd = add i32 %0, %1
+  %iAdd3 = add i32 %iAdd, %2
+  %iAdd5 = add i32 %iAdd3, %3
+  %iAdd7 = add i32 %iAdd5, %4
+  %iAdd9 = add i32 %iAdd7, %5
+  %iAdd11 = add i32 %iAdd9, %6
+  %iAdd13 = add i32 %iAdd11, %7
+  %iAdd15 = add i32 %iAdd13, %8
+  %iAdd17 = add i32 %iAdd15, %9
+  ret i32 %iAdd17
+}
+
 define void @test_function() {
 test_functionEntry:
   %gt = icmp sgt i32 0, 10
@@ -97,6 +111,8 @@ whileNext:                                        ; preds = %whileCond
 
 define i32 @main() {
 mainEntry:
+  call void @test_function()
+  %0 = call i32 @test(i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8, i32 9, i32 10)
   %int_arrayArr = alloca [5 x i32], align 4
   %array_element = load i32, i32* getelementptr inbounds ([5 x i32], [5 x i32]* @global_array, i64 0, i64 0), align 4
   %int_arrayFlatPtr = bitcast [5 x i32]* %int_arrayArr to i32*
@@ -199,8 +215,8 @@ whileBody:                                        ; preds = %whileCond
 
 whileNext:                                        ; preds = %ifNext7, %whileCond
   %avg = alloca float, align 4
-  %0 = call float @calculate_average([5 x i32]* %int_arrayArr, i32 5)
-  store float %0, float* %avg, align 4
+  %1 = call float @calculate_average([5 x i32]* %int_arrayArr, i32 5)
+  store float %1, float* %avg, align 4
   %val46 = load float, float* %avg, align 4
   %fAdd48 = fadd float %val46, 2.500000e+00
   %val49 = load i32, i32* @global_counter, align 4
@@ -226,8 +242,8 @@ ifFalse6:                                         ; preds = %whileBody
   %idx6419 = zext i32 %val18 to i64
   %arrayidx020 = getelementptr inbounds [5 x i32], [5 x i32]* %int_arrayArr, i64 0, i64 %idx6419
   %array_element21 = load i32, i32* %arrayidx020, align 4
-  %1 = call i32 @process_data(i32 %array_element21)
-  store i32 %1, i32* %result17, align 4
+  %2 = call i32 @process_data(i32 %array_element21)
+  store i32 %2, i32* %result17, align 4
   %val22 = load i32, i32* %result17, align 4
   %iAdd24 = add i32 %val22, %local_int.1
   br label %ifNext7

@@ -1,6 +1,7 @@
 package com.compiler.mir.instruction;
 
 import com.compiler.mir.operand.MIROperand;
+import com.compiler.mir.operand.MIRVirtualReg;
 
 import java.util.Collections;
 import java.util.List;
@@ -20,7 +21,7 @@ public class MIRPseudoOp extends MIRInstruction {
     private final int frameSize;
 
     public MIRPseudoOp(Type type, int frameSize) {
-        super(null);
+        super((MIRVirtualReg) null);
         this.type = type;
         this.frameSize = frameSize;
     }

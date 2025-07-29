@@ -32,7 +32,7 @@ public class MIRLuiOp extends MIRInstruction {
 
     @Override
     public String toString(){
-        return "LUI " + result +
+        return "LUI " + resultVirtualReg +
                (immediate != null ? ", " + immediate.toString() : "") +
                (globalVariable != null ? ", " + globalVariable.toString() : "");
     }

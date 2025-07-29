@@ -27,6 +27,6 @@ public class MIRLaOp extends MIRInstruction {
 
     @Override
     public String toString() {
-        return op.name() + " " + result + ", " + source;
+        return op.name() + " " + resultVirtualReg + ", " + source;
     }
 }

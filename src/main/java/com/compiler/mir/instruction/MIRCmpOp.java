@@ -31,7 +31,7 @@ public class MIRCmpOp extends MIRInstruction {
 
     @Override
     public String toString() {
-        return cmpType.name() + "_CMP " + op.name() + " " + result + ", " + left + ", " + right;
+        return cmpType.name() + "_CMP " + op.name() + " " + resultVirtualReg + ", " + left + ", " + right;
     }
 }
 

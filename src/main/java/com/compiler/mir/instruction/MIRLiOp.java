@@ -2,6 +2,7 @@ package com.compiler.mir.instruction;
 
 import com.compiler.mir.operand.MIRImmediate;
 import com.compiler.mir.operand.MIROperand;
+import com.compiler.mir.operand.MIRPhysicalReg;
 import com.compiler.mir.operand.MIRVirtualReg;
 
 import java.util.List;
@@ -20,6 +21,12 @@ public class MIRLiOp extends MIRInstruction {
         this.source = source;
     }
 
+    public MIRLiOp(Op op, MIRPhysicalReg result, MIRImmediate source) {
+        super(result);
+        this.op = op;
+        this.source = source;
+    }
+
     @Override
     public List<MIROperand> getOperands() {
         return List.of(source);
@@ -27,6 +34,6 @@ public class MIRLiOp extends MIRInstruction {
 
     @Override
     public String toString() {
-        return op.name() + " " + result + ", " + source;
+        return op.name() + " " + (resultVirtualReg != null ? resultVirtualReg : resultPhysicalReg) + ", " + source;
     }
 }

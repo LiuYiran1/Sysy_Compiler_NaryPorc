@@ -30,7 +30,7 @@ public class MIRMemoryOp extends MIRInstruction {
     }
 
     public MIRMemoryOp(Op op, Type type, MIRMemory address, MIROperand value) {
-        super(null); // STORE没有结果
+        super((MIRVirtualReg) null); // STORE没有结果
         this.op = op;
         this.type = type;
         this.address = address;
@@ -49,7 +49,7 @@ public class MIRMemoryOp extends MIRInstruction {
     @Override
     public String toString() {
         if (op == Op.LOAD) {
-            return type.name() + " LOAD " + result + ", " + address;
+            return type.name() + " LOAD " + resultVirtualReg + ", " + address;
         } else {
             return type.name() + " STORE " + value + ", " + address;
         }

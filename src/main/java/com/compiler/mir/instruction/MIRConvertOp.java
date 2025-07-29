@@ -30,6 +30,6 @@ public class MIRConvertOp extends MIRInstruction {
 
     @Override
     public String toString() {
-        return op.name() + " " + result + ", " + source;
+        return op.name() + " " + resultVirtualReg + ", " + source;
     }
 }

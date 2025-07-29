@@ -25,7 +25,7 @@ public class MIRControlFlowOp extends MIRInstruction {
 
     // 返回指令
     public MIRControlFlowOp() {
-        super(null);
+        super((MIRVirtualReg) null);
         this.type = Type.RET;
         this.target = null;
         this.condition = null;
@@ -34,7 +34,7 @@ public class MIRControlFlowOp extends MIRInstruction {
 
     // 无条件跳转
     public MIRControlFlowOp(MIRLabel target) {
-        super(null);
+        super((MIRVirtualReg) null);
         this.type = Type.JMP;
         this.target = target;
         this.condition = null;
@@ -43,7 +43,7 @@ public class MIRControlFlowOp extends MIRInstruction {
 
     // 条件跳转
     public MIRControlFlowOp(MIROperand condition, MIRLabel trueTarget) {
-        super(null);
+        super((MIRVirtualReg) null);
         this.type = Type.COND_JMP;
         this.target = trueTarget;
         this.condition = condition;
@@ -53,6 +53,14 @@ public class MIRControlFlowOp extends MIRInstruction {
     // 函数调用
     public MIRControlFlowOp(MIRLabel func, MIRVirtualReg result, List<MIROperand> args) {
         super(result);
+        this.type = Type.CALL;
+        this.target = func;
+        this.condition = null;
+        this.args = args;
+    }
+
+    public MIRControlFlowOp(MIRLabel func, List<MIROperand> args) {
+        super((MIRVirtualReg) null);
         this.type = Type.CALL;
         this.target = func;
         this.condition = null;
@@ -74,7 +82,7 @@ public class MIRControlFlowOp extends MIRInstruction {
             case RET -> "RET ";
             case JMP -> "JMP " + target;
             case COND_JMP -> "COND_JMP " + condition + ", " + target;
-            case CALL -> "CALL " + target + " -> " + result + ", args: " + args;
+            case CALL -> "CALL " + target + " -> " + ((resultVirtualReg != null) ? resultVirtualReg.toString() : "" ) + ", args: " + args;
             default -> "UNKNOWN";
         };
     }

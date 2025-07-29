@@ -23,6 +23,6 @@ public class MIRAllocOp extends MIRInstruction {
 
     @Override
     public String toString() {
-        return "ALLOC " + result + ", size=" + size + ", align=" + alignment;
+        return "ALLOC " + resultVirtualReg + ", size=" + size + ", align=" + alignment;
     }
 }

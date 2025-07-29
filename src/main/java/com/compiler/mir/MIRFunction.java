@@ -1,5 +1,6 @@
 package com.compiler.mir;
 
+import com.compiler.mir.operand.MIROperand;
 import com.compiler.mir.operand.MIRVirtualReg;
 import org.bytedeco.llvm.LLVM.LLVMValueRef;
 
@@ -10,7 +11,7 @@ import java.util.Map;
 
 public class MIRFunction {
     private final String name;
-    private final List<MIRVirtualReg> params = new ArrayList<>();
+    private final List<MIROperand> params = new ArrayList<>();
     private final List<MIRBasicBlock> blocks = new ArrayList<>();
     private final Map<MIRBasicBlock, List<LLVMValueRef>> phiNodes = new LinkedHashMap<>();
     private int nextRegId = 0;
@@ -23,7 +24,7 @@ public class MIRFunction {
         return name;
     }
 
-    public List<MIRVirtualReg> getParams() {
+    public List<MIROperand> getParams() {
         return params;
     }
 
@@ -39,8 +40,8 @@ public class MIRFunction {
         return new MIRVirtualReg(nextRegId++, type);
     }
 
-    public void addParam(MIRType type) {
-        params.add(newVirtualReg(type));
+    public void addParam(MIROperand reg) {
+        params.add(reg);
     }
 
     public void addBlock(MIRBasicBlock block) {
