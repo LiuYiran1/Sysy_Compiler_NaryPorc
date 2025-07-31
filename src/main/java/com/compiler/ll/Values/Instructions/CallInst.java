@@ -2,6 +2,7 @@ package com.compiler.ll.Values.Instructions;
 
 import com.compiler.ll.Types.Type;
 import com.compiler.ll.Values.BasicBlock;
+import com.compiler.ll.Values.GlobalValues.Function;
 import com.compiler.ll.Values.Instruction;
 import com.compiler.ll.Values.Value;
 
@@ -10,12 +11,13 @@ import java.util.stream.Collectors;
 public class CallInst extends Instruction {
     private final String calleeName;
 
-    public CallInst(Type returnType, String name, String calleeName, BasicBlock block, Value... args) {
+    public CallInst(Type returnType, String name, String calleeName, BasicBlock block, Function function, Value... args) {
         super(returnType, name, Opcode.CALL, block);
         this.calleeName = calleeName;
         for (Value arg : args) {
             addOperand(arg);
         }
+        addOperand(function);
     }
 
     @Override

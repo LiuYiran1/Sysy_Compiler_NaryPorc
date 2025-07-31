@@ -35,7 +35,7 @@ public class Main {
     static ParseTree tree;
 
     public static void main(String[] args) throws IOException {
-        Path inputDir = Paths.get("src/test/java/tem");
+        Path inputDir = Paths.get("src/test/java/RISCV");
 
         // 找出所有 .sy 文件
         List<Path> syFiles = Files.walk(inputDir)
@@ -67,7 +67,7 @@ public class Main {
 
             processLexer(inputPath.toString());
             processParser(lexer, inputPath.toString());
-            irGen(tree, outputPath.toString());
+            //irGen(tree, outputPath.toString());
             irGen2(tree, outputPath2.toString());
 
 
@@ -123,10 +123,10 @@ public class Main {
     }
 
     private static void irGen2(ParseTree tree, String outputPath2) {
-
-            LLVisitor llVisitor2 = new LLVisitor();
-            llVisitor2.visit(tree);
-            llVisitor2.dump(new File(outputPath2));
+        System.out.println("outputPath2: " + outputPath2);
+        LLVisitor llVisitor2 = new LLVisitor();
+        llVisitor2.visit(tree);
+        llVisitor2.dump(new File(outputPath2));
 
     }
 

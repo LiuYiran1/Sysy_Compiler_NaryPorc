@@ -45,7 +45,7 @@ public class Mem2RegPass implements Pass {
         for(BasicBlock bb = function.getFirstBasicBlock(); bb != null; bb = bb.getNextBasicBlock()){
             for (Instruction inst : bb.getInstructions()) {
                 // 只考虑 i32 和 f32 类型
-                if (inst.getOpcode() == Opcode.ALLOCA && (((PointerType)inst.getType()).getPointeeType().isIntegerType() || ((PointerType)inst.getType()).getPointeeType().isFloatType())) {
+                if (inst.getOpcode() == Opcode.ALLOCA && (((PointerType)inst.getType()).getPointeeType().isIntegerType() || ((PointerType)inst.getType()).getPointeeType().isFloatType() || ((PointerType)inst.getType()).getPointeeType().isPointerType())) {
                     rmAllocas.add((AllocaInst) inst);
                 }
             }

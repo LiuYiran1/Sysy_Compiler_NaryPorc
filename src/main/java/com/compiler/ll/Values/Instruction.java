@@ -30,6 +30,14 @@ public abstract class Instruction extends User {
         return false;
     }
 
+    public boolean isICmpInst(){
+        return false;
+    }
+
+    public boolean isFCmpInst(){
+        return false;
+    }
+
     public Instruction getNextInstruction() {
         BasicBlock parent = this.block;
         if (parent == null) return null;

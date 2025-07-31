@@ -19,6 +19,10 @@ public class FCmpInst extends Instruction {
         return predicate;
     }
 
+    public boolean isFCmpInst(){
+        return true;
+    }
+
     @Override
     public String toIR() {
         Value op1 = operands.get(0);

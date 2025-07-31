@@ -4,7 +4,7 @@ import com.compiler.ll.Context;
 import com.compiler.ll.Types.Type;
 import com.compiler.ll.Values.GlobalValue;
 import com.compiler.ll.Values.Constant;
-import com.compiler.utils.ConstantZero;
+import com.compiler.ll.utils.ConstantZero;
 
 public class GlobalVariable extends GlobalValue {
     private Constant initializer;

@@ -193,7 +193,7 @@ public class IRBuilder {
         Type retType = ((FunctionType)(function.getType())).getReturnType();
 
         String retName = retType.isVoidType() ? null : nameManager.getUniqueName("call");
-        CallInst inst = new CallInst(retType, retName, function.getName(), currentBlock, params.toArray(new Value[0]));
+        CallInst inst = new CallInst(retType, retName, function.getName(), currentBlock, function, params.toArray(new Value[0]));
         currentBlock.addInstruction(inst);
         return inst;
     }

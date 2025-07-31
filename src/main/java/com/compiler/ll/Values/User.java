@@ -30,6 +30,10 @@ public abstract class User extends Value {
         return operands;
     }
 
+    public int getNumOperands() {
+        return operands.size();
+    }
+
     public Value getOperand(int index) {
         return operands.get(index);
     }
