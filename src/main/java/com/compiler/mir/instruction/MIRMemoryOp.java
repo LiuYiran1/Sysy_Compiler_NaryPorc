@@ -37,6 +37,14 @@ public class MIRMemoryOp extends MIRInstruction {
         this.value = value;
     }
 
+    public Op getOp() {
+        return op;
+    }
+
+    public Type getType() {
+        return type;
+    }
+
     @Override
     public List<MIROperand> getOperands() {
         if (op == Op.LOAD) {

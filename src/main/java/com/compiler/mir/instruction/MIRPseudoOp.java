@@ -25,6 +25,9 @@ public class MIRPseudoOp extends MIRInstruction {
         this.type = type;
         this.frameSize = frameSize;
     }
+    public Type getType() {
+        return type;
+    }
 
     @Override
     public List<MIROperand> getOperands() {
