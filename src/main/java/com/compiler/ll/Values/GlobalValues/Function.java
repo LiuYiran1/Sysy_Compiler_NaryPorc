@@ -56,6 +56,10 @@ public class Function extends GlobalValue {
         return arguments;
     }
 
+    public Argument getArgument(int index) {
+        return arguments.get(index);
+    }
+
     public int getArgumentCount() {
         return arguments.size();
     }

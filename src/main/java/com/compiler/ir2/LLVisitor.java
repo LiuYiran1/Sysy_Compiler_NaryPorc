@@ -16,10 +16,9 @@ import com.compiler.ll.Values.GlobalValues.Function;
 import com.compiler.ll.Values.Instructions.FloatPredicate;
 import com.compiler.ll.Values.Instructions.IntPredicate;
 import com.compiler.ll.Values.Instructions.Opcode;
-import com.compiler.mir.MIRConverter;
 import com.compiler.mir.MIRModule;
 import com.compiler.mir.MIRPrinter;
-import com.compiler.mir.operand.MIRConverterLL;
+import com.compiler.mir.MIRConverterLL;
 import com.compiler.pass.*;
 import org.antlr.v4.runtime.ParserRuleContext;
 

@@ -20,6 +20,11 @@ public class ICmpInst extends Instruction {
     }
 
     @Override
+    public boolean isICmpInst(){
+        return true;
+    }
+
+    @Override
     public String toIR() {
         Value op1 = operands.get(0);
         Value op2 = operands.get(1);
