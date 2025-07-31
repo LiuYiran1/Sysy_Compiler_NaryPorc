@@ -18,6 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.compiler.mir.instruction.MIRControlFlowOp.Type.*;
 import static org.bytedeco.llvm.global.LLVM.*;
 
 public class MIRConverterLL {
@@ -250,6 +251,8 @@ public class MIRConverterLL {
             convertBasicBlock(bb, mirFunc);
         }
 
+        System.out.println("999999999999999999999999999999999999999999999999");
+
         MIRBasicBlock exitBlock = new MIRBasicBlock(mirFunc.getName() + "Return");
         // 添加函数返回块
         if(!mirFunc.getName().equals("main")){
@@ -304,6 +307,10 @@ public class MIRConverterLL {
 
     private void convertInstruction(Instruction inst, MIRFunction mirFunc, MIRBasicBlock mirBB) {
         Opcode opcode = inst.getOpcode();
+
+        if (currentBasicBlock.equals("ifNext"))
+            System.out.println("VVVVVVV     " + currentBasicBlock + "   " + mirBB.getInstructions().size());
+
         switch (opcode) {
             case RET:
                 convertReturnInst(inst, mirFunc, mirBB);
@@ -359,10 +366,6 @@ public class MIRConverterLL {
                 // PHI节点稍后处理
                 convertPhiInst(inst, mirFunc, mirBB);
                 break;
-            case SELECT: // ！！！！！！！！！！！！！！！！没这个
-                // 处理选择指令
-                convertSelectInst(inst, mirFunc, mirBB);
-                break;
             default:
                 throw new UnsupportedOperationException("Unsupported instruction code: " + opcode);
         }
@@ -414,9 +417,6 @@ public class MIRConverterLL {
         // TODO: 处理分支指令
 
         if (opcode == Opcode.BR) { // 无条件跳转
-            if (currentBasicBlock.equals("ifNext")){
-                System.out.println("CCCCCCCCCCCCCCCCCC  " + (opcode == Opcode.BR));
-            }
             BasicBlock target = ((BranchInst) inst).getTarget();
             String label = target.getName();
 
@@ -435,6 +435,8 @@ public class MIRConverterLL {
             mirBB.getInstructions().add(new MIRControlFlowOp(cond, trueTarget)); // bnez
             mirBB.getInstructions().add(new MIRControlFlowOp(falseTarget));   // j
         }
+        if (currentBasicBlock.equals("ifNext"))
+            System.out.println("VVVVVVV     " + currentBasicBlock + "   " + mirBB.getInstructions().size());
     }
 
     private void convertCmpInst(Instruction inst, MIRFunction mirFunc, MIRBasicBlock mirBB) {
@@ -784,7 +786,8 @@ public class MIRConverterLL {
                 break;
             case SREM:
             case FREM:
-                op = MIRArithOp.Op.REM; break;
+                op = MIRArithOp.Op.REM;
+                break;
             default:
                 throw new UnsupportedOperationException("Unsupported binary op: " + opcode);
         }
@@ -808,6 +811,9 @@ public class MIRConverterLL {
         for (Map.Entry<MIRBasicBlock, List<Instruction>> entry : mirFunc.getPhiNodes().entrySet()) {
             MIRBasicBlock currentBB = entry.getKey();
 
+            if (currentBB.getLabel().toString().equals("ifNext"))
+                System.out.println("777777777777777777777777777777777777   " + currentBB.getInstructions().size());
+
             for (Instruction inst : entry.getValue()) {
                 PhiInst phi = (PhiInst) inst;
                 MIRVirtualReg phiReg = (MIRVirtualReg) valueMap.get(phi);
@@ -822,10 +828,16 @@ public class MIRConverterLL {
 
                     MIROperand source = getMIRValue(incomingValue, mirFunc, currentBB);
 
+                    if (mirIncomingBB.getLabel().toString().equals("ifNext"))
+                        System.out.println("666666666666666666666666666666   " + mirIncomingBB.getInstructions().size());
+
+
                     //在入块末尾插入MOV指令
                     int size = mirIncomingBB.getInstructions().size();
-                    System.out.println(size);
-                    if (size > 1 && mirIncomingBB.getInstructions().get(size - 2) instanceof MIRControlFlowOp ) {
+                    System.out.println("55555555555555555555555555555555    " + size);
+                    if (size > 1 && mirIncomingBB.getInstructions().get(size - 2) instanceof MIRControlFlowOp && ((MIRControlFlowOp) mirIncomingBB.getInstructions().get(size - 2)).getType() ==  COND_JMP) {
+                        if (currentBasicBlock.equals("ifNext"))
+                            System.out.println("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD   " + size);
                         // 如果倒数第二条指令是控制流指令，插入到前面
                         if (MIRType.isFloat(phiReg.getType())) {
                             mirIncomingBB.getInstructions().add(size - 2, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.FLOAT));
@@ -833,7 +845,9 @@ public class MIRConverterLL {
                             mirIncomingBB.getInstructions().add(size - 2, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.INTEGER));
                         }
 
-                    } else if (size > 0 && mirIncomingBB.getInstructions().get(size - 1) instanceof MIRControlFlowOp) {
+                    } else if (size > 0 && mirIncomingBB.getInstructions().get(size - 1) instanceof MIRControlFlowOp && ((MIRControlFlowOp) mirIncomingBB.getInstructions().get(size - 1)).getType() == JMP) {
+                        if (currentBasicBlock.equals("ifNext"))
+                            System.out.println("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC   " + size);
                         // 如果倒数第一条指令是控制流指令，插入到前面
                         if (MIRType.isFloat(phiReg.getType())) {
                             mirIncomingBB.getInstructions().add(size - 1, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.FLOAT));
@@ -844,7 +858,7 @@ public class MIRConverterLL {
                         // 否则直接添加到末尾 这种情况不应该出现
                         mirIncomingBB.getInstructions().add(new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.INTEGER));
                         System.out.println("AAAAA  " + size);
-                        System.out.println("BBBBB  " + mirIncomingBB.getInstructions().get(size - 5));
+                        System.out.println("BBBBB  " + mirIncomingBB.getInstructions().get(size - 3));
                         throw new RuntimeException("Unexpected instruction at the end of basic block: " + mirIncomingBB.getLabel());
                     }
 //                    MIRMoveOp move = new MIRMoveOp(phiReg, source, MIRType.isFloat());
