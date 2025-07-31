@@ -1,7 +1,7 @@
 package com.compiler.ir;
 
 import com.compiler.frontend.SysYParserBaseVisitor;
-import com.compiler.mir.MIRConverter;
+// import com.compiler.mir.MIRConverter;
 import com.compiler.mir.MIRModule;
 import com.compiler.mir.MIRPrinter;
 import org.antlr.v4.runtime.ParserRuleContext;

@@ -26,6 +26,10 @@ public class PhiInst extends Instruction {
         return incomingBlocks;
     }
 
+    public BasicBlock getIncomingBlock(int index) {
+        return incomingBlocks.get(index);
+    }
+
     public void setVariable(AllocaInst variable) {
         this.variable = variable;
     }

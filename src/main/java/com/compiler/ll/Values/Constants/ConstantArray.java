@@ -5,6 +5,7 @@ import com.compiler.ll.Types.ArrayType;
 import com.compiler.ll.Types.Type;
 import com.compiler.ll.Values.Constant;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -15,6 +16,11 @@ public class ConstantArray extends Constant {
     public ConstantArray(Context context, Type elementType, List<Constant> elements) {
         super(new ArrayType(context, elementType, elements.size()));
         this.elements = elements;
+    }
+
+    public ConstantArray(Type type) { // 为了全零数组做的
+        super(type);
+        this.elements = new ArrayList<>();
     }
 
     public List<Constant> getElements() {
