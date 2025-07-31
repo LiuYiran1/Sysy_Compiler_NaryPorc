@@ -874,7 +874,7 @@ public class MIRConverterLL {
         long value = constant.getSExtValue();
         // 小立即数直接使用，大立即数特殊处理
         if (value >= -2048 && value < 2048) {
-            return new MIRImmediate((int)value, convertType(constant.getType());
+            return new MIRImmediate((int)value, convertType(constant.getType()));
         } else {
             // 大立即数生成加载指令
             MIRVirtualReg reg = mirFunc.newVirtualReg(MIRType.I32);

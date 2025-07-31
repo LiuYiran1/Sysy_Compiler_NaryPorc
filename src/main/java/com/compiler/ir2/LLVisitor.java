@@ -18,7 +18,7 @@ import com.compiler.ll.Values.Instructions.IntPredicate;
 import com.compiler.ll.Values.Instructions.Opcode;
 import com.compiler.mir.MIRModule;
 import com.compiler.mir.MIRPrinter;
-import com.compiler.mir.MIRConverterLL;
+//import com.compiler.mir.MIRConverterLL;
 import com.compiler.pass.*;
 import org.antlr.v4.runtime.ParserRuleContext;
 
@@ -75,7 +75,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
     private final Map<Value, Constant> globalValues = new LinkedHashMap<>();
 
 
-    private boolean arrDefaultZero = false;
+    private boolean arrDefaultZero = true;
 
     public LLVisitor() {
         initRunTimeLibrary();
@@ -196,20 +196,20 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
     }
 
-    private mirGen(){
-        PrintWriter writer = null;
-        try {
-            writer = new PrintWriter(new FileWriter("src/test/java/tem/tem.mir"));
-        } catch (Exception e){
-            System.out.println("mir writer error");
-        }
-        MIRConverterLL converter = new MIRConverterLL(mod);
-        MIRModule mirModule = converter.convert();
-        System.out.println("ending");
-        MIRPrinter mirPrinter = new MIRPrinter(mirModule, writer);
-        System.out.println("starting print");
-        mirPrinter.printModule();
-    }
+//    private void mirGen(){
+//        PrintWriter writer = null;
+//        try {
+//            writer = new PrintWriter(new FileWriter("src/test/java/tem/tem.mir"));
+//        } catch (Exception e){
+//            System.out.println("mir writer error");
+//        }
+//        MIRConverterLL converter = new MIRConverterLL(mod);
+//        MIRModule mirModule = converter.convert();
+//        System.out.println("ending");
+//        MIRPrinter mirPrinter = new MIRPrinter(mirModule, writer);
+//        System.out.println("starting print");
+//        mirPrinter.printModule();
+//    }
 
     @Override
     public Value visitProgram(SysYParser.ProgramContext ctx) {
