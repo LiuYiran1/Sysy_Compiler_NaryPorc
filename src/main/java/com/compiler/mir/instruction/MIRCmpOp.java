@@ -24,6 +24,14 @@ public class MIRCmpOp extends MIRInstruction {
         this.right = right;
     }
 
+    public Type getCmpType() {
+        return cmpType;
+    }
+
+    public Op getOp() {
+        return op;
+    }
+
     @Override
     public List<MIROperand> getOperands() {
         return Arrays.asList(left, right);

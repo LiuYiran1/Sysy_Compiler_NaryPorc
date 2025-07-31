@@ -263,7 +263,7 @@ public class MIRConverterLL {
         //buildControlFlowGraph(mirFunc);
 
         // 消除PHI节点（关键步骤）
-        eliminatePhiNodes(mirFunc);
+        //eliminatePhiNodes(mirFunc);
 
         debugLog("Finished conversion for function: " + funcName);
     }
@@ -406,7 +406,7 @@ public class MIRConverterLL {
             dest = mirFunc.newVirtualReg(MIRType.I32);
             // TODO: 处理其他类型的零扩展
         }
-
+        mirBB.getInstructions().add(new MIRConvertOp(MIRConvertOp.Op.ZEXT, dest, src));
         valueMap.put(inst, dest);
     }
 
@@ -547,7 +547,7 @@ public class MIRConverterLL {
             int arraySize = arrayType.getNumElements();
             Type elementType = arrayType.getElementType();
             MIRType mirType = convertType(elementType);
-            offset = arraySize * 8; // 每个元素占8个字节（riscV64）
+            offset = arraySize * 4; // 每个元素占8个字节（riscV64）,不对，应该还是4
         } else {
             // 单个变量
             offset = 4;
@@ -759,6 +759,7 @@ public class MIRConverterLL {
         MIRType type = convertType(inst.getType());
         System.out.println("Binary Op Type: " + type);
         MIRVirtualReg result = mirFunc.newVirtualReg(type);
+        valueMap.put(inst, result);
         MIROperand left = getMIRValue(inst.getOperand(0),mirFunc,mirBB);
         MIROperand right = getMIRValue(inst.getOperand(1),mirFunc,mirBB);
 
@@ -796,6 +797,7 @@ public class MIRConverterLL {
         valueMap.put(phi, phiReg);
 
         mirFunc.addPhiNode(mirBB,phi);
+        mirBB.getInstructions().add(new MIRPseudoOp(MIRPseudoOp.Type.SELECT,0));
 
     }
 
@@ -823,7 +825,7 @@ public class MIRConverterLL {
                     //在入块末尾插入MOV指令
                     int size = mirIncomingBB.getInstructions().size();
                     System.out.println(size);
-                    if (size > 1 && mirIncomingBB.getInstructions().get(size - 2) instanceof MIRControlFlowOp) {
+                    if (size > 1 && mirIncomingBB.getInstructions().get(size - 2) instanceof MIRControlFlowOp ) {
                         // 如果倒数第二条指令是控制流指令，插入到前面
                         if (MIRType.isFloat(phiReg.getType())) {
                             mirIncomingBB.getInstructions().add(size - 2, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.FLOAT));

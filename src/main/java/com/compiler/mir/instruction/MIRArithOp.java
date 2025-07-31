@@ -24,6 +24,14 @@ public class MIRArithOp extends MIRInstruction {
         this.right = right;
     }
 
+    public Type getType() {
+        return type;
+    }
+
+    public Op getOp() {
+        return op;
+    }
+
     @Override
     public List<MIROperand> getOperands() {
         return Arrays.asList(left, right);

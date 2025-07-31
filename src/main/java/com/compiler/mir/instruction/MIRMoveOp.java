@@ -29,6 +29,11 @@ public class MIRMoveOp extends MIRInstruction {
         this.moveType = moveType;
     }
 
+
+    public MoveType getMoveType() {
+        return moveType;
+    }
+
     @Override
     public List<MIROperand> getOperands() {
         return Arrays.asList(source);

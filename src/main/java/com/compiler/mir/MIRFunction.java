@@ -4,6 +4,7 @@ import com.compiler.ll.Values.Instruction;
 import com.compiler.ll.Values.Value;
 import com.compiler.mir.operand.MIROperand;
 import com.compiler.mir.operand.MIRVirtualReg;
+import org.bytedeco.llvm.LLVM.LLVMValueRef;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -15,6 +16,7 @@ public class MIRFunction {
     private final List<MIROperand> params = new ArrayList<>();
     private final List<MIRBasicBlock> blocks = new ArrayList<>();
     private final Map<MIRBasicBlock, List<Instruction>> phiNodes = new LinkedHashMap<>();
+    private final Map<MIRBasicBlock, List<LLVMValueRef>> LLVMPhiNodes = new LinkedHashMap<>();
     private int nextRegId = 0;
 
     public MIRFunction(String name){
@@ -36,6 +38,9 @@ public class MIRFunction {
     public Map<MIRBasicBlock, List<Instruction>> getPhiNodes() {
         return phiNodes;
     }
+    public Map<MIRBasicBlock, List<LLVMValueRef>> getLLVMPhiNodes() {
+        return LLVMPhiNodes;
+    }
 
     public MIRVirtualReg newVirtualReg(MIRType type) {
         return new MIRVirtualReg(nextRegId++, type);
@@ -52,6 +57,10 @@ public class MIRFunction {
     public void addPhiNode(MIRBasicBlock block, Instruction phi) {
         phiNodes.putIfAbsent(block, new ArrayList<>());
         phiNodes.get(block).add(phi);
+    }
+    public void addLLVMPhiNode(MIRBasicBlock block, LLVMValueRef phi) {
+        LLVMPhiNodes.putIfAbsent(block, new ArrayList<>());
+        LLVMPhiNodes.get(block).add(phi);
     }
 }
 

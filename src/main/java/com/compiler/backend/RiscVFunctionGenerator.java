@@ -141,9 +141,14 @@ public class RiscVFunctionGenerator {
     private void generateMoveOp(MIRMoveOp inst) {
         MIROperand src = inst.getOperands().get(0);
         MIRVirtualReg dest = inst.getResult();
-
-        boolean isFloat = MIRType.isFloat(dest.getType());
-        String op = isFloat ? "fmv.s" : "mv";
+        String op = null;
+        if(inst.getMoveType() == MIRMoveOp.MoveType.INTEGER){
+            op = "mv";
+        } else if(inst.getMoveType() == MIRMoveOp.MoveType.FLOAT){
+            op = "fmv.s";
+        } else if (inst.getMoveType() == MIRMoveOp.MoveType.INT_TO_FLOAT) {
+            op = "fmv.w.x";
+        }
 
         if (src instanceof MIRImmediate) {
             asm.append("    li ").append(getOperandAsm(dest)).append(", ").append(src).append("\n");
@@ -161,13 +166,12 @@ public class RiscVFunctionGenerator {
                 break;
             case COND_JMP:
                 // 条件跳转已在CMP指令中设置条件，这里直接跳转
-                asm.append("    ").append(getBranchOp(inst.getCondition())).append(" ")
-                        .append(inst.getOperands().get(0)).append(", ")
-                        .append(inst.getOperands().get(1)).append(", ")
-                        .append(inst.getTarget()).append("\n");
+                asm.append("    ").append("bnez").append(" ")
+                        .append(getOperandAsm(inst.getCondition())).append(", ")
+                        .append(inst.getTarget().toString()).append("\n");
                 break;
             case RET:
-                generateEpilogue();
+                asm.append("    ").append("ret").append(" ");
                 break;
             case CALL:
                 generateFunctionCall(inst);
@@ -177,17 +181,6 @@ public class RiscVFunctionGenerator {
         }
     }
 
-    private String getBranchOp(MIRControlFlowOp.Condition cond) {
-        switch (cond) {
-            case EQ: return "beq";
-            case NE: return "bne";
-            case LT: return "blt";
-            case LE: return "ble";
-            case GT: return "bgt";
-            case GE: return "bge";
-            default: throw new IllegalArgumentException("Unsupported condition: " + cond);
-        }
-    }
 
     private void generateCmpOp(MIRCmpOp inst) {
         MIROperand left = inst.getOperands().get(0);
@@ -260,10 +253,10 @@ public class RiscVFunctionGenerator {
     private String getArithOp(MIRArithOp.Op op, boolean isFloat) {
         if (isFloat) {
             switch (op) {
-                case FADD: return "fadd.s";
-                case FSUB: return "fsub.s";
-                case FMUL: return "fmul.s";
-                case FDIV: return "fdiv.s";
+                case ADD: return "fadd.s";
+                case SUB: return "fsub.s";
+                case MUL: return "fmul.s";
+                case DIV: return "fdiv.s";
                 default: throw new IllegalArgumentException("Unsupported float op: " + op);
             }
         } else {
@@ -273,11 +266,7 @@ public class RiscVFunctionGenerator {
                 case MUL: return "mul";
                 case DIV: return "div";
                 case REM: return "rem";
-                case AND: return "and";
-                case OR:  return "or";
                 case XOR: return "xor";
-                case SHL: return "sll";
-                case SHR: return "sra";
                 default: throw new IllegalArgumentException("Unsupported int op: " + op);
             }
         }
@@ -366,27 +355,27 @@ public class RiscVFunctionGenerator {
         saveCallerSavedRegisters();
 
         // 设置参数 (最多8个寄存器参数)
-        List<MIROperand> args = call.getOperands();
-        int regArgs = Math.min(args.size(), 8);
-        for (int i = 0; i < regArgs; i++) {
-            MIROperand arg = args.get(i);
-            PhysicalRegister reg = MIRType.isFloat(arg.getType()) ?
-                    PhysicalRegister.getFloatArgReg(i) :
-                    PhysicalRegister.getIntArgReg(i);
-
-            asm.append("    mv ").append(reg).append(", ").append(getOperandAsm(arg)).append("\n");
-        }
-
-        // 处理栈上传参 (超出8个的参数)
-        if (args.size() > 8) {
-            int stackOffset = 0;
-            for (int i = 8; i < args.size(); i++) {
-                MIROperand arg = args.get(i);
-                asm.append("    li t0, ").append(arg).append("\n");
-                asm.append("    sd t0, ").append(stackOffset).append("(sp)\n");
-                stackOffset += 8;
-            }
-        }
+//        List<MIROperand> args = call.getOperands();
+//        int regArgs = Math.min(args.size(), 8);
+//        for (int i = 0; i < regArgs; i++) {
+//            MIROperand arg = args.get(i);
+//            PhysicalRegister reg = MIRType.isFloat(arg.getType()) ?
+//                    PhysicalRegister.getFloatArgReg(i) :
+//                    PhysicalRegister.getIntArgReg(i);
+//
+//            asm.append("    mv ").append(reg).append(", ").append(getOperandAsm(arg)).append("\n");
+//        }
+//
+//        // 处理栈上传参 (超出8个的参数)
+//        if (args.size() > 8) {
+//            int stackOffset = 0;
+//            for (int i = 8; i < args.size(); i++) {
+//                MIROperand arg = args.get(i);
+//                asm.append("    li t0, ").append(arg).append("\n");
+//                asm.append("    sd t0, ").append(stackOffset).append("(sp)\n");
+//                stackOffset += 8;
+//            }
+//        }
 
         // 调用函数
         asm.append("    call ").append(call.getTarget().toString()).append("\n");
