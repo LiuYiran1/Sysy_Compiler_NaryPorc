@@ -16,6 +16,10 @@ public class MIRAllocOp extends MIRInstruction {
         this.alignment = alignment;
     }
 
+    public int getSize() {
+        return size;
+    }
+
     @Override
     public List<MIROperand> getOperands() {
         return List.of();

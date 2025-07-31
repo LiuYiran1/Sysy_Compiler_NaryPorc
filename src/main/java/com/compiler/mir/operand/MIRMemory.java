@@ -13,6 +13,12 @@ public class MIRMemory extends MIROperand {
         this.type = type;
     }
 
+    public MIROperand getBase() {
+        return base;
+    }
+    public MIROperand getOffset() {
+        return offset;
+    }
     @Override
     public MIRType getType() {
         return type;

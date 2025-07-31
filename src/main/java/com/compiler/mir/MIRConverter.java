@@ -6,6 +6,7 @@ import org.bytedeco.javacpp.IntPointer;
 import org.bytedeco.llvm.LLVM.LLVMBasicBlockRef;
 import org.bytedeco.llvm.LLVM.LLVMTypeRef;
 import org.bytedeco.llvm.LLVM.LLVMValueRef;
+import org.bytedeco.llvm.global.LLVM;
 import org.llvm4j.llvm4j.Module;
 
 import java.util.*;
@@ -394,7 +395,7 @@ public class MIRConverter {
             dest = mirFunc.newVirtualReg(MIRType.I32);
             // TODO: 处理其他类型的零扩展
         }
-
+        mirBB.getInstructions().add(new MIRConvertOp(MIRConvertOp.Op.ZEXT, dest, src));
         valueMap.put(inst, dest);
     }
 
@@ -529,10 +530,10 @@ public class MIRConverter {
         int kind = LLVMGetTypeKind(typeRef);
         if(kind == LLVMArrayTypeKind) {
             // 数组类型
-            int arraySize = LLVMGetArrayLength(typeRef);
+            int arraySize = getArrayLength(typeRef);
             LLVMTypeRef elementType = LLVMGetElementType(typeRef);
             MIRType mirType = convertType(elementType);
-            offset = arraySize * 8; // 每个元素占8个字节（riscV64）
+            offset = arraySize * 4; // 每个元素占8个字节（riscV64） 不对，应该还是4
         } else {
             // 单个变量
             offset = 4;
@@ -569,6 +570,7 @@ public class MIRConverter {
                 // 如果参数超过8个，使用栈传递
                 // 这里的偏移量需要计算
                 int offset = (i - 8) * 8; // 每个参数占8个字节
+
                 MIRMemory argMem = new MIRMemory(new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP), new MIRImmediate(offset, MIRType.I64), mirArg.getType());
                 if(MIRType.isFloat(argType)) {
                     mirBB.getInstructions().add(new MIRMemoryOp(MIRMemoryOp.Op.STORE, MIRMemoryOp.Type.FLOAT, argMem, mirArg));
@@ -672,22 +674,56 @@ public class MIRConverter {
         MIRVirtualReg result = mirFunc.newVirtualReg(ptrType);
         valueMap.put(gep, result);
         // TODO: 处理GEP的操作数
-        // TODO: 两个操作数的
 
-        LLVMValueRef basePtr = LLVMGetOperand(gep, 0);
-        MIROperand base = getMIRValue(basePtr, mirFunc, mirBB);
+        if (LLVMGetNumOperands(gep) == 2) {
+            // TODO: 两个操作数的
 
-        LLVMValueRef index = LLVMGetOperand(gep, 1);
-        MIROperand indexOp = getMIRValue(index, mirFunc, mirBB);
+            LLVMValueRef basePtr = LLVMGetOperand(gep, 0);
+            MIROperand base = getMIRValue(basePtr, mirFunc, mirBB);
 
-        if(indexOp instanceof MIRImmediate){
-            // 如果是立即数，转换为寄存器
-            indexOp = immToReg(mirFunc, mirBB, ((MIRImmediate) indexOp).getValue());
+            LLVMValueRef index = LLVMGetOperand(gep, 1);
+            MIROperand indexOp = getMIRValue(index, mirFunc, mirBB);
+
+            if(indexOp instanceof MIRImmediate){
+                // 如果是立即数，转换为寄存器
+                indexOp = immToReg(mirFunc, mirBB, ((MIRImmediate) indexOp).getValue() * 4); // 这里应该*4吧？
+            }
+
+            mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.SUB,result,MIRArithOp.Type.INT,base, indexOp));
+
+        } else {
+            // TODO: 三个操作数的
+            LLVMValueRef basePtr = LLVMGetOperand(gep, 0);
+            MIROperand base = getMIRValue(basePtr, mirFunc, mirBB);
+
+            LLVMTypeRef elementType = LLVMGetElementType(LLVMTypeOf(basePtr));
+            int kind = LLVMGetTypeKind(elementType);
+            if(kind == LLVMArrayTypeKind){
+                // 数组类型
+
+                int ptrSize = getArrayLength(LLVMGetElementType(elementType)); // 获取指针指向的大小
+
+                if(ptrSize <= 0) {
+                    System.err.println("arrayLen = " + ptrSize);
+                    throw new IllegalArgumentException("Array size must be greater than 0");
+                }
+                LLVMValueRef index = LLVMGetOperand(gep, 2);
+                MIROperand indexOp = getMIRValue(index, mirFunc, mirBB);
+
+                if(indexOp instanceof MIRImmediate){
+                    // 如果是立即数，转换为寄存器
+                    indexOp = immToReg(mirFunc, mirBB, ((MIRImmediate) indexOp).getValue() * ptrSize * 4); // 这里应该*4吧？
+
+                }
+                mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.SUB,result,MIRArithOp.Type.INT,base, indexOp));
+            } else {
+                // 说明是一个 i32* 或 f32*
+                // 有这种情况吗？ 没有
+                throw new IllegalArgumentException("Unsupported base pointer type: " + LLVMPrintTypeToString(LLVMTypeOf(basePtr)).getString());
+            }
+
+
         }
-
-        mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.SUB,result,MIRArithOp.Type.INT,base, indexOp));
-
-        // TODO: 三个操作数的
 
     }
 
@@ -708,6 +744,7 @@ public class MIRConverter {
         MIRType type = convertType(LLVMTypeOf(inst));
         System.out.println("Binary Op Type: " + type);
         MIRVirtualReg result = mirFunc.newVirtualReg(type);
+        valueMap.put(inst, result);
         MIROperand left = getMIRValue(LLVMGetOperand(inst,0),mirFunc,mirBB);
         MIROperand right = getMIRValue(LLVMGetOperand(inst,1),mirFunc,mirBB);
 
@@ -772,9 +809,21 @@ public class MIRConverter {
                     //在入块末尾插入MOV指令
                     int size = mirIncomingBB.getInstructions().size();
                     System.out.println(size);
-                    if (size > 0 && mirIncomingBB.getInstructions().get(size - 1) instanceof MIRControlFlowOp) {
-                        // 如果最后一条指令是控制流指令，插入到前面
-                        mirIncomingBB.getInstructions().add(size - 1, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.INTEGER));
+                    if (size > 0 && mirIncomingBB.getInstructions().get(size - 2) instanceof MIRControlFlowOp) {
+                        // 如果倒数第二条指令是控制流指令，插入到前面
+                        if(MIRType.isFloat(phiReg.getType())){
+                            mirIncomingBB.getInstructions().add(size - 2, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.FLOAT));
+                        } else {
+                            mirIncomingBB.getInstructions().add(size - 2, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.INTEGER));
+                        }
+
+                    } else if(size > 0 && mirIncomingBB.getInstructions().get(size - 1) instanceof MIRControlFlowOp){
+                        // 如果倒数第一条指令是控制流指令，插入到前面
+                        if(MIRType.isFloat(phiReg.getType())){
+                            mirIncomingBB.getInstructions().add(size - 1, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.FLOAT));
+                        } else {
+                            mirIncomingBB.getInstructions().add(size - 1, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.INTEGER));
+                        }
                     } else {
                         // 否则直接添加到末尾 这种情况不应该出现
                         mirIncomingBB.getInstructions().add(new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.INTEGER));

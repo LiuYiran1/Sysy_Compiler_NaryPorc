@@ -67,6 +67,20 @@ public class MIRControlFlowOp extends MIRInstruction {
         this.args = args;
     }
 
+    public MIROperand getTarget() {
+        return target;
+    }
+    public MIROperand getCondition() {
+        return condition;
+    }
+    public List<MIROperand> getArgs() {
+        return args != null ? args : new ArrayList<>();
+    }
+
+    public Type getType() {
+        return type;
+    }
+
     @Override
     public List<MIROperand> getOperands() {
         List<MIROperand> operands = new ArrayList<>();

@@ -18,7 +18,7 @@ public class MIRPhysicalReg extends MIROperand {
         }
 
     }
-
+    
     private final PREGs pReg;
 
     public MIRPhysicalReg(PREGs pReg) {
