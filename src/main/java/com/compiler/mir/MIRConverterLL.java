@@ -204,9 +204,15 @@ public class MIRConverterLL {
         MIRFunction mirFunc = new MIRFunction(funcName);
         mirModule.addFunction(mirFunc);
 
+
         debugLog("Starting conversion for function: " + funcName);
         // 创建参数虚拟寄存器
         // TODO: 这里可以添加对函数参数的处理逻辑
+
+        // 分别记录整数和浮点参数数量
+        int intArgCount = 0;
+        int floatArgCount = 0;
+
         int count = llFunc.getArgumentCount();
         for(int i = 0; i < count; i++) {
             Argument param = llFunc.getArgument(i);
@@ -215,28 +221,46 @@ public class MIRConverterLL {
 //            MIRVirtualReg paramReg = mirFunc.newVirtualReg(mirType);
 //            valueMap.put(param, paramReg);
 //            mirFunc.addParam(paramReg);
-            if (i < 8) {
-                MIRPhysicalReg paramReg;
-                if (MIRType.isFloat(mirType)) {
-                    // 浮点类型参数
-                    paramReg = new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.FA0.ordinal() + i]);
+            boolean isFloat = MIRType.isFloat(mirType);
+            if (isFloat) {
+                // 浮点参数处理
+                if (floatArgCount < 8) {
+                    MIRPhysicalReg paramReg = new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.FA0.ordinal() + i]);
+                    valueMap.put(param, paramReg);
+                    mirFunc.addParam(paramReg);
+                    floatArgCount++;
                 } else {
-                    // ptr + 整数类型
-                    paramReg = new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.A0.ordinal() + i]);
+                    // 超过8个浮点参数，放在栈上
+                    int offset = (floatArgCount + intArgCount - 8) * 8;
+                    MIRMemory paramMem = new MIRMemory(
+                            new MIRPhysicalReg(MIRPhysicalReg.PREGs.FP),
+                            new MIRImmediate(offset, MIRType.I64),
+                            mirType
+                    );
+                    valueMap.put(param, paramMem);
+                    mirFunc.addParam(paramMem);
+                    floatArgCount++;
                 }
-                valueMap.put(param, paramReg);
-                mirFunc.addParam(paramReg);
             } else {
-                int offset = (i - 8) * 8; // 从第9个参数开始，每个参数占8个字节
-                MIRMemory paramMem = new MIRMemory(
-                        new MIRPhysicalReg(MIRPhysicalReg.PREGs.FP), // 使用FP寄存器作为基址
-                        new MIRImmediate(offset, MIRType.I64), // 偏移量为0
-                        mirType
-                );
-                valueMap.put(param, paramMem);
-                mirFunc.addParam(paramMem);
+                // 整数参数处理
+                if (intArgCount < 8) {
+                    MIRPhysicalReg paramReg = new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.A0.ordinal() + i]);
+                    valueMap.put(param, paramReg);
+                    mirFunc.addParam(paramReg);
+                    intArgCount++;
+                } else {
+                    // 超过8个整数参数，放在栈上
+                    int offset = (floatArgCount + intArgCount - 8) * 8;
+                    MIRMemory paramMem = new MIRMemory(
+                            new MIRPhysicalReg(MIRPhysicalReg.PREGs.FP),
+                            new MIRImmediate(offset, MIRType.I64),
+                            mirType
+                    );
+                    valueMap.put(param, paramMem);
+                    mirFunc.addParam(paramMem);
+                    intArgCount++;
+                }
             }
-
         }
 
         if(llFunc.getFirstBasicBlock() == null) {
@@ -266,7 +290,7 @@ public class MIRConverterLL {
         //buildControlFlowGraph(mirFunc);
 
         // 消除PHI节点（关键步骤）
-        //eliminatePhiNodes(mirFunc);
+        eliminatePhiNodes(mirFunc);
 
         debugLog("Finished conversion for function: " + funcName);
     }
@@ -570,34 +594,71 @@ public class MIRConverterLL {
         // 处理参数 + 传参
         List<MIROperand> args = new ArrayList<>();
         int numOperands = inst.getNumOperands();
+
+        int intArgCount = 0; // 整数参数计数
+        int floatArgCount = 0; // 浮点参数计数
+
         for (int i = 0; i < numOperands - 1; i++) { // 从0开始，最后一个是callee
             Value arg = inst.getOperand(i);
             MIRType argType = convertType(arg.getType());
             MIROperand mirArg = getMIRValue(arg, mirFunc, mirBB);
             args.add(mirArg);
-            if(i < 8){
-                if(MIRType.isFloat(argType)) {
+
+            boolean isFloat = MIRType.isFloat(argType);
+            if (isFloat) {
+                // 浮点参数处理
+                if (floatArgCount < 8) {
                     mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.FA0.ordinal() + i]),mirArg, MIRMoveOp.MoveType.FLOAT));
+                    floatArgCount++;
                 } else {
-                    // 整数类型或指针类型
-                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.A0.ordinal() + i]),mirArg, MIRMoveOp.MoveType.INTEGER));
+                    // 超过8个浮点参数，放在栈上
+                    int offset = (floatArgCount + intArgCount - 8) * 8;
+                    MIRMemory argMem = new MIRMemory(new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP), new MIRImmediate(offset, MIRType.I64), mirArg.getType());
+                    mirBB.getInstructions().add(new MIRMemoryOp(MIRMemoryOp.Op.STORE, MIRMemoryOp.Type.FLOAT, argMem, mirArg));
+                    floatArgCount++;
                 }
             } else {
-                // 如果参数超过8个，使用栈传递
-                // 这里的偏移量需要计算
-                int offset = (i - 8) * 8; // 每个参数占8个字节
-                MIRMemory argMem = new MIRMemory(new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP), new MIRImmediate(offset, MIRType.I64), mirArg.getType());
-                if(MIRType.isFloat(argType)) {
-                    mirBB.getInstructions().add(new MIRMemoryOp(MIRMemoryOp.Op.STORE, MIRMemoryOp.Type.FLOAT, argMem, mirArg));
-                } else if(MIRType.isInt(argType)) {
-                    // 整数类型
-                    mirBB.getInstructions().add(new MIRMemoryOp(MIRMemoryOp.Op.STORE, MIRMemoryOp.Type.INTEGER, argMem, mirArg));
+                // 整数参数处理
+                if (intArgCount < 8) {
+                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.A0.ordinal() + i]),mirArg, MIRMoveOp.MoveType.INTEGER));
+                    intArgCount++;
                 } else {
-                    // 指针类型
-                    mirBB.getInstructions().add(new MIRMemoryOp(MIRMemoryOp.Op.STORE, MIRMemoryOp.Type.POINTER, argMem, mirArg));
+                    // 超过8个整数参数，放在栈上
+                    int offset = (floatArgCount + intArgCount - 8) * 8;
+                    MIRMemory argMem = new MIRMemory(new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP), new MIRImmediate(offset, MIRType.I64), mirArg.getType());
+                    if(MIRType.isInt(argType)) {
+                        // 整数类型
+                        mirBB.getInstructions().add(new MIRMemoryOp(MIRMemoryOp.Op.STORE, MIRMemoryOp.Type.INTEGER, argMem, mirArg));
+                    } else {
+                        // 指针类型
+                        mirBB.getInstructions().add(new MIRMemoryOp(MIRMemoryOp.Op.STORE, MIRMemoryOp.Type.POINTER, argMem, mirArg));
+                    }
+                    intArgCount++;
                 }
-
             }
+//            if(i < 8){
+//                if(MIRType.isFloat(argType)) {
+//                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.FA0.ordinal() + i]),mirArg, MIRMoveOp.MoveType.FLOAT));
+//                } else {
+//                    // 整数类型或指针类型
+//                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.A0.ordinal() + i]),mirArg, MIRMoveOp.MoveType.INTEGER));
+//                }
+//            } else {
+//                // 如果参数超过8个，使用栈传递
+//                // 这里的偏移量需要计算
+//                int offset = (i - 8) * 8; // 每个参数占8个字节
+//                MIRMemory argMem = new MIRMemory(new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP), new MIRImmediate(offset, MIRType.I64), mirArg.getType());
+//                if(MIRType.isFloat(argType)) {
+//                    mirBB.getInstructions().add(new MIRMemoryOp(MIRMemoryOp.Op.STORE, MIRMemoryOp.Type.FLOAT, argMem, mirArg));
+//                } else if(MIRType.isInt(argType)) {
+//                    // 整数类型
+//                    mirBB.getInstructions().add(new MIRMemoryOp(MIRMemoryOp.Op.STORE, MIRMemoryOp.Type.INTEGER, argMem, mirArg));
+//                } else {
+//                    // 指针类型
+//                    mirBB.getInstructions().add(new MIRMemoryOp(MIRMemoryOp.Op.STORE, MIRMemoryOp.Type.POINTER, argMem, mirArg));
+//                }
+//
+//            }
         }
 
         // 为创建调用指令做准备
@@ -800,7 +861,7 @@ public class MIRConverterLL {
         valueMap.put(phi, phiReg);
 
         mirFunc.addPhiNode(mirBB,phi);
-        mirBB.getInstructions().add(new MIRPseudoOp(MIRPseudoOp.Type.SELECT,0));
+        //mirBB.getInstructions().add(new MIRPseudoOp(MIRPseudoOp.Type.SELECT,0));
 
     }
 
@@ -826,7 +887,10 @@ public class MIRConverterLL {
 
                     MIRBasicBlock mirIncomingBB = findMIRBlock(mirFunc, incomingBB.getName());
 
-                    MIROperand source = getMIRValue(incomingValue, mirFunc, currentBB);
+
+                    MIRBasicBlock tempBB = new MIRBasicBlock("TEMP");
+//                    MIROperand source = getMIRValue(incomingValue, mirFunc, currentBB);
+                    MIROperand source = getMIRValue(incomingValue, mirFunc, tempBB);
 
                     if (mirIncomingBB.getLabel().toString().equals("ifNext"))
                         System.out.println("666666666666666666666666666666   " + mirIncomingBB.getInstructions().size());
@@ -839,8 +903,18 @@ public class MIRConverterLL {
                         if (currentBasicBlock.equals("ifNext"))
                             System.out.println("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD   " + size);
                         // 如果倒数第二条指令是控制流指令，插入到前面
+                        if(!tempBB.getInstructions().isEmpty()){
+                            int sizeOfTemp  = tempBB.getInstructions().size();
+                            for(int j =0 ;j < sizeOfTemp;j++){
+                                System.err.println(tempBB.getInstructions().get(j).toString());
+                                mirIncomingBB.getInstructions().add(size + j - 2, tempBB.getInstructions().get(j));
+                            }
+                        }
+                        size = mirIncomingBB.getInstructions().size();
                         if (MIRType.isFloat(phiReg.getType())) {
+
                             mirIncomingBB.getInstructions().add(size - 2, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.FLOAT));
+
                         } else {
                             mirIncomingBB.getInstructions().add(size - 2, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.INTEGER));
                         }
@@ -849,6 +923,14 @@ public class MIRConverterLL {
                         if (currentBasicBlock.equals("ifNext"))
                             System.out.println("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC   " + size);
                         // 如果倒数第一条指令是控制流指令，插入到前面
+                        if(!tempBB.getInstructions().isEmpty()){
+                            int sizeOfTemp  = tempBB.getInstructions().size();
+                            for(int j =0 ;j < sizeOfTemp;j++){
+                                System.err.println(tempBB.getInstructions().get(j).toString());
+                                mirIncomingBB.getInstructions().add(size + j - 1, tempBB.getInstructions().get(j));
+                            }
+                        }
+                        size = mirIncomingBB.getInstructions().size();
                         if (MIRType.isFloat(phiReg.getType())) {
                             mirIncomingBB.getInstructions().add(size - 1, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.FLOAT));
                         } else {
