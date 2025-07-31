@@ -1,5 +1,6 @@
 package com.compiler.ir;
 
+import com.compiler.backend.RiscVModuleGenerator;
 import com.compiler.frontend.SysYParserBaseVisitor;
 import com.compiler.mir.MIRConverter;
 import com.compiler.mir.MIRModule;
@@ -236,6 +237,12 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         MIRPrinter mirPrinter = new MIRPrinter(mirModule, writer);
         System.out.println("starting print");
         mirPrinter.printModule();
+        System.out.println("ending print");
+        System.out.println("starting trans");
+        PrintWriter writerS = new PrintWriter(new FileWriter("src/test/java/tem/tem.s"));
+        RiscVModuleGenerator riscVModuleGenerator = new RiscVModuleGenerator(mirModule);
+        writerS.println(riscVModuleGenerator.generate());
+        writerS.flush();
 
     }
 

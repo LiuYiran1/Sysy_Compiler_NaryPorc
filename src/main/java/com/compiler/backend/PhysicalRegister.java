@@ -67,7 +67,7 @@ public enum PhysicalRegister {
 
     // s0 也是fp,按理说在PROLOGUE时候就应该处理
     public static final List<PhysicalRegister> CALLEE_SAVED_INT = Arrays.asList(
-            S0, S1, S2, S3, S4, S5, S6, S7, S8, S9, S10, S11
+            S1, S2, S3, S4, S5, S6, S7, S8, S9, S10, S11
     );
 
     public static final List<PhysicalRegister> CALLEE_SAVED_FLOAT = Arrays.asList(

@@ -1,294 +1,542 @@
-//package com.compiler.backend.allocator;
-//
-//import com.compiler.backend.PhysicalRegister;
-//import com.compiler.mir.MIRBasicBlock;
-//import com.compiler.mir.MIRFunction;
-//import com.compiler.mir.instruction.MIRControlFlowOp;
-//import com.compiler.mir.instruction.MIRInstruction;
-//import com.compiler.mir.operand.MIROperand;
-//import com.compiler.mir.operand.MIRVirtualReg;
-//
-//import java.util.*;
-//
-//public class LinearScanRegisterAllocator {
-//
-//    private final List<LiveInterval> intervals = new ArrayList<>();
-//    private final Map<LiveInterval, PhysicalRegister> registerAssignment = new LinkedHashMap<>();
-//    private final Map<LiveInterval, Integer> spillLocations = new LinkedHashMap<>();
-//    private final TreeSet<LiveInterval> active = new TreeSet<>(Comparator.comparingInt(i -> i.end));
-//    private final List<PhysicalRegister> availableRegisters = new ArrayList<>();
-//    private int stackOffset = 0;
-//    private final MIRFunction function;
-//    private final Map<MIRBasicBlock, Set<LiveInterval>> liveInSets = new HashMap<>();
-//    private final Map<MIRBasicBlock, Set<LiveInterval>> liveOutSets = new HashMap<>();
-//    private int instructionCounter = 0;
-//
-//    public LinearScanRegisterAllocator(MIRFunction function) {
-//        this.function = function;
-//        initializeAvailableRegisters();
-//        buildLiveIntervals();
-//    }
-//
-//    private void initializeAvailableRegisters() {
-//        // 添加所有可用的物理寄存器
-//        availableRegisters.addAll(PhysicalRegister.CALLER_SAVED_INT);
-//        availableRegisters.addAll(PhysicalRegister.CALLEE_SAVED_INT);
-//    }
-//
-//    public void allocate() {
-//        // 按起始点排序生存区间
-//        intervals.sort(Comparator.comparingInt(i -> i.start));
-//
-//        // 主分配循环
-//        for (LiveInterval current : intervals) {
-//            expireOldIntervals(current.start);
-//
-//            if (active.size() == availableRegisters.size()) {
-//                spillAtInterval(current);
-//            } else {
-//                // 分配物理寄存器
-//                PhysicalRegister reg = availableRegisters.remove(0);
-//                registerAssignment.put(current, reg);
-//
-//                // 添加到活跃集合（按结束点排序）
-//                active.add(current);
-//            }
+package com.compiler.backend.allocator;
+
+import com.compiler.backend.PhysicalRegister;
+import com.compiler.mir.MIRBasicBlock;
+import com.compiler.mir.MIRFunction;
+import com.compiler.mir.MIRType;
+import com.compiler.mir.instruction.*;
+import com.compiler.mir.operand.*;
+import java.util.*;
+
+public class LinearScanRegisterAllocator {
+    private final List<LiveInterval> intervals = new ArrayList<>();
+    private final Map<LiveInterval, PhysicalRegister> registerAssignment = new LinkedHashMap<>();
+    private final Map<LiveInterval, Integer> spillLocations = new LinkedHashMap<>();
+
+    // 分开整数和浮点可用寄存器
+    private final List<PhysicalRegister> availableIntRegs = new ArrayList<>();
+    private final List<PhysicalRegister> availableFloatRegs = new ArrayList<>();
+
+    // 预留的临时寄存器（用于spill加载/存储）
+
+    private final PhysicalRegister intTempReg1 = PhysicalRegister.T0;
+    private final PhysicalRegister intTempReg2 = PhysicalRegister.T1;
+    int tempIntRegOffset = 0;
+    private final List<PhysicalRegister> tempIntRegs = Arrays.asList(intTempReg1, intTempReg2);
+
+    private final PhysicalRegister floatTempReg1 = PhysicalRegister.FT0;
+    private final PhysicalRegister floatTempReg2 = PhysicalRegister.FT1;
+    int tempFloatRegOffset = 0;
+    private final List<PhysicalRegister> tempFloatRegs = Arrays.asList(floatTempReg1, floatTempReg2);
+
+
+    private int stackOffset = 0;
+    private final MIRFunction function;
+    private final Map<MIRBasicBlock, Set<MIRVirtualReg>> liveInSets = new LinkedHashMap<>();
+    private final Map<MIRBasicBlock, Set<MIRVirtualReg>> liveOutSets = new LinkedHashMap<>();
+
+    private final Map<MIRInstruction, Integer> instructionPositions = new LinkedHashMap<>();
+    private final Map<MIRVirtualReg, LiveInterval> intervalMap = new LinkedHashMap<>();
+
+    // 记录使用的寄存器集合
+    private final Set<PhysicalRegister> usedCalleeSaved = new LinkedHashSet<>();
+    private final Set<PhysicalRegister> usedCallerSaved = new LinkedHashSet<>();
+
+
+    public LinearScanRegisterAllocator(MIRFunction function) {
+        this.function = function;
+        System.out.println("starting linear scan register allocation for function: " + function.getName());
+        initializeAvailableRegisters();
+        System.out.println(availableIntRegs);
+        System.out.println(availableFloatRegs);
+        assignInstructionPositions();
+        buildControlFlowGraph();
+        computeLiveness();
+        System.out.println("liveness initialized");
+        buildLiveIntervals();
+        System.out.println("live intervals initialized");
+    }
+
+    private void initializeAvailableRegisters() {
+        // 初始化整数寄存器
+        availableIntRegs.addAll(PhysicalRegister.CALLER_SAVED_INT);
+        availableIntRegs.addAll(PhysicalRegister.CALLEE_SAVED_INT);
+
+        // 初始化浮点寄存器
+        availableFloatRegs.addAll(PhysicalRegister.CALLER_SAVED_FLOAT);
+        availableFloatRegs.addAll(PhysicalRegister.CALLEE_SAVED_FLOAT);
+
+        // 移除特殊寄存器
+//        availableIntRegs.remove(PhysicalRegister.SP);
+//        availableIntRegs.remove(PhysicalRegister.RA);
+        availableIntRegs.remove(PhysicalRegister.A0); // 返回值寄存器
+        availableFloatRegs.remove(PhysicalRegister.FA0); // 浮点返回值寄存器
+
+        // 预留临时寄存器（不参与分配）
+        availableIntRegs.remove(intTempReg1);
+        availableIntRegs.remove(intTempReg2);
+        availableFloatRegs.remove(floatTempReg1);
+        availableFloatRegs.remove(floatTempReg2);
+    }
+
+    // 给每个指令分配序号，从entry到return
+    private void assignInstructionPositions() {
+        int counter = 0;
+        for (MIRBasicBlock block : function.getBlocks()) {
+            for (MIRInstruction inst : block.getInstructions()) {
+                instructionPositions.put(inst, counter++);
+            }
+        }
+    }
+
+    public void allocate() {
+        // 按起始点排序生存区间
+        intervals.sort(Comparator.comparingInt(i -> i.start));
+//        for(var interval: intervals) {
+//            System.err.println(interval.vreg.toString() + ": " + interval.start + " " + interval.end);
 //        }
-//    }
-//
-//    private void expireOldIntervals(int currentPoint) {
-//        Iterator<LiveInterval> it = active.iterator();
-//        while (it.hasNext()) {
-//            LiveInterval interval = it.next();
-//            if (interval.end < currentPoint) {
-//                // 释放寄存器
-//                availableRegisters.add(registerAssignment.get(interval));
-//                it.remove();
-//            } else {
-//                // 活跃区间按结束点排序，后续区间不会过期
-//                break;
-//            }
-//        }
-//    }
-//
-//    private void spillAtInterval(LiveInterval current) {
-//        // 找到结束点最大的活跃区间
-//        LiveInterval spill = active.last();
-//
-//        if (spill.end > current.end) {
-//            // 溢出spill区间
-//            spillLocations.put(spill, allocateSpillSlot());
-//
-//            // 将spill的寄存器分配给当前区间
-//            PhysicalRegister reg = registerAssignment.get(spill);
-//            registerAssignment.put(current, reg);
-//            registerAssignment.remove(spill);
-//
-//            // 从活跃集合中移除spill，添加当前区间
-//            active.remove(spill);
-//            active.add(current);
-//        } else {
-//            // 溢出当前区间
-//            spillLocations.put(current, allocateSpillSlot());
-//        }
-//    }
-//
+        System.out.println("starting linear scan register allocation for function: " + function.getName());
+
+        // 分别处理整数和浮点寄存器分配
+        allocateRegisters(false); // 分配整数寄存器
+        allocateRegisters(true);  // 分配浮点寄存器
+
+        // 打印出分配情况
+        System.out.println("Register allocation completed for function: " + function.getName());
+        for(var entry : registerAssignment.entrySet()) {
+            LiveInterval interval = entry.getKey();
+            PhysicalRegister reg = entry.getValue();
+            System.out.println("VReg: " + interval.vreg + " assigned to " + reg);
+        }
+        for(var entry : spillLocations.entrySet()) {
+            LiveInterval interval = entry.getKey();
+            Integer location = entry.getValue();
+            System.out.println("VReg: " + interval.vreg + " spilled at location: " + location);
+        }
+    }
+
+    private void allocateRegisters(boolean forFloat) {
+        TreeSet<LiveInterval> active = new TreeSet<>(Comparator.comparingInt(i -> i.end));
+
+        List<PhysicalRegister> availableRegs = forFloat ?
+                new ArrayList<>(availableFloatRegs) :
+                new ArrayList<>(availableIntRegs);
+
+        for (LiveInterval current : intervals) {
+            if (MIRType.isFloat(current.vreg.getType()) != forFloat) continue;
+
+            expireOldIntervals(current.start, active, availableRegs);
+
+            if (active.size() == availableRegs.size()) {
+                spillAtInterval(current, active, availableRegs);
+            } else {
+                // 分配物理寄存器
+                PhysicalRegister reg = availableRegs.remove(0);
+                registerAssignment.put(current, reg);
+                active.add(current);
+                recordUsedRegister(reg);
+            }
+        }
+    }
+
+    private void recordUsedRegister(PhysicalRegister reg) {
+        if (PhysicalRegister.CALLEE_SAVED_INT.contains(reg) ||
+                PhysicalRegister.CALLEE_SAVED_FLOAT.contains(reg)) {
+            usedCalleeSaved.add(reg);
+        } else if (PhysicalRegister.CALLER_SAVED_INT.contains(reg) ||
+                PhysicalRegister.CALLER_SAVED_FLOAT.contains(reg)) {
+            usedCallerSaved.add(reg);
+        }
+    }
+
+    private void expireOldIntervals(int currentPoint, TreeSet<LiveInterval> active,
+                                    List<PhysicalRegister> availableRegs) {
+        Iterator<LiveInterval> it = active.iterator();
+        while (it.hasNext()) {
+            LiveInterval interval = it.next();
+            if (interval.end < currentPoint) {
+                availableRegs.add(registerAssignment.get(interval));
+                it.remove();
+            } else {
+                break;
+            }
+        }
+    }
+
+    private void spillAtInterval(LiveInterval current, TreeSet<LiveInterval> active, List<PhysicalRegister> availableRegs) {
+        LiveInterval spill = active.last();
+        if (spill.end > current.end) {
+            // 溢出spill区间
+            spillLocations.put(spill, allocateSpillSlot(MIRType.isFloat(spill.vreg.getType())));
+
+            // 将spill的寄存器分配给当前区间
+            PhysicalRegister reg = registerAssignment.get(spill);
+            registerAssignment.put(current, reg);
+            registerAssignment.remove(spill);
+
+            active.remove(spill);
+            active.add(current);
+        } else {
+            // 溢出当前区间
+            spillLocations.put(current, allocateSpillSlot(MIRType.isFloat(current.vreg.getType())));
+        }
+    }
+
 //    private int allocateSpillSlot() {
-//        stackOffset -= 4; // 每个溢出槽4字节
+//        stackOffset -= 8; // 每个溢出槽8个字节
 //        return stackOffset;
 //    }
-//
-//    private void buildLiveIntervals() {
-//        // 第一步：构建控制流图并计算生存变量
-//        buildControlFlowGraph();
-//        computeLiveness();
-//
-//        // 第二步：为每个虚拟寄存器创建生存区间
-//        Map<MIRVirtualReg, LiveInterval> intervalMap = new HashMap<>();
-//
-//        // 遍历所有基本块和指令
-//        for (MIRBasicBlock block : function.getBlocks()) {
-//            Set<LiveInterval> live = new HashSet<>(liveOutSets.get(block));
-//
-//            // 反向遍历指令
-//            List<MIRInstruction> instructions = block.getInstructions();
-//            for (int i = instructions.size() - 1; i >= 0; i--) {
-//                MIRInstruction inst = instructions.get(i);
-//                int position = instructionCounter + i;
-//
-//                // 处理定义
-//                if (inst.getDef() != null) {
-//                    MIRVirtualReg def = inst.getDef();
-//                    LiveInterval interval = intervalMap.computeIfAbsent(
-//                            def, k -> new LiveInterval(def, Integer.MAX_VALUE, Integer.MIN_VALUE)
-//                    );
-//
-//                    // 更新起始点
-//                    interval.start = Math.min(interval.start, position);
-//
-//                    // 从生存集合中移除
-//                    live.remove(interval);
-//                }
-//
-//                // 处理使用
-//                for (MIROperand use : inst.getUses()) {
-//                    if (use instanceof MIRVirtualReg) {
-//                        MIRVirtualReg reg = (MIRVirtualReg) use;
-//                        LiveInterval interval = intervalMap.computeIfAbsent(
-//                                reg, k -> new LiveInterval(reg, Integer.MAX_VALUE, Integer.MIN_VALUE)
-//                        );
-//
-//                        // 更新结束点
-//                        interval.end = Math.max(interval.end, position);
-//
-//                        // 添加到生存集合
-//                        live.add(interval);
-//                    }
-//                }
-//            }
-//
-//            instructionCounter += instructions.size();
+    private int allocateSpillSlot(boolean isFloat) {
+        stackOffset -= 8; // 整数和浮点都占用8个字节
+        return stackOffset;
+    }
+
+    private void buildControlFlowGraph() {
+        // 初始化CFG
+        for (MIRBasicBlock block : function.getBlocks()) {
+            liveInSets.put(block, new LinkedHashSet<>());
+            liveOutSets.put(block, new LinkedHashSet<>());
+        }
+    }
+
+    private void computeLiveness() {
+        boolean changed;
+        int iteration = 0;
+        int maxIterations = function.getBlocks().size() * 20000; // 防止无限循环
+
+        do {
+            changed = false;
+            iteration++;
+
+            // 反向遍历基本块
+            List<MIRBasicBlock> blocks = new ArrayList<>(function.getBlocks());
+            Collections.reverse(blocks);
+
+            for(MIRBasicBlock block : blocks) {
+                System.out.println(block.getLabel().toString());
+            }
+
+
+            for (MIRBasicBlock block : blocks) {
+                // 计算use[B]和def[B]
+                Set<MIRVirtualReg> use = new LinkedHashSet<>();
+                Set<MIRVirtualReg> def = new LinkedHashSet<>();
+
+                // 遍历块中的指令
+                for (MIRInstruction inst : block.getInstructions()) {
+                    // 处理uses
+                    for (MIRVirtualReg reg : getUsedRegisters(inst)) {
+                        // 如果该寄存器还没有被定义，则添加到use集合
+                        if (!def.contains(reg)) {
+                            use.add(reg);
+                        }
+                    }
+
+                    // 处理defs
+                    MIRVirtualReg defReg = getDefinedRegister(inst);
+                    if (defReg != null) {
+                        def.add(defReg);
+                    }
+                }
+
+                // 计算新的liveOut
+                Set<MIRVirtualReg> newLiveOut = new LinkedHashSet<>();
+                for (MIRBasicBlock successor : getSuccessors(block)) {
+                    newLiveOut.addAll(liveInSets.get(successor));
+                }
+
+                // 计算新的liveIn: use[B] ∪ (liveOut[B] - def[B])
+                Set<MIRVirtualReg> newLiveIn = new LinkedHashSet<>(use);
+                Set<MIRVirtualReg> liveOutMinusDef = new LinkedHashSet<>(newLiveOut);
+                liveOutMinusDef.removeAll(def);
+                newLiveIn.addAll(liveOutMinusDef);
+
+                // 检查是否有变化
+                if (!newLiveIn.equals(liveInSets.get(block)) ||
+                        !newLiveOut.equals(liveOutSets.get(block))) {
+
+                    liveInSets.put(block, newLiveIn);
+                    liveOutSets.put(block, newLiveOut);
+                    changed = true;
+                }
+            }
+        } while (changed && iteration < maxIterations);
+    }
+
+    private Set<MIRBasicBlock> getSuccessors(MIRBasicBlock block) {
+        Set<MIRBasicBlock> successors = new LinkedHashSet<>();
+        List<MIRInstruction> instructions = block.getInstructions();
+
+        if (!instructions.isEmpty()) {
+            if(instructions.size() > 2){
+                MIRInstruction secondLastInst = instructions.get(instructions.size() - 2);
+                if(secondLastInst instanceof MIRControlFlowOp){
+                    MIRControlFlowOp cf = (MIRControlFlowOp) secondLastInst;
+                    if (cf.getType() == MIRControlFlowOp.Type.COND_JMP) {
+                        // 条件跳转
+                        MIRBasicBlock trueTarget = findBlockByName(cf.getTarget().toString());
+                        if (trueTarget != null) successors.add(trueTarget);
+                    } else {
+                        throw new IllegalStateException("Unexpected control flow operation: " + secondLastInst);
+                    }
+                }
+            }
+
+            MIRInstruction lastInst = instructions.get(instructions.size() - 1);
+
+            if (lastInst instanceof MIRControlFlowOp) {
+                MIRControlFlowOp cfOp = (MIRControlFlowOp) lastInst;
+
+                if (cfOp.getType() == MIRControlFlowOp.Type.JMP) {
+                    // 无条件跳转
+                    MIRBasicBlock target = findBlockByName(cfOp.getTarget().toString());
+                    if (target != null) successors.add(target);
+                } else if (cfOp.getType() == MIRControlFlowOp.Type.RET) {
+                    // 返回语句，无后继
+                }
+            } else {
+                // 没有控制流指令，顺序执行下一个块
+                System.err.println("Unexpected control flow operation: " + lastInst);
+
+                int currentIndex = function.getBlocks().indexOf(block);
+                if (currentIndex < function.getBlocks().size() - 1) {
+                    successors.add(function.getBlocks().get(currentIndex + 1));
+                }
+                throw new IllegalStateException("Unexpected control flow operation: " + lastInst);
+            }
+        }
+
+        return successors;
+    }
+
+    private MIRBasicBlock findBlockByName(String name) {
+        for (MIRBasicBlock block : function.getBlocks()) {
+            if (block.getLabel().toString().equals(name)) {
+                return block;
+            }
+        }
+        return null;
+    }
+
+    private void buildLiveIntervals() {
+        // 初始化所有虚拟寄存器的生存区间
+//        for (MIRVirtualReg reg : getAllVirtualRegisters()) {
+//            intervalMap.put(reg, new LiveInterval(reg, Integer.MAX_VALUE, Integer.MIN_VALUE));
 //        }
-//
-//        // 收集所有生存区间
-//        intervals.addAll(intervalMap.values());
-//    }
-//
-//    private void buildControlFlowGraph() {
-//        // 初始化CFG
-//        for (MIRBasicBlock block : function.getBlocks()) {
-//            liveInSets.put(block, new HashSet<>());
-//            liveOutSets.put(block, new HashSet<>());
-//        }
-//
-//        // 构建基本块之间的边
-//        Map<MIRBasicBlock, Set<MIRBasicBlock>> successors = new HashMap<>();
-//        for (MIRBasicBlock block : function.getBlocks()) {
-//            Set<MIRBasicBlock> blockSuccessors = new HashSet<>();
-//
-//            // 查找跳转目标
-//            for (MIRInstruction inst : block.getInstructions()) {
-//                if (inst instanceof MIRControlFlowOp) {
-//                    MIRControlFlowOp cfOp = (MIRControlFlowOp) inst;
-//                    if (cfOp.getTarget() != null) {
-//                        blockSuccessors.add(findBlockByName(cfOp.getTarget().getName()));
-//                    }
-//                    if (cfOp.getFalseTarget() != null) {
-//                        blockSuccessors.add(findBlockByName(cfOp.getFalseTarget().getName()));
-//                    }
-//                }
-//            }
-//
-//            successors.put(block, blockSuccessors);
-//        }
-//    }
-//
-//    private void computeLiveness() {
-//        boolean changed;
-//        do {
-//            changed = false;
-//            for (MIRBasicBlock block : function.getBlocks()) {
-//                Set<LiveInterval> liveOut = liveOutSets.get(block);
-//                Set<LiveInterval> liveIn = liveInSets.get(block);
-//
-//                // liveIn = use[B] ∪ (liveOut[B] - def[B])
-//                Set<LiveInterval> newLiveIn = new HashSet<>(computeUses(block));
-//                Set<LiveInterval> liveOutMinusDef = new HashSet<>(liveOut);
-//                liveOutMinusDef.removeAll(computeDefs(block));
-//                newLiveIn.addAll(liveOutMinusDef);
-//
-//                // liveOut[B] = ∪ liveIn[S] for S in successors(B)
-//                Set<LiveInterval> newLiveOut = new HashSet<>();
-//                for (MIRBasicBlock succ : getSuccessors(block)) {
-//                    newLiveOut.addAll(liveInSets.get(succ));
-//                }
-//
-//                if (!newLiveIn.equals(liveIn) || !newLiveOut.equals(liveOut)) {
-//                    liveInSets.put(block, newLiveIn);
-//                    liveOutSets.put(block, newLiveOut);
-//                    changed = true;
-//                }
-//            }
-//        } while (changed);
-//    }
-//
-//    private Set<LiveInterval> computeUses(MIRBasicBlock block) {
-//        Set<LiveInterval> uses = new HashSet<>();
-//        for (MIRInstruction inst : block.getInstructions()) {
-//            for (MIROperand operand : inst.getUses()) {
-//                if (operand instanceof MIRVirtualReg) {
-//                    // 这里简化处理，实际需要创建或获取LiveInterval
-//                    uses.add(new LiveInterval((MIRVirtualReg) operand, 0, 0));
-//                }
-//            }
-//        }
-//        return uses;
-//    }
-//
-//    private Set<LiveInterval> computeDefs(MIRBasicBlock block) {
-//        Set<LiveInterval> defs = new HashSet<>();
-//        for (MIRInstruction inst : block.getInstructions()) {
-//            if (inst.getDef() != null) {
-//                defs.add(new LiveInterval(inst.getDef(), 0, 0));
-//            }
-//        }
-//        return defs;
-//    }
-//
-//    private Set<MIRBasicBlock> getSuccessors(MIRBasicBlock block) {
-//        // 实际实现中需要根据控制流指令确定后继块
-//        return new HashSet<>();
-//    }
-//
-//    private MIRBasicBlock findBlockByName(String name) {
-//        return function.getBlocks().stream()
-//                .filter(b -> b.getLabel().toString().equals(name))
-//                .findFirst()
-//                .orElse(null);
-//    }
-//
-//    public PhysicalRegister getRegisterFor(MIRVirtualReg vreg) {
-//        return intervals.stream()
-//                .filter(i -> i.vreg.equals(vreg))
-//                .findFirst()
-//                .map(registerAssignment::get)
-//                .orElse(null);
-//    }
-//
-//    public Integer getSpillLocation(MIRVirtualReg vreg) {
-//        return intervals.stream()
-//                .filter(i -> i.vreg.equals(vreg))
-//                .findFirst()
-//                .map(spillLocations::get)
-//                .orElse(null);
-//    }
-//
-//    public int getFrameSize() {
-//        return Math.abs(stackOffset);
-//    }
-//
-//    private static class LiveInterval {
-//        final MIRVirtualReg vreg;
-//        int start;
-//        int end;
-//
-//        LiveInterval(MIRVirtualReg vreg, int start, int end) {
-//            this.vreg = vreg;
-//            this.start = start;
-//            this.end = end;
-//        }
-//
-//        @Override
-//        public boolean equals(Object o) {
-//            if (this == o) return true;
-//            if (o == null || getClass() != o.getClass()) return false;
-//            LiveInterval that = (LiveInterval) o;
-//            return vreg.equals(that.vreg);
-//        }
-//
-//        @Override
-//        public int hashCode() {
-//            return vreg.hashCode();
-//        }
-//    }
-//}
+
+        // 如果有一个变量之后未被使用怎么办？
+        // 直接删除这条指令？
+
+        for (MIRVirtualReg reg : getAllVirtualRegisters()) {
+            // 自动检测寄存器类型
+            intervalMap.put(reg, new LiveInterval(reg, Integer.MAX_VALUE, Integer.MIN_VALUE));
+        }
+
+        // 第一遍：处理指令级别的定义和使用
+        for (MIRBasicBlock block : function.getBlocks()) {
+            for (MIRInstruction inst : block.getInstructions()) {
+                int pos = instructionPositions.get(inst);
+
+                // 处理定义
+                MIRVirtualReg def = getDefinedRegister(inst);
+                if (def != null) {
+                    LiveInterval interval = intervalMap.get(def);
+                    interval.start = Math.min(interval.start, pos);
+                }
+
+                // 处理使用
+                for (MIRVirtualReg reg : getUsedRegisters(inst)) {
+                    LiveInterval interval = intervalMap.get(reg);
+                    interval.end = Math.max(interval.end, pos);
+                }
+            }
+        }
+
+        // 第二遍：处理基本块边界
+        for (MIRBasicBlock block : function.getBlocks()) {
+            int firstPos = instructionPositions.get(block.getInstructions().get(0));
+            int lastPos = instructionPositions.get(block.getInstructions().get(block.getInstructions().size() - 1));
+
+            // 处理live-in
+            for (MIRVirtualReg reg : liveInSets.get(block)) {
+                LiveInterval interval = intervalMap.get(reg);
+                interval.start = Math.min(interval.start, firstPos);
+                interval.end = Math.max(interval.end, firstPos);
+            }
+
+            // 处理live-out
+            for (MIRVirtualReg reg : liveOutSets.get(block)) {
+                LiveInterval interval = intervalMap.get(reg);
+                interval.end = Math.max(interval.end, lastPos);
+            }
+        }
+
+        // 收集所有生存区间
+        intervals.addAll(intervalMap.values());
+    }
+
+
+    // 获取函数中所有虚拟寄存器
+    private Set<MIRVirtualReg> getAllVirtualRegisters() {
+        Set<MIRVirtualReg> registers = new LinkedHashSet<>();
+
+        // 添加指令中定义的寄存器
+        for (MIRBasicBlock block : function.getBlocks()) {
+            for (MIRInstruction inst : block.getInstructions()) {
+                MIRVirtualReg def = getDefinedRegister(inst);
+                if (def != null) {
+                    registers.add(def);
+                }
+                registers.addAll(getUsedRegisters(inst));
+            }
+        }
+
+        return registers;
+    }
+
+    // 获取指令定义的虚拟寄存器（def）
+    private MIRVirtualReg getDefinedRegister(MIRInstruction inst) {
+        if (inst instanceof MIRArithOp) {
+            return ((MIRArithOp) inst).getResult();
+        } else if (inst instanceof MIRMoveOp) {
+            return ((MIRMoveOp) inst).getResult();
+        } else if (inst instanceof MIRMemoryOp) {
+            return ((MIRMemoryOp) inst).getResult();
+        } else if (inst instanceof MIRConvertOp) {
+            return ((MIRConvertOp) inst).getResult();
+        } else if (inst instanceof MIRCmpOp) {
+            return ((MIRCmpOp) inst).getResult();
+        } else if (inst instanceof MIRLiOp) {
+            return ((MIRLiOp) inst).getResult();
+        } else if (inst instanceof MIRLuiOp) {
+            return ((MIRLuiOp) inst).getResult();
+        } else if (inst instanceof MIRLaOp) {
+            return ((MIRLaOp) inst).getResult();
+        } else if (inst instanceof MIRAllocOp) {
+            return ((MIRAllocOp) inst).getResult();
+        }
+        //System.err.println("Unexpected instruction: " + inst.toString());
+        return null;
+    }
+
+    // 获取指令使用的虚拟寄存器（use）
+    private Set<MIRVirtualReg> getUsedRegisters(MIRInstruction inst) {
+        Set<MIRVirtualReg> uses = new LinkedHashSet<>();
+
+        if (inst instanceof MIRArithOp) {
+            MIRArithOp arithOp = (MIRArithOp) inst;
+            addIfVirtualReg(uses, arithOp.getOperands().get(0));
+            addIfVirtualReg(uses, arithOp.getOperands().get(1));
+        } else if (inst instanceof MIRMoveOp) {
+            addIfVirtualReg(uses, ((MIRMoveOp) inst).getOperands().get(0));
+        } else if (inst instanceof MIRMemoryOp) {
+            MIRMemoryOp memOp = (MIRMemoryOp) inst;
+            addIfVirtualReg(uses, ((MIRMemory)memOp.getOperands().get(0)).getBase());
+            addIfVirtualReg(uses, ((MIRMemory)memOp.getOperands().get(0)).getOffset());
+            if(memOp.getOperands().size() > 1) {
+                // store
+                addIfVirtualReg(uses, memOp.getOperands().get(1));
+            }
+        } else if (inst instanceof MIRConvertOp) {
+            addIfVirtualReg(uses, ((MIRConvertOp) inst).getOperands().get(0));
+        } else if (inst instanceof MIRCmpOp) {
+            MIRCmpOp cmpOp = (MIRCmpOp) inst;
+            addIfVirtualReg(uses, cmpOp.getOperands().get(0));
+            addIfVirtualReg(uses, cmpOp.getOperands().get(1));
+        } else if (inst instanceof MIRControlFlowOp) {
+            MIRControlFlowOp cfOp = (MIRControlFlowOp) inst;
+            for(MIROperand operand : cfOp.getOperands()) {
+                addIfVirtualReg(uses, operand);
+            }
+        }
+
+        return uses;
+    }
+
+    private void addIfVirtualReg(Set<MIRVirtualReg> set, MIROperand operand) {
+        if (operand instanceof MIRVirtualReg) {
+            set.add((MIRVirtualReg) operand);
+        }
+    }
+
+    public PhysicalRegister getRegisterFor(MIRVirtualReg vreg) {
+        LiveInterval interval = intervalMap.get(vreg);
+        if (interval != null) {
+            return registerAssignment.get(interval);
+        }
+        return null;
+    }
+
+    public Integer getSpillLocation(MIRVirtualReg vreg) {
+        LiveInterval interval = intervalMap.get(vreg);
+        if (interval != null) {
+            return spillLocations.get(interval);
+        }
+        return null;
+    }
+
+    public int getFrameSize() {
+        return Math.abs(stackOffset);
+    }
+
+    public Map<MIRVirtualReg, PhysicalRegister> getAllocationMap() {
+        Map<MIRVirtualReg, PhysicalRegister> result = new LinkedHashMap<>();
+        for (Map.Entry<LiveInterval, PhysicalRegister> entry : registerAssignment.entrySet()) {
+            result.put(entry.getKey().vreg, entry.getValue());
+        }
+        return result;
+    }
+
+    public Map<MIRVirtualReg, Integer> getSpillMap() {
+        Map<MIRVirtualReg, Integer> result = new LinkedHashMap<>();
+        for (Map.Entry<LiveInterval, Integer> entry : spillLocations.entrySet()) {
+            result.put(entry.getKey().vreg, entry.getValue());
+        }
+        return result;
+    }
+
+    public Set<PhysicalRegister> getUsedCalleeSaved() {
+        return usedCalleeSaved;
+    }
+
+    public Set<PhysicalRegister> getUsedCallerSaved() {
+        return usedCallerSaved;
+    }
+    public PhysicalRegister getIntTempReg1() { return intTempReg1; }
+    public PhysicalRegister getIntTempReg2() { return intTempReg2; }
+    public PhysicalRegister getIntTempReg() {
+        return tempIntRegs.get(tempIntRegOffset++ % tempIntRegs.size());
+    }
+    public PhysicalRegister getFloatTempReg1() { return floatTempReg1; }
+    public PhysicalRegister getFloatTempReg2() { return floatTempReg2; }
+    public PhysicalRegister getFloatTempReg() {
+        return tempFloatRegs.get(tempFloatRegOffset++ % tempFloatRegs.size());
+    }
+
+
+
+    private static class LiveInterval {
+        final MIRVirtualReg vreg;
+        int start;
+        int end;
+
+        LiveInterval(MIRVirtualReg vreg, int start, int end) {
+            this.vreg = vreg;
+            this.start = start;
+            this.end = end;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            LiveInterval that = (LiveInterval) o;
+            return vreg.equals(that.vreg);
+        }
+
+        @Override
+        public int hashCode() {
+            return vreg.hashCode();
+        }
+    }
+}
