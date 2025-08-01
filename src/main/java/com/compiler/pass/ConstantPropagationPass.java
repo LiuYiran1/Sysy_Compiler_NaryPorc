@@ -122,13 +122,37 @@ public class ConstantPropagationPass implements Pass {
             case BR -> {
                 markExecutable(((BranchInst) inst).getTarget());
             }
-            case LOAD -> evalLoad((LoadInst) inst);
+            // 数组不管，全局变量现在跨函数了
+//            case LOAD -> evalLoad((LoadInst) inst);
+//            case STORE -> evalStore((StoreInst) inst);
             case RET, CALL -> valueLattice.put(inst, new ConstValue()); // 默认不处理 call/ret
         }
     }
 
+    private void evalStore(StoreInst inst) {
+        Value ptr = inst.getOperand(1);
+        Value val = inst.getOperand(0);
+
+        if (!ptr.isGlobalVariable()) return; // 目前store只对全局变量使用
+
+        ConstValue valConst = getConst(val);
+        ConstValue old = getConst(ptr);
+
+        ConstValue result = new ConstValue(old);
+        result.meet(valConst);
+
+        if (updateLattice(ptr, result)) {
+            // load 指令依赖于 store 的全局变量值，需要更新
+            for (User user : ptr.getUsers()) {
+                if (user instanceof LoadInst) {
+                    instWorkList.add((Instruction) user);
+                }
+            }
+        }
+    }
+
+
     private void evalLoad(LoadInst inst) {
-        System.out.println("BBBBB");
         Value ptr = inst.getOperand(0);
 
         ConstValue memVal = getConst(ptr);
@@ -181,7 +205,7 @@ public class ConstantPropagationPass implements Pass {
                 result.state = LatticeVal.OVERDEF;
             }
         } else {
-            result = meetState(l, r);
+            result.state = meetState(l.state, r.state);
         }
 
         if (updateLattice(inst, result)) {
@@ -222,7 +246,7 @@ public class ConstantPropagationPass implements Pass {
                 result.state = LatticeVal.OVERDEF;
             }
         } else {
-            result = meetState(l, r);
+            result.state = meetState(l.state, r.state);
         }
 
         if (updateLattice(inst, result)) {
@@ -255,7 +279,7 @@ public class ConstantPropagationPass implements Pass {
 
         for (int i = 0; i < phi.getOperands().size(); i++) {
             BasicBlock from = phi.getIncomingBlocks().get(i);
-            if (!executableBlocks.contains(from)) continue;
+            // if (!executableBlocks.contains(from)) continue;
 
             Value incoming = phi.getOperands().get(i);
             result.meet(getConst(incoming));
@@ -287,6 +311,7 @@ public class ConstantPropagationPass implements Pass {
                 ConstValue val = valueLattice.get(inst);
                 if (val.state == LatticeVal.CONST) {
                     bb.replaceAllUse(inst, makeConst(val.value, inst.getType()));
+                    hasChanged = true;
                 }
             }
         }
@@ -301,51 +326,69 @@ public class ConstantPropagationPass implements Pass {
     }
 
     private ConstValue getConst(Value v) {
-        if (v.isConstant()){
+        if (valueLattice.containsKey(v)) {
+            return valueLattice.get(v);
+        }
+
+        if (v.isConstant()) {
             Constant constValue = (Constant) v;
             Object value = null;
             if (constValue.getType().isIntegerType()) {
-                value = (int)((ConstantInt) constValue).getValue();
-            } else {
+                value = (int) ((ConstantInt) constValue).getValue();
+            } else if (constValue.getType().isFloatType()) {
                 value = ((ConstantFloat) constValue).getValue();
+            } else {
+                throw new RuntimeException("ARRAY!!!!!");
             }
-            return valueLattice.getOrDefault(v, new ConstValue(value));
-        } else if(v.isGlobalVariable()){
-            System.out.println("AAAAA  " + v.getName() + "  " + v.getType().toIR() + " " + ((GlobalVariable) v).getInitializer().toIR() + " " + ((GlobalVariable) v).getInitializer().getType().toIR() + ((GlobalVariable) v).getInitializer().getType().isIntegerType());
+            ConstValue cv = new ConstValue(value);
+            valueLattice.put(v, cv);
+            return cv;
+
+        } else if (v.isGlobalVariable()) {
             Constant constValue = ((GlobalVariable) v).getInitializer();
             Object value = null;
             if (constValue.getType().isIntegerType()) {
-                value = (int)((ConstantInt) constValue).getValue();
-            } else {
+                value = (int) ((ConstantInt) constValue).getValue();
+            } else if (constValue.getType().isFloatType()) {
                 value = ((ConstantFloat) constValue).getValue();
+            } else {
+                throw new RuntimeException("ARRAY!!!!!");
             }
-            return valueLattice.getOrDefault(v, new ConstValue(value));
-        } else {
-            return valueLattice.getOrDefault(v, new ConstValue());
+            ConstValue cv = new ConstValue(value);
+            valueLattice.put(v, cv);
+            return cv;
         }
+
+        ConstValue undef = new ConstValue();
+        valueLattice.put(v, undef);
+        return undef;
     }
 
+
     private boolean updateLattice(Value v, ConstValue val) {
-        ConstValue old = valueLattice.getOrDefault(v, new ConstValue());
-        if (!Objects.equals(old.value, val.value) || old.state != val.state) {
-            valueLattice.put(v, val);
-            hasChanged = true;
+        ConstValue old = valueLattice.get(v);
+        if (old == null || old.state != val.state || !Objects.equals(old.value, val.value)) {
+            valueLattice.put(v, new ConstValue(val)); // 深拷贝
             return true;
         }
         return false;
     }
 
+
     private void addUsersToWorklist(Instruction inst) {
         for (User user : inst.getUsers()) {
-            instWorkList.add((Instruction) user);  // 强制转换是否正确？
+            instWorkList.add((Instruction) user);
         }
     }
 
-    private ConstValue meetState(ConstValue a, ConstValue b) {
-        ConstValue result = new ConstValue();
-        result.meet(a);
-        result.meet(b);
-        return result;
+    private LatticeVal meetState(LatticeVal a, LatticeVal b) {
+        if(a == LatticeVal.OVERDEF || b == LatticeVal.OVERDEF){
+            return LatticeVal.OVERDEF;
+        } else if(a == LatticeVal.UNDEF || b == LatticeVal.UNDEF){
+            return LatticeVal.UNDEF;
+        } else {
+            throw new RuntimeException("meet state failed");
+        }
     }
 
 }
