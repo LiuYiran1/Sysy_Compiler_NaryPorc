@@ -7,6 +7,7 @@ import com.compiler.ll.Values.*;
 import com.compiler.ll.Values.Constants.ConstantFloat;
 import com.compiler.ll.Values.Constants.ConstantInt;
 import com.compiler.ll.Values.GlobalValues.Function;
+import com.compiler.ll.Values.GlobalValues.GlobalVariable;
 import com.compiler.ll.Values.Instructions.*;
 
 import java.util.*;
@@ -14,6 +15,8 @@ import java.util.*;
 public class ConstantPropagationPass implements Pass {
 
     Context context;
+
+    boolean hasChanged = false;
 
     public ConstantPropagationPass(Context context) {
         this.context = context;
@@ -36,6 +39,11 @@ public class ConstantPropagationPass implements Pass {
         ConstValue(Object value) {
             this.state = LatticeVal.CONST;
             this.value = value;
+        }
+
+        ConstValue(ConstValue other) {
+            this.state = other.state;
+            this.value = other.value;
         }
 
         void meet(ConstValue other) {
@@ -61,10 +69,12 @@ public class ConstantPropagationPass implements Pass {
     Queue<BasicBlock> blockWorkList = new LinkedList<>();
 
     @Override
-    public void run(Module module) {
+    public boolean run(Module module) {
+        hasChanged = false;
         for (Function func : module.getFunctionDefs()) {
             runOnFunction(func);
         }
+        return hasChanged;
     }
 
     private void runOnFunction(Function func) {
@@ -112,9 +122,29 @@ public class ConstantPropagationPass implements Pass {
             case BR -> {
                 markExecutable(((BranchInst) inst).getTarget());
             }
+            case LOAD -> evalLoad((LoadInst) inst);
             case RET, CALL -> valueLattice.put(inst, new ConstValue()); // 默认不处理 call/ret
         }
     }
+
+    private void evalLoad(LoadInst inst) {
+        System.out.println("BBBBB");
+        Value ptr = inst.getOperand(0);
+
+        ConstValue memVal = getConst(ptr);
+
+        if (memVal != null && memVal.state == LatticeVal.CONST) {
+            // 能确定的全局变量常量
+            valueLattice.put(inst, new ConstValue(memVal));
+        } else {
+            // 没有写入记录，或多次写入不同值，设置为 OVERDEF
+            valueLattice.put(inst, new ConstValue());
+        }
+
+        addUsersToWorklist(inst);
+    }
+
+
 
     private void evalBinary(Instruction inst) {
         Value lhs = inst.getOperand(0), rhs = inst.getOperand(1);
@@ -273,7 +303,22 @@ public class ConstantPropagationPass implements Pass {
     private ConstValue getConst(Value v) {
         if (v.isConstant()){
             Constant constValue = (Constant) v;
-            Object value = v.getType().isIntegerType() ? (int)((ConstantInt) constValue).getValue() : ((ConstantFloat) constValue).getValue();
+            Object value = null;
+            if (constValue.getType().isIntegerType()) {
+                value = (int)((ConstantInt) constValue).getValue();
+            } else {
+                value = ((ConstantFloat) constValue).getValue();
+            }
+            return valueLattice.getOrDefault(v, new ConstValue(value));
+        } else if(v.isGlobalVariable()){
+            System.out.println("AAAAA  " + v.getName() + "  " + v.getType().toIR() + " " + ((GlobalVariable) v).getInitializer().toIR() + " " + ((GlobalVariable) v).getInitializer().getType().toIR() + ((GlobalVariable) v).getInitializer().getType().isIntegerType());
+            Constant constValue = ((GlobalVariable) v).getInitializer();
+            Object value = null;
+            if (constValue.getType().isIntegerType()) {
+                value = (int)((ConstantInt) constValue).getValue();
+            } else {
+                value = ((ConstantFloat) constValue).getValue();
+            }
             return valueLattice.getOrDefault(v, new ConstValue(value));
         } else {
             return valueLattice.getOrDefault(v, new ConstValue());
@@ -284,6 +329,7 @@ public class ConstantPropagationPass implements Pass {
         ConstValue old = valueLattice.getOrDefault(v, new ConstValue());
         if (!Objects.equals(old.value, val.value) || old.state != val.state) {
             valueLattice.put(v, val);
+            hasChanged = true;
             return true;
         }
         return false;

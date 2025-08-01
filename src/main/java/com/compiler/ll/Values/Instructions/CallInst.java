@@ -6,6 +6,8 @@ import com.compiler.ll.Values.GlobalValues.Function;
 import com.compiler.ll.Values.Instruction;
 import com.compiler.ll.Values.Value;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Collectors;
 
 public class CallInst extends Instruction {
@@ -22,7 +24,8 @@ public class CallInst extends Instruction {
 
     @Override
     public String toIR() {
-        String argsStr = operands.stream()
+        List<Value> operandsTem = operands.subList(0, operands.size() - 1);
+        String argsStr = operandsTem.stream()
                 .map(op -> op.getType().toIR() + " " + getOpStr(op))
                 .collect(Collectors.joining(", "));
         return name == null ? "call " + type.toIR() + " @" + calleeName + "(" + argsStr + ")"

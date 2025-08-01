@@ -186,13 +186,17 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         Pass unUsedVarElimPass = new UnusedVarElimPass();
         Pass constantPropagationPass = new ConstantPropagationPass(context);
 
-        DFGPass.run(mod);
-        deadCodeElimPass.run(mod);
-        domPass.run(mod);
-        mem2RegPass.run(mod);
-        unUsedVarElimPass.run(mod);
-        constantPropagationPass.run(mod);
+//        DFGPass.run(mod);
+//        deadCodeElimPass.run(mod);
+//        domPass.run(mod);
+//        mem2RegPass.run(mod);
 
+//        boolean hasChanged = true;
+//        while (hasChanged){
+//            hasChanged = unUsedVarElimPass.run(mod);
+//                    //|| deadCodeElimPass.run(mod);
+//                    //|| constantPropagationPass.run(mod);
+//        }
 
         mod.dump(file);
 
