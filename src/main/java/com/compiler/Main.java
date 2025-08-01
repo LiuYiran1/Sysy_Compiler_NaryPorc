@@ -6,6 +6,7 @@ import com.compiler.frontend.SysYParser;
 import com.compiler.ir2.LLVisitor;
 import com.compiler.listeners.LexerListener;
 import com.compiler.listeners.ParserListener;
+import com.compiler.ll.Module;
 import com.compiler.mir.MIRPrinter;
 import com.compiler.utils.Checker;
 import org.antlr.v4.runtime.CharStream;
@@ -35,7 +36,7 @@ public class Main {
     static ParseTree tree;
 
     public static void main(String[] args) throws IOException {
-        Path inputDir = Paths.get("src/test/java/tem");
+        Path inputDir = Paths.get("src/test/java/functional");
 
         // 找出所有 .sy 文件
         List<Path> syFiles = Files.walk(inputDir)
@@ -68,6 +69,7 @@ public class Main {
             processLexer(inputPath.toString());
             processParser(lexer, inputPath.toString());
             //irGen(tree, outputPath.toString());
+            System.out.println("outputPath2: " + outputPath2.toString());
             irGen2(tree, outputPath2.toString());
 
 
@@ -123,11 +125,11 @@ public class Main {
     }
 
     private static void irGen2(ParseTree tree, String outputPath2) {
-        System.out.println("outputPath2: " + outputPath2);
         LLVisitor llVisitor2 = new LLVisitor();
         llVisitor2.visit(tree);
-        llVisitor2.dump(new File(outputPath2));
-
+        Module mod = llVisitor2.dump(new File(outputPath2));
+        String mirOutputPath = outputPath2.replaceAll("\\.[^.]*$", ".mir");
+        llVisitor2.mirGen(mod, mirOutputPath);
     }
 
     private static void clear(){

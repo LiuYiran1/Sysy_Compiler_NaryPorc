@@ -25,6 +25,7 @@ import org.antlr.v4.runtime.ParserRuleContext;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.*;
 
@@ -129,7 +130,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         //System.out.println(msg);
     }
 
-    public void dump(File file) {
+    public Module dump(File file) {
         for (Function func = mod.getFirstFunction(); func != null; func = func.getNextFunction()) {
             for (BasicBlock bb = func.getFirstBasicBlock(); bb != null; bb = bb.getNextBasicBlock()) {
                 if (bb.getTerminator() == null) {
@@ -193,14 +194,14 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
         mod.dump(file);
 
-        mirGen();
+        return mod;
     }
 
-    private void mirGen(){
+    public void mirGen(Module mod, String outputPath) {
         PrintWriter writer = null;
         try {
-            writer = new PrintWriter(new FileWriter("src/test/java/tem/tem.mir"));
-        } catch (Exception e){
+            writer = new PrintWriter(new FileWriter(outputPath));
+        } catch (IOException e){
             System.out.println("mir writer error");
         }
         MIRConverterLL converter = new MIRConverterLL(mod);

@@ -218,6 +218,7 @@ public class MIRConverterLL {
             Argument param = llFunc.getArgument(i);
            if (param == null) continue; // 忽略空参数
             MIRType mirType = convertType(param.getType());
+            System.out.println("{{{{{{{{{{{{{{{{{{{: " + param.getType().toIR());
 //            MIRVirtualReg paramReg = mirFunc.newVirtualReg(mirType);
 //            valueMap.put(param, paramReg);
 //            mirFunc.addParam(paramReg);
@@ -225,7 +226,7 @@ public class MIRConverterLL {
             if (isFloat) {
                 // 浮点参数处理
                 if (floatArgCount < 8) {
-                    MIRPhysicalReg paramReg = new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.FA0.ordinal() + i]);
+                    MIRPhysicalReg paramReg = new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.FA0.ordinal() + floatArgCount]);
                     valueMap.put(param, paramReg);
                     mirFunc.addParam(paramReg);
                     floatArgCount++;
@@ -244,7 +245,7 @@ public class MIRConverterLL {
             } else {
                 // 整数参数处理
                 if (intArgCount < 8) {
-                    MIRPhysicalReg paramReg = new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.A0.ordinal() + i]);
+                    MIRPhysicalReg paramReg = new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.A0.ordinal() + intArgCount]);
                     valueMap.put(param, paramReg);
                     mirFunc.addParam(paramReg);
                     intArgCount++;
@@ -608,7 +609,7 @@ public class MIRConverterLL {
             if (isFloat) {
                 // 浮点参数处理
                 if (floatArgCount < 8) {
-                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.FA0.ordinal() + i]),mirArg, MIRMoveOp.MoveType.FLOAT));
+                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.FA0.ordinal() + floatArgCount]),mirArg, MIRMoveOp.MoveType.FLOAT));
                     floatArgCount++;
                 } else {
                     // 超过8个浮点参数，放在栈上
@@ -620,7 +621,7 @@ public class MIRConverterLL {
             } else {
                 // 整数参数处理
                 if (intArgCount < 8) {
-                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.A0.ordinal() + i]),mirArg, MIRMoveOp.MoveType.INTEGER));
+                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.A0.ordinal() + intArgCount]),mirArg, MIRMoveOp.MoveType.INTEGER));
                     intArgCount++;
                 } else {
                     // 超过8个整数参数，放在栈上
@@ -906,7 +907,7 @@ public class MIRConverterLL {
                         if(!tempBB.getInstructions().isEmpty()){
                             int sizeOfTemp  = tempBB.getInstructions().size();
                             for(int j =0 ;j < sizeOfTemp;j++){
-                                System.err.println(tempBB.getInstructions().get(j).toString());
+                                System.out.println(tempBB.getInstructions().get(j).toString());
                                 mirIncomingBB.getInstructions().add(size + j - 2, tempBB.getInstructions().get(j));
                             }
                         }
@@ -926,7 +927,7 @@ public class MIRConverterLL {
                         if(!tempBB.getInstructions().isEmpty()){
                             int sizeOfTemp  = tempBB.getInstructions().size();
                             for(int j =0 ;j < sizeOfTemp;j++){
-                                System.err.println(tempBB.getInstructions().get(j).toString());
+                                System.out.println(tempBB.getInstructions().get(j).toString());
                                 mirIncomingBB.getInstructions().add(size + j - 1, tempBB.getInstructions().get(j));
                             }
                         }
