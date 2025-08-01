@@ -129,7 +129,7 @@ public class Main {
         llVisitor2.visit(tree);
         Module mod = llVisitor2.dump(new File(outputPath2));
         String mirOutputPath = outputPath2.replaceAll("\\.[^.]*$", ".mir");
-        llVisitor2.mirGen(mod, mirOutputPath);
+        //llVisitor2.mirGen(mod, mirOutputPath);
     }
 
     private static void clear(){

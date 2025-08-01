@@ -39,10 +39,12 @@ public class BasicBlock extends User {
 
 
     public void replaceAllUse(Instruction oldInst, Value newValue) {
-        for (User user : oldInst.getUsers()) {
+        List<User> users = new ArrayList<>(oldInst.getUsers());
+        for (User user : users) {
             user.replaceOperand(oldInst, newValue);
         }
     }
+
 
     public void addInstruction(Instruction inst) {
         instructions.add(inst);
