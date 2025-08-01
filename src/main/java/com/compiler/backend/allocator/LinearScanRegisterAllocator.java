@@ -21,12 +21,12 @@ public class LinearScanRegisterAllocator {
 
     private final PhysicalRegister intTempReg1 = PhysicalRegister.T0;
     private final PhysicalRegister intTempReg2 = PhysicalRegister.T1;
-    int tempIntRegOffset = 0;
+    int tempIntRegIndex = 0;
     private final List<PhysicalRegister> tempIntRegs = Arrays.asList(intTempReg1, intTempReg2);
 
     private final PhysicalRegister floatTempReg1 = PhysicalRegister.FT0;
     private final PhysicalRegister floatTempReg2 = PhysicalRegister.FT1;
-    int tempFloatRegOffset = 0;
+    int tempFloatRegIndex = 0;
     private final List<PhysicalRegister> tempFloatRegs = Arrays.asList(floatTempReg1, floatTempReg2);
 
 
@@ -90,16 +90,34 @@ public class LinearScanRegisterAllocator {
     }
 
     public void allocate() {
+
+        // 分别处理整数和浮点寄存器分配
+        List<LiveInterval> intIntervals = new ArrayList<>();
+        List<LiveInterval> floatIntervals = new ArrayList<>();
+
+        // 按类型分离生存区间
+        for (LiveInterval interval : intervals) {
+            if (MIRType.isFloat(interval.vreg.getType())) {
+                floatIntervals.add(interval);
+            } else {
+                intIntervals.add(interval);
+            }
+        }
+
+        // 分别排序
+        intIntervals.sort(Comparator.comparingInt(i -> i.start));
+        floatIntervals.sort(Comparator.comparingInt(i -> i.start));
+
         // 按起始点排序生存区间
-        intervals.sort(Comparator.comparingInt(i -> i.start));
+//        intervals.sort(Comparator.comparingInt(i -> i.start));
 //        for(var interval: intervals) {
 //            System.err.println(interval.vreg.toString() + ": " + interval.start + " " + interval.end);
 //        }
         System.out.println("starting linear scan register allocation for function: " + function.getName());
 
         // 分别处理整数和浮点寄存器分配
-        allocateRegisters(false); // 分配整数寄存器
-        allocateRegisters(true);  // 分配浮点寄存器
+        allocateRegisters(intIntervals, false); // 分配整数寄存器
+        allocateRegisters(floatIntervals, true);  // 分配浮点寄存器
 
         // 打印出分配情况
         System.out.println("Register allocation completed for function: " + function.getName());
@@ -115,7 +133,7 @@ public class LinearScanRegisterAllocator {
         }
     }
 
-    private void allocateRegisters(boolean forFloat) {
+    private void allocateRegisters(List<LiveInterval> intervals, boolean forFloat) {
         TreeSet<LiveInterval> active = new TreeSet<>(Comparator.comparingInt(i -> i.end));
 
         List<PhysicalRegister> availableRegs = forFloat ?
@@ -123,12 +141,16 @@ public class LinearScanRegisterAllocator {
                 new ArrayList<>(availableIntRegs);
 
         for (LiveInterval current : intervals) {
-            if (MIRType.isFloat(current.vreg.getType()) != forFloat) continue;
+            if (MIRType.isFloat(current.vreg.getType()) != forFloat){
+                throw new IllegalArgumentException("Interval type mismatch: " + current.vreg.getType());
+                //continue;
+            }
+
 
             expireOldIntervals(current.start, active, availableRegs);
 
             if (active.size() == availableRegs.size()) {
-                spillAtInterval(current, active, availableRegs);
+                spillAtInterval(current, active, availableRegs, forFloat);
             } else {
                 // 分配物理寄存器
                 PhysicalRegister reg = availableRegs.remove(0);
@@ -163,11 +185,11 @@ public class LinearScanRegisterAllocator {
         }
     }
 
-    private void spillAtInterval(LiveInterval current, TreeSet<LiveInterval> active, List<PhysicalRegister> availableRegs) {
+    private void spillAtInterval(LiveInterval current, TreeSet<LiveInterval> active, List<PhysicalRegister> availableRegs, boolean forFloat) {
         LiveInterval spill = active.last();
         if (spill.end > current.end) {
             // 溢出spill区间
-            spillLocations.put(spill, allocateSpillSlot(MIRType.isFloat(spill.vreg.getType())));
+            spillLocations.put(spill, allocateSpillSlot(forFloat));
 
             // 将spill的寄存器分配给当前区间
             PhysicalRegister reg = registerAssignment.get(spill);
@@ -505,12 +527,12 @@ public class LinearScanRegisterAllocator {
     public PhysicalRegister getIntTempReg1() { return intTempReg1; }
     public PhysicalRegister getIntTempReg2() { return intTempReg2; }
     public PhysicalRegister getIntTempReg() {
-        return tempIntRegs.get(tempIntRegOffset++ % tempIntRegs.size());
+        return tempIntRegs.get(tempIntRegIndex++ % tempIntRegs.size());
     }
     public PhysicalRegister getFloatTempReg1() { return floatTempReg1; }
     public PhysicalRegister getFloatTempReg2() { return floatTempReg2; }
     public PhysicalRegister getFloatTempReg() {
-        return tempFloatRegs.get(tempFloatRegOffset++ % tempFloatRegs.size());
+        return tempFloatRegs.get(tempFloatRegIndex++ % tempFloatRegs.size());
     }
 
 

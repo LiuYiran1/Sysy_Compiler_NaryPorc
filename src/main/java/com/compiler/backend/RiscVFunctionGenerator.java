@@ -14,6 +14,10 @@ public class RiscVFunctionGenerator {
     private final StringBuilder asm = new StringBuilder();
     private final Map<MIRVirtualReg, Integer> arrayOffsets = new LinkedHashMap<>();
 
+    // 记录当前指令的目标操作数（用于处理spill变量）
+    private MIRVirtualReg currentDestOperand;
+    private PhysicalRegister currentDestTempReg;
+
     public RiscVFunctionGenerator(
             MIRFunction function,
             LinearScanRegisterAllocator allocator,
@@ -55,23 +59,23 @@ public class RiscVFunctionGenerator {
         asm.append("    sd s0, ").append(frameSize - 16).append("(sp)\n");
         asm.append("    addi s0, sp, ").append(frameSize).append("\n");
 
-        if(function.getName().equals("main")) {
+        if(!function.getName().equals("main")) {
             // main函数不需要保存
-           return;
+            // 保存被调用者保存寄存器
+            int offset = frameSize - 24;
+            for (PhysicalRegister reg : allocator.getUsedCalleeSaved()) {
+                asm.append("    sd ").append(reg).append(", ").append(offset).append("(sp)\n");
+                offset -= 8;
+            }
         }
-        // 保存被调用者保存寄存器
-        int offset = frameSize - 24;
-        for (PhysicalRegister reg : allocator.getUsedCalleeSaved()) {
-            asm.append("    sd ").append(reg).append(", ").append(offset).append("(sp)\n");
-            offset -= 8;
-        }
+
     }
 
     private void generateEpilogue() {
         int frameSize = stackManager.getFrameSize();
 
         asm.append("    # Function epilogue\n");
-        // 恢复被调用者保存寄存器
+
         int offset = frameSize - 24;
         for (PhysicalRegister reg : allocator.getUsedCalleeSaved()) {
             asm.append("    ld ").append(reg).append(", ").append(offset).append("(sp)\n");
@@ -81,7 +85,6 @@ public class RiscVFunctionGenerator {
         asm.append("    ld ra, ").append(frameSize - 8).append("(sp)\n");
         asm.append("    ld s0, ").append(frameSize - 16).append("(sp)\n");
         asm.append("    addi sp, sp, ").append(frameSize).append("\n");
-        asm.append("    ret\n");
     }
 
     private void generateInstruction(MIRInstruction inst) {
@@ -115,19 +118,21 @@ public class RiscVFunctionGenerator {
 
     private void generateLuiOp(MIRLuiOp inst) {
         MIRVirtualReg result = inst.getResult();
-        asm.append("    lui ").append(getOperandAsm(result)).append(", ").append(inst.getOperands().get(0).toString()).append("\n");
+        asm.append("    lui ").append(getOperandAsm(result, true)).append(", ")
+           .append(inst.getOperands().get(0).toString()).append("\n");
     }
 
     private void generateLiOp(MIRLiOp inst) {
         MIRVirtualReg result = inst.getResult();
         String value = inst.getOperands().get(0).toString();
-        String op = "li";
-        asm.append("    ").append(op).append(" ").append(getOperandAsm(result)).append(", ").append(value).append("\n");
+        asm.append("    li ").append(getOperandAsm(result, true)).append(", ")
+           .append(value).append("\n");
     }
 
     private void generateLaOp(MIRLaOp inst) {
         MIRVirtualReg result = inst.getResult();
-        asm.append("    la ").append(getOperandAsm(result)).append(", ").append(inst.getOperands().get(0).toString()).append("\n");
+        asm.append("    la ").append(getOperandAsm(result, true)).append(", ")
+           .append(inst.getOperands().get(0).toString()).append("\n");
     }
 
     private void generateAllocOp(MIRAllocOp inst) {
@@ -151,11 +156,11 @@ public class RiscVFunctionGenerator {
         }
 
         if (src instanceof MIRImmediate) {
-            asm.append("    li ").append(getOperandAsm(dest)).append(", ").append(src).append("\n");
+            asm.append("    li ").append(getOperandAsm(dest, true)).append(", ").append(src).append("\n");
         } else {
             asm.append("    ").append(op).append(" ")
-                    .append(getOperandAsm(dest)).append(", ")
-                    .append(getOperandAsm(src)).append("\n");
+                    .append(getOperandAsm(dest, true)).append(", ")
+                    .append(getOperandAsm(src, false)).append("\n");
         }
     }
 
@@ -167,7 +172,7 @@ public class RiscVFunctionGenerator {
             case COND_JMP:
                 // 条件跳转已在CMP指令中设置条件，这里直接跳转
                 asm.append("    ").append("bnez").append(" ")
-                        .append(getOperandAsm(inst.getCondition())).append(", ")
+                        .append(getOperandAsm(inst.getCondition(), false)).append(", ")
                         .append(inst.getTarget().toString()).append("\n");
                 break;
             case RET:
@@ -191,9 +196,9 @@ public class RiscVFunctionGenerator {
         String op = isFloat ? "feq.s" : "xor";
 
         asm.append("    ").append(getCmpOp(inst.getOp(), isFloat)).append(" ")
-                .append(getOperandAsm(result)).append(", ")
-                .append(getOperandAsm(left)).append(", ")
-                .append(getOperandAsm(right)).append("\n");
+                .append(getOperandAsm(result, true)).append(", ")
+                .append(getOperandAsm(left, false)).append(", ")
+                .append(getOperandAsm(right, false)).append("\n");
     }
 
     private String getCmpOp(MIRCmpOp.Op op, boolean isFloat) {
@@ -228,11 +233,11 @@ public class RiscVFunctionGenerator {
         boolean destFloat = MIRType.isFloat(dest.getType());
 
         if (srcFloat && !destFloat) {
-            asm.append("    fcvt.w.s ").append(getOperandAsm(dest)).append(", ").append(getOperandAsm(src)).append(", rtz\n");
+            asm.append("    fcvt.w.s ").append(getOperandAsm(dest, true)).append(", ").append(getOperandAsm(src, false)).append(", rtz\n");
         } else if (!srcFloat && destFloat) {
-            asm.append("    fcvt.s.w ").append(getOperandAsm(dest)).append(", ").append(getOperandAsm(src)).append("\n");
+            asm.append("    fcvt.s.w ").append(getOperandAsm(dest, true)).append(", ").append(getOperandAsm(src, false)).append("\n");
         } else {
-            asm.append("    mv ").append(getOperandAsm(dest)).append(", ").append(getOperandAsm(src)).append("\n");
+            asm.append("    mv ").append(getOperandAsm(dest, true)).append(", ").append(getOperandAsm(src, false)).append("\n");
         }
     }
 
@@ -245,9 +250,9 @@ public class RiscVFunctionGenerator {
         String op = getArithOp(inst.getOp(), isFloat);
 
         asm.append("    ").append(op).append(" ")
-                .append(getOperandAsm(result)).append(", ")
-                .append(getOperandAsm(left)).append(", ")
-                .append(getOperandAsm(right)).append("\n");
+                .append(getOperandAsm(result, true)).append(", ")
+                .append(getOperandAsm(left, false)).append(", ")
+                .append(getOperandAsm(right, false)).append("\n");
     }
 
     private String getArithOp(MIRArithOp.Op op, boolean isFloat) {
@@ -280,9 +285,9 @@ public class RiscVFunctionGenerator {
             String loadOp = isFloat ? "flw" : "lw";
 
             asm.append("    ").append(loadOp).append(" ")
-                    .append(getOperandAsm(result)).append(", ")
+                    .append(getOperandAsm(result, true)).append(", ")
                     .append(mem.getOffset()).append("(")
-                    .append(getOperandAsm(mem.getBase())).append(")\n");
+                    .append(getOperandAsm(mem.getBase(), false)).append(")\n");
         } else { // STORE
             MIRMemory mem = (MIRMemory) op.getOperands().get(0);
             MIROperand value = op.getOperands().get(1);
@@ -290,9 +295,9 @@ public class RiscVFunctionGenerator {
             String storeOp = isFloat ? "fsw" : "sw";
 
             asm.append("    ").append(storeOp).append(" ")
-                    .append(getOperandAsm(value)).append(", ")
+                    .append(getOperandAsm(value, false)).append(", ")
                     .append(mem.getOffset()).append("(")
-                    .append(getOperandAsm(mem.getBase())).append(")\n");
+                    .append(getOperandAsm(mem.getBase(), false)).append(")\n");
         }
     }
 
@@ -393,21 +398,28 @@ public class RiscVFunctionGenerator {
                     "fmv.s" : "mv";
 
             asm.append("    ").append(moveOp).append(" ")
-                    .append(getOperandAsm(resultReg)).append(", ")
+                    .append(getOperandAsm(resultReg, true)).append(", ")
                     .append(retReg).append("\n");
         }
     }
 
-    private String getOperandAsm(MIROperand operand) {
-        if (operand == null) return "UNKNOWN";
+    private String getOperandAsm(MIROperand operand, boolean isDest) {
+        if (operand == null){
+            throw new IllegalArgumentException("Operand cannot be null");
+        }
 
         if (operand instanceof MIRVirtualReg) {
             MIRVirtualReg vreg = (MIRVirtualReg) operand;
 
-            // 检查数组基址
-            if (arrayOffsets.containsKey(vreg)) {
-                return "t0"; // 已在generateMemoryOp中计算
+            // 记录目标操作数（用于后续存储）
+            if (isDest) {
+                currentDestOperand = vreg;
             }
+
+//            // 检查数组基址
+//            if (arrayOffsets.containsKey(vreg)) {
+//                return "t0"; // 已在generateMemoryOp中计算
+//            }
 
             // 检查寄存器分配
             PhysicalRegister preg = allocator.getRegisterFor(vreg);
@@ -422,7 +434,12 @@ public class RiscVFunctionGenerator {
                 PhysicalRegister tempReg = MIRType.isFloat(vreg.getType()) ?
                         allocator.getFloatTempReg() :
                         allocator.getIntTempReg();
-
+                // 如果是目标操作数，先记录临时寄存器（稍后存储）
+                if (isDest) {
+                    currentDestTempReg = tempReg;
+                    return tempReg.toString();
+                }
+                // 源操作数直接加载
                 String loadOp = MIRType.isFloat(vreg.getType()) ? "fld" : "ld";
                 asm.append("    ").append(loadOp).append(" ")
                         .append(tempReg).append(", ")
@@ -433,9 +450,24 @@ public class RiscVFunctionGenerator {
             return operand.toString();
         } else if (operand instanceof MIRMemory) {
             MIRMemory mem = (MIRMemory) operand;
-            return mem.getOffset() + "(" + getOperandAsm(mem.getBase()) + ")";
+            return mem.getOffset() + "(" + getOperandAsm(mem.getBase(), false) + ")";
+        } else if (operand instanceof MIRPhysicalReg) {
+            return operand.toString();
         }
 
         return operand.toString();
     }
+
+    private void storeSpilledDestOperand(MIRVirtualReg vreg, PhysicalRegister tempReg) {
+        Integer spillOffset = allocator.getSpillLocation(vreg);
+        if (spillOffset != null) {
+            boolean isFloat = MIRType.isFloat(vreg.getType());
+            String storeOp = isFloat ? "fsw" : "sw";
+            asm.append("    ").append(storeOp).append(" ")
+                    .append(tempReg).append(", ")
+                    .append(spillOffset).append("(s0)\n");
+        }
+    }
 }
+
+

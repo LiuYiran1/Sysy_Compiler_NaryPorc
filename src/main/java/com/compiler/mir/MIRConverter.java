@@ -559,6 +559,7 @@ public class MIRConverter {
             MIRType argType = convertType(LLVMTypeOf(arg));
             MIROperand mirArg = getMIRValue(arg, mirFunc, mirBB);
             args.add(mirArg);
+
             if(i < 8){
                 if(MIRType.isFloat(argType)) {
                     mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.FA0.ordinal() + i]),mirArg, MIRMoveOp.MoveType.FLOAT));
