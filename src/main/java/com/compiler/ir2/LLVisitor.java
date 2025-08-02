@@ -194,8 +194,8 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         boolean hasChanged = true;
         while (hasChanged){
             hasChanged = unUsedVarElimPass.run(mod)
-                    || deadCodeElimPass.run(mod)
-                    || constantPropagationPass.run(mod);
+                    || deadCodeElimPass.run(mod);
+                    //|| constantPropagationPass.run(mod);
         }
 
         mod.dump(file);

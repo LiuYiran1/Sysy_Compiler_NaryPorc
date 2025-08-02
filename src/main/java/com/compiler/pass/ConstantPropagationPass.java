@@ -46,6 +46,13 @@ public class ConstantPropagationPass implements Pass {
             this.value = other.value;
         }
 
+        static ConstValue makeOverdef() {
+            ConstValue v = new ConstValue();
+            v.state = LatticeVal.OVERDEF;
+            return v;
+        }
+
+
         void meet(ConstValue other) {
             if (other.state == LatticeVal.OVERDEF || this.state == LatticeVal.OVERDEF) {
                 this.state = LatticeVal.OVERDEF;
@@ -205,7 +212,7 @@ public class ConstantPropagationPass implements Pass {
                 result.state = LatticeVal.OVERDEF;
             }
         } else {
-            result.state = meetState(l.state, r.state);
+            result = meetState(l, r);
         }
 
         if (updateLattice(inst, result)) {
@@ -246,7 +253,7 @@ public class ConstantPropagationPass implements Pass {
                 result.state = LatticeVal.OVERDEF;
             }
         } else {
-            result.state = meetState(l.state, r.state);
+            result = meetState(l, r);
         }
 
         if (updateLattice(inst, result)) {
@@ -276,13 +283,21 @@ public class ConstantPropagationPass implements Pass {
 
     private void evalPhi(PhiInst phi) {
         ConstValue result = new ConstValue();
-
+        System.out.println(phi.toIR());
         for (int i = 0; i < phi.getOperands().size(); i++) {
             BasicBlock from = phi.getIncomingBlocks().get(i);
             // if (!executableBlocks.contains(from)) continue;
 
             Value incoming = phi.getOperands().get(i);
-            result.meet(getConst(incoming));
+
+            ConstValue tem = getConst(incoming);
+            if (phi.getName().equals("Mem2RegPhi_sum")){
+                System.out.println(tem.state.name());
+            }
+            result.meet(tem);
+            if (phi.getName().equals("Mem2RegPhi_sum")){
+                System.out.println("result   " + result.state.name());
+            }
         }
 
         if (updateLattice(phi, result)) {
@@ -381,15 +396,29 @@ public class ConstantPropagationPass implements Pass {
         }
     }
 
-    private LatticeVal meetState(LatticeVal a, LatticeVal b) {
-        if(a == LatticeVal.OVERDEF || b == LatticeVal.OVERDEF){
-            return LatticeVal.OVERDEF;
-        } else if(a == LatticeVal.UNDEF || b == LatticeVal.UNDEF){
-            return LatticeVal.UNDEF;
-        } else {
-            throw new RuntimeException("meet state failed");
+    private ConstValue meetState(ConstValue a, ConstValue b) {
+        if (a.state == LatticeVal.OVERDEF || b.state == LatticeVal.OVERDEF) {
+            return ConstValue.makeOverdef(); // OVERDEF by default
         }
+        if (a.state == LatticeVal.UNDEF && b.state == LatticeVal.UNDEF) {
+            return new ConstValue();
+        }
+        if (a.state == LatticeVal.UNDEF) {
+            return ConstValue.makeOverdef();
+        }
+        if (b.state == LatticeVal.UNDEF) {
+            return ConstValue.makeOverdef();
+        }
+
+        // Both are CONST
+        if (Objects.equals(a.value, b.value)) {
+            return new ConstValue(a); // same const value
+        }
+
+        // Conflict
+        return ConstValue.makeOverdef(); // default is OVERDEF
     }
+
 
 }
 
