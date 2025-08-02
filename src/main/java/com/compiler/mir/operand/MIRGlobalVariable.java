@@ -134,7 +134,7 @@ public class MIRGlobalVariable extends MIROperand {
 
     @Override
     public String toString() {
-        return "@" + name;
+        return "" + name;
     }
 
 }

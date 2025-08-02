@@ -489,7 +489,8 @@ public class MIRConverterLL {
 
         if(src1 instanceof MIRImmediate){
             src1 = immToReg(mirFunc,mirBB, ((MIRImmediate) src1).getValue());
-        } else if(src2 instanceof MIRImmediate){
+        }
+        if(src2 instanceof MIRImmediate){
             src2 = immToReg(mirFunc,mirBB, ((MIRImmediate) src2).getValue());
         }
 
@@ -864,6 +865,13 @@ public class MIRConverterLL {
         valueMap.put(inst, result);
         MIROperand left = getMIRValue(inst.getOperand(0),mirFunc,mirBB);
         MIROperand right = getMIRValue(inst.getOperand(1),mirFunc,mirBB);
+
+        if(left instanceof MIRImmediate){
+            left = immToReg(mirFunc,mirBB, ((MIRImmediate) left).getValue());
+        }
+        if(right instanceof MIRImmediate){
+            right = immToReg(mirFunc,mirBB, ((MIRImmediate) right).getValue());
+        }
 
         // TODO: 处理二元运算逻辑
         MIRArithOp.Op op = null;
