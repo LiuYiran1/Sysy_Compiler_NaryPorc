@@ -54,17 +54,30 @@ public class RiscVFunctionGenerator {
         int frameSize = stackManager.getFrameSize();
 
         asm.append("    # Function prologue for ").append(function.getName()).append("\n");
-        asm.append("    addi sp, sp, -").append(frameSize).append("\n");
-        asm.append("    sd ra, ").append(frameSize - 8).append("(sp)\n");
-        asm.append("    sd s0, ").append(frameSize - 16).append("(sp)\n");
+        asm.append("    addi sp, sp, -16").append("\n");
+        asm.append("    sd ra, ").append("8").append("(sp)\n");
+        asm.append("    sd s0, ").append("0").append("(sp)\n");
+        //asm.append("    addi s0, sp, ").append(frameSize).append("\n");
+        asm.append("    addi sp, sp, -").append(frameSize - 16).append("\n");
         asm.append("    addi s0, sp, ").append(frameSize).append("\n");
+
+//        asm.append("    addi sp, sp, -").append(frameSize).append("\n");
+//        asm.append("    sd ra, ").append(frameSize - 8).append("(sp)\n");
+//        asm.append("    sd s0, ").append(frameSize - 16).append("(sp)\n");
+//        asm.append("    addi s0, sp, ").append(frameSize).append("\n");
 
         if(!function.getName().equals("main")) {
             // main函数不需要保存
             // 保存被调用者保存寄存器
-            int offset = frameSize - 24;
+//            int offset = frameSize - 24;
+            int offset = -24;
             for (PhysicalRegister reg : allocator.getUsedCalleeSaved()) {
-                asm.append("    sd ").append(reg).append(", ").append(offset).append("(sp)\n");
+                if(reg.name().startsWith("f")){
+                    // 说明是float的
+                    asm.append("    fsw ").append(reg).append(", ").append(offset).append("(s0)\n");
+                } else {
+                    asm.append("    sd ").append(reg).append(", ").append(offset).append("(s0)\n");
+                }
                 offset -= 8;
             }
         }
@@ -76,15 +89,26 @@ public class RiscVFunctionGenerator {
 
         asm.append("    # Function epilogue\n");
 
-        int offset = frameSize - 24;
+//        int offset = frameSize - 24;
+//        for (PhysicalRegister reg : allocator.getUsedCalleeSaved()) {
+//            asm.append("    ld ").append(reg).append(", ").append(offset).append("(sp)\n");
+//            offset -= 8;
+//        }
+        int offset = -24;
         for (PhysicalRegister reg : allocator.getUsedCalleeSaved()) {
-            asm.append("    ld ").append(reg).append(", ").append(offset).append("(sp)\n");
+            if(reg.name().startsWith("f")){
+                // 说明是float的
+                asm.append("    flw ").append(reg).append(", ").append(offset).append("(s0)\n");
+            } else {
+                asm.append("    ld ").append(reg).append(", ").append(offset).append("(s0)\n");
+            }
             offset -= 8;
         }
 
-        asm.append("    ld ra, ").append(frameSize - 8).append("(sp)\n");
-        asm.append("    ld s0, ").append(frameSize - 16).append("(sp)\n");
-        asm.append("    addi sp, sp, ").append(frameSize).append("\n");
+        asm.append("    addi sp, sp, ").append(frameSize - 16).append("\n");
+        asm.append("    ld ra, ").append("8").append("(sp)\n");
+        asm.append("    ld s0, ").append("0").append("(sp)\n");
+        asm.append("    addi sp, sp, ").append("16").append("\n");
     }
 
     private void generateInstruction(MIRInstruction inst) {

@@ -593,7 +593,8 @@ public class MIRConverterLL {
         if(kind == TypeID.ARRAY) {
             ArrayType arrayType = (ArrayType) type;
             // 数组类型
-            int arraySize = arrayType.getNumElements();
+//            int arraySize = arrayType.getNumElements();
+            int arraySize = getArrayLength(arrayType);
             Type elementType = arrayType.getElementType();
             MIRType mirType = convertType(elementType);
             offset = arraySize * 4; // 每个元素占8个字节（riscV64）,不对，应该还是4
@@ -817,7 +818,11 @@ public class MIRConverterLL {
                 indexOp = immToReg(mirFunc, mirBB, ((MIRImmediate) indexOp).getValue() * 4); // 这里应该*4吧？
             }
 
-            mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.SUB,result,MIRArithOp.Type.INT,base, indexOp));
+            if(basePtr.isGlobalVariable()){
+                mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,result,MIRArithOp.Type.INT,base, indexOp));
+            } else {
+                mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.SUB,result,MIRArithOp.Type.INT,base, indexOp));
+            }
 
         } else {
             // TODO: 三个操作数的
@@ -843,7 +848,12 @@ public class MIRConverterLL {
                     indexOp = immToReg(mirFunc, mirBB, ((MIRImmediate) indexOp).getValue() * ptrSize * 4); // 这里应该*4吧？
 
                 }
-                mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.SUB,result,MIRArithOp.Type.INT,base, indexOp));
+                if(basePtr.isGlobalVariable()){
+                    mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,result,MIRArithOp.Type.INT,base, indexOp));
+                } else {
+                    mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.SUB,result,MIRArithOp.Type.INT,base, indexOp));
+                }
+//                mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.SUB,result,MIRArithOp.Type.INT,base, indexOp));
             } else {
                 // 说明是一个 i32* 或 f32*
                 // 有这种情况吗？ 没有
