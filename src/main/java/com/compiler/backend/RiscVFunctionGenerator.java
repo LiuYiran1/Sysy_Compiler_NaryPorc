@@ -152,7 +152,7 @@ public class RiscVFunctionGenerator {
         int offset = stackManager.getArrayOffset(result);
         // 应该用个add
         asm.append("    addi ").append(getOperandAsm(result, true)).append(", ")
-           .append("s0").append(" -").append(offset).append("\n");
+           .append("s0, ").append("-").append(offset).append("\n");
 
     }
 
@@ -480,6 +480,10 @@ public class RiscVFunctionGenerator {
         boolean isFloat = MIRType.isFloat(result.getType());
         String op = getArithOp(inst.getOp(), isFloat);
 
+        if(op.equals("add") || right instanceof MIRImmediate){
+            op = "addi";
+        }
+
         asm.append("    ").append(op).append(" ")
            .append(getOperandAsm(result, true)).append(", ");
         if(currentDestTempReg != null) {
@@ -599,7 +603,7 @@ public class RiscVFunctionGenerator {
     private void saveCallerSavedRegisters() {
         asm.append("    # Save caller-saved registers\n");
         int stackSize = allocator.getUsedCallerSaved().size() * 8;
-        asm.append("    addi ").append("sp, sp ").append(-stackSize).append("\n");
+        asm.append("    addi ").append("sp, sp, ").append(-stackSize).append("\n");
         int offset = -8;
         for (PhysicalRegister reg : allocator.getUsedCallerSaved()) {
             asm.append("    sd ").append(reg).append(", ").append(offset).append("(s0)\n");
@@ -611,7 +615,7 @@ public class RiscVFunctionGenerator {
     private void restoreCallerSavedRegisters() {
         asm.append("    # Restore caller-saved registers\n");
         int stackSize = allocator.getUsedCallerSaved().size() * 8;
-        asm.append("    addi ").append("sp, sp ").append(stackSize).append("\n");
+        asm.append("    addi ").append("sp, sp, ").append(stackSize).append("\n");
 
         int offset = -8;
         for (PhysicalRegister reg : allocator.getUsedCallerSaved()) {

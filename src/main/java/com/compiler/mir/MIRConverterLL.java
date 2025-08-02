@@ -464,6 +464,11 @@ public class MIRConverterLL {
             CondBranchInst condBranchInst = (CondBranchInst) inst;
 
             MIROperand cond = getMIRValue(inst.getOperand(0), mirFunc, mirBB);
+
+            if(cond instanceof MIRImmediate){
+                cond = immToReg(mirFunc,mirBB,((MIRImmediate) cond).getValue());
+            }
+
             String trueLabel = condBranchInst.getTrueBlock().getName();
             String falseLabel = condBranchInst.getFalseBlock().getName();
             MIRLabel trueTarget = new MIRLabel(trueLabel);
@@ -567,6 +572,10 @@ public class MIRConverterLL {
         MIROperand addr = getMIRValue(inst.getOperand(1), mirFunc, mirBB);
         MIRMemory memory = new MIRMemory(addr, new MIRImmediate(0, MIRType.I64), value.getType());
 
+        if(value instanceof MIRImmediate){
+            value = immToReg(mirFunc,mirBB,((MIRImmediate) value).getValue());
+        }
+
         if (MIRType.isFloat(value.getType())) {
             mirBB.getInstructions().add(new MIRMemoryOp(MIRMemoryOp.Op.STORE, MIRMemoryOp.Type.FLOAT, memory,value));
         } else {
@@ -625,7 +634,8 @@ public class MIRConverterLL {
         }
 
         int stackSize = ((floatArgCount - 8 > 0) ? (floatArgCount - 8) * 8 : 0 ) + ((intArgCount - 8 > 0) ? (intArgCount - 8) * 8 : 0);
-        mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.SUB, new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP), MIRArithOp.Type.INT, new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP),new MIRImmediate(stackSize,MIRType.I64)));
+
+        mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD, new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP), MIRArithOp.Type.INT, new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP),new MIRImmediate(-stackSize,MIRType.I64)));
 
         intArgCount = 0;
         floatArgCount = 0;
@@ -939,6 +949,10 @@ public class MIRConverterLL {
 //                    MIROperand source = getMIRValue(incomingValue, mirFunc, currentBB);
                     MIROperand source = getMIRValue(incomingValue, mirFunc, tempBB);
 
+                    if(source instanceof MIRImmediate){
+                        source = immToReg(mirFunc,tempBB,((MIRImmediate) source).getValue());
+                    }
+
                     if (mirIncomingBB.getLabel().toString().equals("ifNext"))
                         System.out.println("666666666666666666666666666666   " + mirIncomingBB.getInstructions().size());
 
@@ -1051,10 +1065,11 @@ public class MIRConverterLL {
 
         // 步骤1: 加载位模式到整数寄存器
         MIRVirtualReg intReg = mirFunc.newVirtualReg(MIRType.I32);
-        List<MIRInstruction> loadInsts = loadLargeImmediate(intReg, bits, mirFunc);
-        for (MIRInstruction inst : loadInsts) {
-            mirBB.getInstructions().add(inst);
-        }
+//        List<MIRInstruction> loadInsts = loadLargeImmediate(intReg, bits, mirFunc);
+//        for (MIRInstruction inst : loadInsts) {
+//            mirBB.getInstructions().add(inst);
+//        }
+        mirBB.getInstructions().add(new MIRLiOp(MIRLiOp.Op.LI,intReg,new MIRImmediate(bits,MIRType.I32)));
 
         // 步骤2: 将位模式移动到浮点寄存器 (fmv.w.x)
         mirBB.getInstructions().add(new MIRMoveOp(
@@ -1074,10 +1089,11 @@ public class MIRConverterLL {
         } else {
             // 大立即数生成加载指令
             MIRVirtualReg reg = mirFunc.newVirtualReg(MIRType.I32);
-            List<MIRInstruction> insts = loadLargeImmediate(reg, value, mirFunc);
-            for(MIRInstruction inst : insts) {
-                mirBB.getInstructions().add(inst);
-            }
+//            List<MIRInstruction> insts = loadLargeImmediate(reg, value, mirFunc);
+//            for(MIRInstruction inst : insts) {
+//                mirBB.getInstructions().add(inst);
+//            }
+            mirBB.getInstructions().add(new MIRLiOp(MIRLiOp.Op.LI,reg,new MIRImmediate((int)value, convertType(constant.getType()))));
             return reg;
         }
     }
