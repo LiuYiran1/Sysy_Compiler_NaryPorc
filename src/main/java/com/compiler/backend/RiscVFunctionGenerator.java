@@ -127,7 +127,7 @@ public class RiscVFunctionGenerator {
     }
 
     private void generateLiOp(MIRLiOp inst) {
-        MIRVirtualReg result = inst.getResult();
+        MIROperand result = inst.getResult() != null ? inst.getResult() : inst.getResultPhysicalReg();
         String value = inst.getOperands().get(0).toString();
         asm.append("    li ").append(getOperandAsm(result, true)).append(", ")
            .append(value).append("\n");

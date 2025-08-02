@@ -167,8 +167,8 @@ public class LinearScanRegisterAllocator {
             expireOldIntervals(current.start, active, availableRegs);
 
             if (active.size() == R) {
-                throw new RuntimeException("never access");
-                //spillAtInterval(current, active, availableRegs, forFloat);
+//                throw new RuntimeException("never access");
+                spillAtInterval(current, active, availableRegs, forFloat);
             } else {
                 // 分配物理寄存器
 
