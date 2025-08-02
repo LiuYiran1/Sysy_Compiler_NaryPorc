@@ -480,7 +480,7 @@ public class RiscVFunctionGenerator {
         boolean isFloat = MIRType.isFloat(result.getType());
         String op = getArithOp(inst.getOp(), isFloat);
 
-        if(op.equals("add") || right instanceof MIRImmediate){
+        if(op.equals("add") && right instanceof MIRImmediate){
             op = "addi";
         }
 
