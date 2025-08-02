@@ -6,14 +6,18 @@ import com.compiler.ll.Values.GlobalValues.Function;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 public class DeadCodeElimPass implements Pass {
+
+    boolean hasChanged = false;
+
     @Override
-    public void run(Module module) {
+    public boolean run(Module module) {
+        hasChanged = false;
         for(Function function : module.getFunctions()) {
             deleteSuspendBlocks(function);
         }
+        return hasChanged;
     }
 
     private void deleteSuspendBlocks(Function function) {
@@ -32,11 +36,11 @@ public class DeadCodeElimPass implements Pass {
                 if (block.getPredecessors().isEmpty()) {
                     function.removeBasicBlock(block);  // 会更新 CFG 和 phi
                     changed = true;
+                    hasChanged = true;
                 }
             }
 
         } while (changed);
     }
-
 
 }

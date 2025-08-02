@@ -8,7 +8,6 @@ import com.compiler.listeners.LexerListener;
 import com.compiler.listeners.ParserListener;
 import com.compiler.ll.Module;
 import com.compiler.mir.MIRModule;
-import com.compiler.mir.MIRPrinter;
 import com.compiler.utils.Checker;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;

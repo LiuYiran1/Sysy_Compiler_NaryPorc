@@ -26,7 +26,7 @@ public class Mem2RegPass implements Pass {
 
 
     @Override
-    public void run(Module module) {
+    public boolean run(Module module) {
         this.nameManager = module.getBuilder().getNameManager();
         for (Function func : module.getFunctionDefs()) {
 
@@ -36,6 +36,7 @@ public class Mem2RegPass implements Pass {
 
             delete(func);
         }
+        return true;
     }
 
     // 一、插入 phi

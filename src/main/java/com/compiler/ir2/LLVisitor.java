@@ -77,7 +77,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
     private final Map<Value, Constant> globalValues = new LinkedHashMap<>();
 
 
-    private boolean arrDefaultZero = true;
+    private boolean arrDefaultZero = false;
 
     public LLVisitor() {
         initRunTimeLibrary();
@@ -185,13 +185,19 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         Pass domPass = new DominateAnalPass();
         Pass mem2RegPass = new Mem2RegPass(context);
         Pass unUsedVarElimPass = new UnusedVarElimPass();
+        Pass constantPropagationPass = new ConstantPropagationPass(context);
 
         DFGPass.run(mod);
         deadCodeElimPass.run(mod);
         domPass.run(mod);
         mem2RegPass.run(mod);
-        unUsedVarElimPass.run(mod);
 
+        boolean hasChanged = true;
+        while (hasChanged){
+            hasChanged = unUsedVarElimPass.run(mod)
+                    || deadCodeElimPass.run(mod);
+                    //|| constantPropagationPass.run(mod);
+        }
 
         mod.dump(file);
 
