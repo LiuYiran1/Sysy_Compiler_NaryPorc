@@ -201,6 +201,12 @@ public class MIRConverterLL {
     private void convertFunction(Function llFunc) {
         String funcName = llFunc.getName();
 
+        if(funcName.equals("starttime")){
+            funcName = "_sysy_starttime";
+        } else if (funcName.equals("stoptime")) {
+            funcName = "_sysy_stoptime";
+        }
+
         MIRFunction mirFunc = new MIRFunction(funcName);
         mirModule.addFunction(mirFunc);
 
