@@ -725,10 +725,22 @@ public class MIRConverterLL {
         if(MIRType.isVoid(mirType)) {
             // 如果是void类型,就不用接受返回值了
             mirBB.getInstructions().add(new MIRControlFlowOp(funcLabel, args));
+
+            mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP), MIRArithOp.Type.INT,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP),new MIRImmediate(stackSize,MIRType.I64)));
+
+            // 恢复相关寄存器
+            // 怎么能在这里做个标记在后端处理时能完成这个操作
+            mirBB.getInstructions().add(new MIRPseudoOp(MIRPseudoOp.Type.CALLER_RESTORE_REG,0));
         } else {
             MIRVirtualReg result = mirFunc.newVirtualReg(mirType);
             valueMap.put(inst, result);
             mirBB.getInstructions().add(new MIRControlFlowOp(funcLabel, result, args));
+
+            mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP), MIRArithOp.Type.INT,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP),new MIRImmediate(stackSize,MIRType.I64)));
+
+            // 恢复相关寄存器
+            // 怎么能在这里做个标记在后端处理时能完成这个操作
+            mirBB.getInstructions().add(new MIRPseudoOp(MIRPseudoOp.Type.CALLER_RESTORE_REG,0));
 
             //下面是LLVM处理
 //        %avg = alloca float, align 4
@@ -748,11 +760,11 @@ public class MIRConverterLL {
 
         }
 
-        mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP), MIRArithOp.Type.INT,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP),new MIRImmediate(stackSize,MIRType.I64)));
-
-        // 恢复相关寄存器
-        // 怎么能在这里做个标记在后端处理时能完成这个操作
-        mirBB.getInstructions().add(new MIRPseudoOp(MIRPseudoOp.Type.CALLER_RESTORE_REG,0));
+//        mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP), MIRArithOp.Type.INT,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP),new MIRImmediate(stackSize,MIRType.I64)));
+//
+//        // 恢复相关寄存器
+//        // 怎么能在这里做个标记在后端处理时能完成这个操作
+//        mirBB.getInstructions().add(new MIRPseudoOp(MIRPseudoOp.Type.CALLER_RESTORE_REG,0));
     }
 
     // bug4,这个方法写的真是错漏百出
