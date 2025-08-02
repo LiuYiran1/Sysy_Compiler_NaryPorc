@@ -32,14 +32,14 @@ public class RiscVFunctionGenerator {
         // 函数头
 //        asm.append("    .text\n");
 //        asm.append("    .globl ").append(function.getName()).append("\n");
-        asm.append(function.getName()).append(":\n");
+        asm.append("\n").append(function.getName()).append(":\n");
 
         // 函数序言
         generatePrologue();
 
         // 生成基本块代码
         for (MIRBasicBlock block : function.getBlocks()) {
-            asm.append(block.getLabel().toString()).append(":\n");
+            asm.append("\n").append(block.getLabel().toString()).append(":\n");
             for (MIRInstruction inst : block.getInstructions()) {
                 generateInstruction(inst);
             }
@@ -120,6 +120,10 @@ public class RiscVFunctionGenerator {
         MIRVirtualReg result = inst.getResult();
         asm.append("    lui ").append(getOperandAsm(result, true)).append(", ")
            .append(inst.getOperands().get(0).toString()).append("\n");
+
+        if(currentDestTempReg != null) {
+            storeSpilledDestOperand(currentDestOperand, currentDestTempReg);
+        }
     }
 
     private void generateLiOp(MIRLiOp inst) {
@@ -127,25 +131,34 @@ public class RiscVFunctionGenerator {
         String value = inst.getOperands().get(0).toString();
         asm.append("    li ").append(getOperandAsm(result, true)).append(", ")
            .append(value).append("\n");
+        if(currentDestTempReg != null) {
+            storeSpilledDestOperand(currentDestOperand, currentDestTempReg);
+        }
     }
 
     private void generateLaOp(MIRLaOp inst) {
         MIRVirtualReg result = inst.getResult();
         asm.append("    la ").append(getOperandAsm(result, true)).append(", ")
            .append(inst.getOperands().get(0).toString()).append("\n");
+        if(currentDestTempReg != null) {
+            storeSpilledDestOperand(currentDestOperand, currentDestTempReg);
+        }
     }
 
+    // TODO: 未完成
     private void generateAllocOp(MIRAllocOp inst) {
         // 数组分配已在栈管理器中处理，这里不需要生成代码
         MIRVirtualReg result = inst.getResult();
         int offset = stackManager.getArrayOffset(result);
         // 应该用个add
+        asm.append("    addi ").append(getOperandAsm(result, true)).append(", ")
+           .append("s0").append(" -").append(offset).append("\n");
 
     }
 
     private void generateMoveOp(MIRMoveOp inst) {
         MIROperand src = inst.getOperands().get(0);
-        MIRVirtualReg dest = inst.getResult();
+        MIROperand dest = inst.getResult() != null ? inst.getResult() : inst.getResultPhysicalReg();
         String op = null;
         if(inst.getMoveType() == MIRMoveOp.MoveType.INTEGER){
             op = "mv";
@@ -156,30 +169,43 @@ public class RiscVFunctionGenerator {
         }
 
         if (src instanceof MIRImmediate) {
-            asm.append("    li ").append(getOperandAsm(dest, true)).append(", ").append(src).append("\n");
+            asm.append("    li ").append(getOperandAsm(dest, true)).append(", ")
+               .append(src).append("\n");
+            if(currentDestTempReg != null) {
+                storeSpilledDestOperand(currentDestOperand, currentDestTempReg);
+            }
         } else {
+            String reg = getOperandAsm(src, false);
             asm.append("    ").append(op).append(" ")
-                    .append(getOperandAsm(dest, true)).append(", ")
-                    .append(getOperandAsm(src, false)).append("\n");
+               .append(getOperandAsm(dest, true)).append(", ");
+            if(currentDestTempReg != null) {
+                MIRVirtualReg vreg = currentDestOperand;
+                PhysicalRegister tempReg = currentDestTempReg;
+                asm.append(reg).append("\n");
+                storeSpilledDestOperand(vreg, tempReg);
+            } else {
+                asm.append(reg).append("\n");
+            }
         }
     }
 
     private void generateControlFlowOp(MIRControlFlowOp inst) {
         switch (inst.getType()) {
             case JMP:
-                asm.append("    j ").append(inst.getTarget()).append("\n");
+                asm.append("    j ").append(inst.getTarget().toString()).append("\n");
                 break;
             case COND_JMP:
                 // 条件跳转已在CMP指令中设置条件，这里直接跳转
+                String reg = getOperandAsm(inst.getCondition(), false);
                 asm.append("    ").append("bnez").append(" ")
-                        .append(getOperandAsm(inst.getCondition(), false)).append(", ")
-                        .append(inst.getTarget().toString()).append("\n");
+                   .append(reg).append(", ")
+                   .append(inst.getTarget().toString()).append("\n");
                 break;
             case RET:
                 asm.append("    ").append("ret").append(" ");
                 break;
             case CALL:
-                generateFunctionCall(inst);
+                asm.append("    call ").append(inst.getTarget().toString()).append("\n");
                 break;
             default:
                 throw new IllegalArgumentException("Unsupported control flow op: " + inst.getType());
@@ -193,34 +219,208 @@ public class RiscVFunctionGenerator {
         MIRVirtualReg result = inst.getResult();
 
         boolean isFloat = MIRType.isFloat(result.getType());
-        String op = isFloat ? "feq.s" : "xor";
 
-        asm.append("    ").append(getCmpOp(inst.getOp(), isFloat)).append(" ")
-                .append(getOperandAsm(result, true)).append(", ")
-                .append(getOperandAsm(left, false)).append(", ")
-                .append(getOperandAsm(right, false)).append("\n");
-    }
+        String leftReg = getOperandAsm(left, false);
+        String rightReg = getOperandAsm(right, false);
+        if(!isFloat) {
+            switch (inst.getOp()){
+                case EQ:
+                    // xor + seqz
+                    asm.append("    xor").append(" ").append(getOperandAsm(result, true)).append(", ");
 
-    private String getCmpOp(MIRCmpOp.Op op, boolean isFloat) {
-        if (isFloat) {
-            switch (op) {
-                case EQ: return "feq.s";
-                case NE: return "fne.s";
-                case LT: return "flt.s";
-                case LE: return "fle.s";
-                case GT: return "fgt.s";
-                case GE: return "fge.s";
-                default: throw new IllegalArgumentException("Unsupported float cmp op: " + op);
+                    if(currentDestTempReg != null) {
+                        MIRVirtualReg vreg = currentDestOperand;
+                        PhysicalRegister tempReg = currentDestTempReg;
+                        asm.append(leftReg).append(", ")
+                           .append(rightReg).append("\n");
+                        asm.append("    seqz").append(" ").append(tempReg).append(", ").append(tempReg).append("\n");
+                        storeSpilledDestOperand(vreg, tempReg);
+                    } else {
+                        asm.append(leftReg).append(", ")
+                           .append(rightReg).append("\n");
+                        String tempReg = getOperandAsm(result, false);
+                        asm.append("    seqz").append(" ").append(getOperandAsm(result, true)).append(", ")
+                           .append(tempReg).append("\n");
+                    }
+
+                    break;
+                case NE:
+                    // xor + snez
+                    asm.append("    xor ").append(getOperandAsm(result, true)).append(", ");
+                    if (currentDestTempReg != null) {
+                        MIRVirtualReg vreg = currentDestOperand;
+                        PhysicalRegister tempReg = currentDestTempReg;
+                        asm.append(leftReg).append(", ")
+                           .append(rightReg).append("\n");
+                        asm.append("    snez ").append(tempReg).append(", ").append(tempReg).append("\n");
+                        storeSpilledDestOperand(vreg, tempReg);
+                    } else {
+                        asm.append(leftReg).append(", ")
+                           .append(rightReg).append("\n");
+                        String tempReg = getOperandAsm(result, false);
+                        asm.append("    snez ").append(getOperandAsm(result, true)).append(", ")
+                           .append(tempReg).append("\n");
+                    }
+
+                    break;
+                case LT:
+                    // slt
+                    asm.append("    slt ").append(getOperandAsm(result, true)).append(", ");
+                    if (currentDestTempReg != null) {
+                        MIRVirtualReg vreg = currentDestOperand;
+                        PhysicalRegister tempReg = currentDestTempReg;
+                        asm.append(leftReg).append(", ")
+                           .append(rightReg).append("\n");
+                        storeSpilledDestOperand(vreg, tempReg);
+                    } else {
+                        asm.append(leftReg).append(", ")
+                           .append(rightReg).append("\n");
+                    }
+                    break;
+                case LE:
+                    // slt + xori
+                    asm.append("    slt ").append(getOperandAsm(result, true)).append(", ");
+                    if (currentDestTempReg != null) {
+                        MIRVirtualReg vreg = currentDestOperand;
+                        PhysicalRegister tempReg = currentDestTempReg;
+                        asm.append(leftReg).append(", ")
+                           .append(rightReg).append("\n");
+                        asm.append("    xori ").append(tempReg).append(", ").append(tempReg).append(", 1\n");
+                        storeSpilledDestOperand(vreg, tempReg);
+                    } else {
+                        asm.append(leftReg).append(", ")
+                           .append(rightReg).append("\n");
+                        String tempReg = getOperandAsm(result, false);
+                        asm.append("    xori ").append(getOperandAsm(result, true)).append(", ")
+                           .append(tempReg).append(", 1\n");
+                    }
+                    break;
+                case GT:
+                    // slt (交换src）
+                    asm.append("    slt ").append(getOperandAsm(result, true)).append(", ");
+                    if (currentDestTempReg != null) {
+                        MIRVirtualReg vreg = currentDestOperand;
+                        PhysicalRegister tempReg = currentDestTempReg;
+                        asm.append(rightReg).append(", ")
+                           .append(leftReg).append("\n");
+                        storeSpilledDestOperand(vreg, tempReg);
+                    } else {
+                        asm.append(rightReg).append(", ")
+                           .append(leftReg).append("\n");
+                    }
+                    break;
+                case GE:
+                    // slt (交换src）+ xori
+                    asm.append("    slt ").append(getOperandAsm(result, true)).append(", ");
+                    if (currentDestTempReg != null) {
+                        MIRVirtualReg vreg = currentDestOperand;
+                        PhysicalRegister tempReg = currentDestTempReg;
+                        asm.append(rightReg).append(", ")
+                           .append(leftReg).append("\n");
+                        asm.append("    xori ").append(tempReg).append(", ").append(tempReg).append(", 1\n");
+                        storeSpilledDestOperand(vreg, tempReg);
+                    } else {
+                        asm.append(rightReg).append(", ")
+                           .append(leftReg).append("\n");
+                        String tempReg = getOperandAsm(result, false);
+                        asm.append("    xori ").append(getOperandAsm(result, true)).append(", ")
+                           .append(tempReg).append(", 1\n");
+                    }
+                    break;
+                default: throw new IllegalArgumentException("Unsupported float cmp op: " + inst.getOp());
             }
         } else {
-            switch (op) {
-                case EQ: return "seqz";
-                case NE: return "snez";
-                case LT: return "slt";
-                case LE: return "sle";
-                case GT: return "sgt";
-                case GE: return "sge";
-                default: throw new IllegalArgumentException("Unsupported int cmp op: " + op);
+            switch (inst.getOp()){
+                case EQ:
+                    // feq.s
+                    asm.append("    feq.s ").append(getOperandAsm(result, true)).append(", ");
+                    if (currentDestTempReg != null) {
+                        MIRVirtualReg vreg = currentDestOperand;
+                        PhysicalRegister tempReg = currentDestTempReg;
+                        asm.append(leftReg).append(", ")
+                           .append(rightReg).append("\n");
+                        storeSpilledDestOperand(vreg, tempReg);
+                    } else {
+                        asm.append(leftReg).append(", ")
+                           .append(rightReg).append("\n");
+                    }
+                    break;
+                case NE:
+                    // feq.s + xori
+                    asm.append("    feq.s ").append(getOperandAsm(result, true)).append(", ");
+                    if (currentDestTempReg != null) {
+                        MIRVirtualReg vreg = currentDestOperand;
+                        PhysicalRegister tempReg = currentDestTempReg;
+                        asm.append(leftReg).append(", ")
+                           .append(rightReg).append("\n");
+                        asm.append("    xori ").append(tempReg).append(", ").append(tempReg).append(", 1\n");
+                        storeSpilledDestOperand(vreg, tempReg);
+                    } else {
+                        asm.append(leftReg).append(", ")
+                           .append(rightReg).append("\n");
+                        String tempReg = getOperandAsm(result, false);
+                        asm.append("    xori ").append(getOperandAsm(result, true)).append(", ")
+                           .append(tempReg).append(", 1\n");
+                    }
+                    break;
+                case LT:
+                    // flt.s
+                    asm.append("    flt.s ").append(getOperandAsm(result, true)).append(", ");
+                    if (currentDestTempReg != null) {
+                        MIRVirtualReg vreg = currentDestOperand;
+                        PhysicalRegister tempReg = currentDestTempReg;
+                        asm.append(leftReg).append(", ")
+                           .append(rightReg).append("\n");
+                        storeSpilledDestOperand(vreg, tempReg);
+                    } else {
+                        asm.append(leftReg).append(", ")
+                           .append(rightReg).append("\n");
+                    }
+                    break;
+                case LE:
+                    // fle.s
+                    asm.append("    fle.s ").append(getOperandAsm(result, true)).append(", ");
+                    if (currentDestTempReg != null) {
+                        MIRVirtualReg vreg = currentDestOperand;
+                        PhysicalRegister tempReg = currentDestTempReg;
+                        asm.append(leftReg).append(", ")
+                           .append(rightReg).append("\n");
+                        storeSpilledDestOperand(vreg, tempReg);
+                    } else {
+                        asm.append(leftReg).append(", ")
+                           .append(rightReg).append("\n");
+                    }
+                    break;
+                case GT:
+                    // flt.s(交换src）
+                    asm.append("    flt.s ").append(getOperandAsm(result, true)).append(", ");
+                    if (currentDestTempReg != null) {
+                        MIRVirtualReg vreg = currentDestOperand;
+                        PhysicalRegister tempReg = currentDestTempReg;
+                        asm.append(rightReg).append(", ")
+                           .append(leftReg).append("\n");
+                        storeSpilledDestOperand(vreg, tempReg);
+                    } else {
+                        asm.append(rightReg).append(", ")
+                           .append(leftReg).append("\n");
+                    }
+                    break;
+                case GE:
+                    // fle.s(交换src）
+                    asm.append("    fle.s ").append(getOperandAsm(result, true)).append(", ");
+                    if (currentDestTempReg != null) {
+                        MIRVirtualReg vreg = currentDestOperand;
+                        PhysicalRegister tempReg = currentDestTempReg;
+                        asm.append(rightReg).append(", ")
+                           .append(leftReg).append("\n");
+                        storeSpilledDestOperand(vreg, tempReg);
+                    } else {
+                        asm.append(rightReg).append(", ")
+                           .append(leftReg).append("\n");
+                    }
+
+                    break;
+                default: throw new IllegalArgumentException("Unsupported int cmp op: " + inst.getOp());
             }
         }
     }
@@ -229,30 +429,70 @@ public class RiscVFunctionGenerator {
         MIROperand src = inst.getOperands().get(0);
         MIRVirtualReg dest = inst.getResult();
 
-        boolean srcFloat = MIRType.isFloat(src.getType());
-        boolean destFloat = MIRType.isFloat(dest.getType());
+        String reg = getOperandAsm(src, false);
 
-        if (srcFloat && !destFloat) {
-            asm.append("    fcvt.w.s ").append(getOperandAsm(dest, true)).append(", ").append(getOperandAsm(src, false)).append(", rtz\n");
-        } else if (!srcFloat && destFloat) {
-            asm.append("    fcvt.s.w ").append(getOperandAsm(dest, true)).append(", ").append(getOperandAsm(src, false)).append("\n");
+        if(inst.getOp() == MIRConvertOp.Op.FPTOI){
+            asm.append("    fcvt.w.s ").append(getOperandAsm(dest, true)).append(", ");
+
+            if(currentDestTempReg != null) {
+                MIRVirtualReg vreg = currentDestOperand;
+                PhysicalRegister tempReg = currentDestTempReg;
+                asm.append(reg).append(", rtz\n");
+                storeSpilledDestOperand(vreg, tempReg);
+            } else {
+                asm.append(reg).append(", rtz\n");
+            }
+
+        } else if(inst.getOp() == MIRConvertOp.Op.ITOFP){
+            asm.append("    fcvt.s.w ").append(getOperandAsm(dest, true)).append(", ");
+            if(currentDestTempReg != null) {
+                MIRVirtualReg vreg = currentDestOperand;
+                PhysicalRegister tempReg = currentDestTempReg;
+                asm.append(reg).append("\n");
+                storeSpilledDestOperand(vreg, tempReg);
+            } else {
+                asm.append(reg).append("\n");
+            }
+
+        } else if (inst.getOp() == MIRConvertOp.Op.ZEXT) {
+            asm.append("    mv ").append(getOperandAsm(dest, true)).append(", ");
+            if(currentDestTempReg != null) {
+                MIRVirtualReg vreg = currentDestOperand;
+                PhysicalRegister tempReg = currentDestTempReg;
+                asm.append(reg).append("\n");
+                storeSpilledDestOperand(vreg, tempReg);
+            } else {
+                asm.append(reg).append("\n");
+            }
         } else {
-            asm.append("    mv ").append(getOperandAsm(dest, true)).append(", ").append(getOperandAsm(src, false)).append("\n");
+            throw new IllegalArgumentException("Unsupported convert op: " + inst.getOp());
         }
     }
 
     private void generateArithOp(MIRArithOp inst) {
         MIROperand left = inst.getOperands().get(0);
         MIROperand right = inst.getOperands().get(1);
-        MIRVirtualReg result = inst.getResult();
+        MIROperand result = inst.getResult() != null ? inst.getResult() : inst.getResultPhysicalReg();
+
+        String leftReg = getOperandAsm(left, false);
+        String rightReg = getOperandAsm(right, false);
 
         boolean isFloat = MIRType.isFloat(result.getType());
         String op = getArithOp(inst.getOp(), isFloat);
 
         asm.append("    ").append(op).append(" ")
-                .append(getOperandAsm(result, true)).append(", ")
-                .append(getOperandAsm(left, false)).append(", ")
-                .append(getOperandAsm(right, false)).append("\n");
+           .append(getOperandAsm(result, true)).append(", ");
+        if(currentDestTempReg != null) {
+            MIRVirtualReg vreg = currentDestOperand;
+            PhysicalRegister tempReg = currentDestTempReg;
+            asm.append(leftReg).append(", ")
+               .append(rightReg).append("\n");
+            storeSpilledDestOperand(vreg, tempReg);
+        } else {
+            asm.append(leftReg).append(", ")
+               .append(rightReg).append("\n");
+        }
+
     }
 
     private String getArithOp(MIRArithOp.Op op, boolean isFloat) {
@@ -277,6 +517,7 @@ public class RiscVFunctionGenerator {
         }
     }
 
+    // 针对数组的寻址存储
     private void generateMemoryOp(MIRMemoryOp op) {
         if (op.getOperands().size() == 1) { // LOAD
             MIRMemory mem = (MIRMemory) op.getOperands().get(0);
@@ -284,20 +525,35 @@ public class RiscVFunctionGenerator {
             boolean isFloat = MIRType.isFloat(result.getType());
             String loadOp = isFloat ? "flw" : "lw";
 
+            String base = getOperandAsm(mem.getBase(), false);
+
             asm.append("    ").append(loadOp).append(" ")
-                    .append(getOperandAsm(result, true)).append(", ")
-                    .append(mem.getOffset()).append("(")
-                    .append(getOperandAsm(mem.getBase(), false)).append(")\n");
+               .append(getOperandAsm(result, true)).append(", ");
+            if(currentDestTempReg != null){
+                MIRVirtualReg vreg = currentDestOperand;
+                PhysicalRegister tempReg = currentDestTempReg;
+                asm.append(mem.getOffset()).append("(")
+                   .append(base).append(")\n");
+                storeSpilledDestOperand(vreg, tempReg);
+            } else {
+                asm.append(mem.getOffset()).append("(")
+                   .append(base).append(")\n");
+            }
+
         } else { // STORE
             MIRMemory mem = (MIRMemory) op.getOperands().get(0);
             MIROperand value = op.getOperands().get(1);
+
+            String val = getOperandAsm(value, false);
+            String base = getOperandAsm(mem.getBase(), false);
+
             boolean isFloat = MIRType.isFloat(value.getType());
             String storeOp = isFloat ? "fsw" : "sw";
 
             asm.append("    ").append(storeOp).append(" ")
-                    .append(getOperandAsm(value, false)).append(", ")
+                    .append(val).append(", ")
                     .append(mem.getOffset()).append("(")
-                    .append(getOperandAsm(mem.getBase(), false)).append(")\n");
+                    .append(base).append(")\n");
         }
     }
 
@@ -331,23 +587,32 @@ public class RiscVFunctionGenerator {
 
     private void saveCalleeSavedRegisters() {
         // 已在序言处理
+
     }
 
     private void restoreCalleeSavedRegisters() {
         // 已在收尾处理
     }
 
+
+    // TODO: 下面这两个方法也有问题，没有区分浮点寄存器和整型寄存器。
     private void saveCallerSavedRegisters() {
         asm.append("    # Save caller-saved registers\n");
+        int stackSize = allocator.getUsedCallerSaved().size() * 8;
+        asm.append("    addi ").append("sp, sp ").append(-stackSize).append("\n");
         int offset = -8;
         for (PhysicalRegister reg : allocator.getUsedCallerSaved()) {
             asm.append("    sd ").append(reg).append(", ").append(offset).append("(s0)\n");
             offset -= 8;
         }
+
     }
 
     private void restoreCallerSavedRegisters() {
         asm.append("    # Restore caller-saved registers\n");
+        int stackSize = allocator.getUsedCallerSaved().size() * 8;
+        asm.append("    addi ").append("sp, sp ").append(stackSize).append("\n");
+
         int offset = -8;
         for (PhysicalRegister reg : allocator.getUsedCallerSaved()) {
             asm.append("    ld ").append(reg).append(", ").append(offset).append("(s0)\n");
@@ -355,58 +620,15 @@ public class RiscVFunctionGenerator {
         }
     }
 
-    private void generateFunctionCall(MIRControlFlowOp call) {
-        // 保存调用者保存寄存器
-        saveCallerSavedRegisters();
-
-        // 设置参数 (最多8个寄存器参数)
-//        List<MIROperand> args = call.getOperands();
-//        int regArgs = Math.min(args.size(), 8);
-//        for (int i = 0; i < regArgs; i++) {
-//            MIROperand arg = args.get(i);
-//            PhysicalRegister reg = MIRType.isFloat(arg.getType()) ?
-//                    PhysicalRegister.getFloatArgReg(i) :
-//                    PhysicalRegister.getIntArgReg(i);
-//
-//            asm.append("    mv ").append(reg).append(", ").append(getOperandAsm(arg)).append("\n");
-//        }
-//
-//        // 处理栈上传参 (超出8个的参数)
-//        if (args.size() > 8) {
-//            int stackOffset = 0;
-//            for (int i = 8; i < args.size(); i++) {
-//                MIROperand arg = args.get(i);
-//                asm.append("    li t0, ").append(arg).append("\n");
-//                asm.append("    sd t0, ").append(stackOffset).append("(sp)\n");
-//                stackOffset += 8;
-//            }
-//        }
-
-        // 调用函数
-        asm.append("    call ").append(call.getTarget().toString()).append("\n");
-
-        // 恢复调用者保存寄存器
-        restoreCallerSavedRegisters();
-
-        // 处理返回值
-        if (call.getResult() != null) {
-            MIRVirtualReg resultReg = call.getResult();
-            PhysicalRegister retReg = MIRType.isFloat(resultReg.getType()) ?
-                    PhysicalRegister.FA0 : PhysicalRegister.A0;
-
-            String moveOp = MIRType.isFloat(resultReg.getType()) ?
-                    "fmv.s" : "mv";
-
-            asm.append("    ").append(moveOp).append(" ")
-                    .append(getOperandAsm(resultReg, true)).append(", ")
-                    .append(retReg).append("\n");
-        }
-    }
 
     private String getOperandAsm(MIROperand operand, boolean isDest) {
         if (operand == null){
             throw new IllegalArgumentException("Operand cannot be null");
         }
+        currentDestOperand = null; // 重置当前目标操作数
+        currentDestTempReg = null; // 重置当前目标临时寄存器
+
+        // 应该分为dest和非dest两种情况
 
         if (operand instanceof MIRVirtualReg) {
             MIRVirtualReg vreg = (MIRVirtualReg) operand;
@@ -415,11 +637,6 @@ public class RiscVFunctionGenerator {
             if (isDest) {
                 currentDestOperand = vreg;
             }
-
-//            // 检查数组基址
-//            if (arrayOffsets.containsKey(vreg)) {
-//                return "t0"; // 已在generateMemoryOp中计算
-//            }
 
             // 检查寄存器分配
             PhysicalRegister preg = allocator.getRegisterFor(vreg);
@@ -445,12 +662,27 @@ public class RiscVFunctionGenerator {
                         .append(tempReg).append(", ")
                         .append(spillOffset).append("(s0)\n");
                 return tempReg.toString();
+            } else {
+                throw new IllegalArgumentException("Spilled operand should be found in allocator: " + vreg);
             }
         } else if (operand instanceof MIRImmediate) {
             return operand.toString();
         } else if (operand instanceof MIRMemory) {
+            // 这段应该专门为分配到栈上的函数调用参数准备
+
             MIRMemory mem = (MIRMemory) operand;
-            return mem.getOffset() + "(" + getOperandAsm(mem.getBase(), false) + ")";
+            MIRType type = mem.getType();
+            PhysicalRegister tempReg = MIRType.isFloat(type) ?
+                    allocator.getFloatTempReg() :
+                    allocator.getIntTempReg();
+
+            // 源操作数直接加载
+            String loadOp = MIRType.isFloat(type) ? "fld" : "ld";
+            asm.append("    ").append(loadOp).append(" ")
+                    .append(tempReg).append(", ")
+                    .append("-"+mem.getOffset().toString()).append("("+ mem.getBase().toString() + ")").append("\n");
+
+            return tempReg.toString();
         } else if (operand instanceof MIRPhysicalReg) {
             return operand.toString();
         }
@@ -462,7 +694,7 @@ public class RiscVFunctionGenerator {
         Integer spillOffset = allocator.getSpillLocation(vreg);
         if (spillOffset != null) {
             boolean isFloat = MIRType.isFloat(vreg.getType());
-            String storeOp = isFloat ? "fsw" : "sw";
+            String storeOp = isFloat ? "fsd" : "sd";
             asm.append("    ").append(storeOp).append(" ")
                     .append(tempReg).append(", ")
                     .append(spillOffset).append("(s0)\n");

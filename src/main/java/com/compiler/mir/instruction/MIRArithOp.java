@@ -1,6 +1,7 @@
 package com.compiler.mir.instruction;
 
 import com.compiler.mir.operand.MIROperand;
+import com.compiler.mir.operand.MIRPhysicalReg;
 import com.compiler.mir.operand.MIRVirtualReg;
 
 import java.util.Arrays;
@@ -24,6 +25,14 @@ public class MIRArithOp extends MIRInstruction {
         this.right = right;
     }
 
+    public MIRArithOp(Op op, MIRPhysicalReg result, Type type, MIROperand left, MIROperand right) {
+        super(result);
+        this.op = op;
+        this.type = type;
+        this.left = left;
+        this.right = right;
+    }
+
     public Type getType() {
         return type;
     }
@@ -39,6 +48,6 @@ public class MIRArithOp extends MIRInstruction {
 
     @Override
     public String toString() {
-        return type.name() + op.name() + " " + resultVirtualReg + ", " + left + ", " + right;
+        return type.name() + op.name() + " " + (resultVirtualReg != null ? resultVirtualReg : resultPhysicalReg) + ", " + left + ", " + right;
     }
 }

@@ -58,7 +58,7 @@ public class RiscVModuleGenerator {
         generateTextSection();
 
         // 生成函数代码
-        //generateFunctions();
+        generateFunctions();
 
         return asm.toString();
     }
@@ -126,15 +126,15 @@ public class RiscVModuleGenerator {
 //            asm.append("    ecall\n\n");
 //        }
 
-        // 生成每个函数的具体实现
-//        for (MIRFunction function : definedFunctions) {
-//            RiscVFunctionGenerator funcGenerator = new RiscVFunctionGenerator(
-//                    function,
-//                    allocators.get(function),
-//                    stackManagers.get(function)
-//            );
-//            asm.append(funcGenerator.generate());
-//            asm.append("\n");
-//        }
+//         生成每个函数的具体实现
+        for (MIRFunction function : definedFunctions) {
+            RiscVFunctionGenerator funcGenerator = new RiscVFunctionGenerator(
+                    function,
+                    allocators.get(function),
+                    stackManagers.get(function)
+            );
+            asm.append(funcGenerator.generate());
+            asm.append("\n");
+        }
     }
 }

@@ -22,6 +22,6 @@ public class MIRImmediate extends MIROperand {
 
     @Override
     public String toString() {
-        return "#" + value;
+        return "" + value;
     }
 }

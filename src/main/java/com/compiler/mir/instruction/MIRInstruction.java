@@ -24,6 +24,10 @@ public abstract class MIRInstruction {
         return resultVirtualReg;
     }
 
+    public MIRPhysicalReg getResultPhysicalReg() {
+        return resultPhysicalReg;
+    }
+
     public abstract List<MIROperand> getOperands();
 
     public abstract String toString();

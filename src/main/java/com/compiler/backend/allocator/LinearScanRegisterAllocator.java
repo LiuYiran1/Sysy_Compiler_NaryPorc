@@ -109,10 +109,10 @@ public class LinearScanRegisterAllocator {
         floatIntervals.sort(Comparator.comparingInt(i -> i.start));
 
         // 按起始点排序生存区间
-//        intervals.sort(Comparator.comparingInt(i -> i.start));
-//        for(var interval: intervals) {
-//            System.err.println(interval.vreg.toString() + ": " + interval.start + " " + interval.end);
-//        }
+        intervals.sort(Comparator.comparingInt(i -> i.start));
+        for(var interval: intIntervals) {
+            System.err.println(interval.vreg.toString() + ": " + interval.start + " " + interval.end);
+        }
         System.out.println("starting linear scan register allocation for function: " + function.getName());
 
         // 分别处理整数和浮点寄存器分配
@@ -134,13 +134,30 @@ public class LinearScanRegisterAllocator {
     }
 
     private void allocateRegisters(List<LiveInterval> intervals, boolean forFloat) {
-        TreeSet<LiveInterval> active = new TreeSet<>(Comparator.comparingInt(i -> i.end));
+//        TreeSet<LiveInterval> active = new TreeSet<>(Comparator.comparingInt(i -> i.end));
+        TreeSet<LiveInterval> active = new TreeSet<>((i1, i2) -> {
+            int endCompare = Integer.compare(i1.end, i2.end);
+            if (endCompare != 0) {
+                return endCompare;
+            }
+            // end 相同时，按 start 排序
+            int startCompare = Integer.compare(i1.start, i2.start);
+            if (startCompare != 0) {
+                return startCompare;
+            }
+            // start 也相同时，按虚拟寄存器的唯一标识排序
+            return i1.vreg.toString().compareTo(i2.vreg.toString());
+        });
 
         List<PhysicalRegister> availableRegs = forFloat ?
                 new ArrayList<>(availableFloatRegs) :
                 new ArrayList<>(availableIntRegs);
+        int R = availableRegs.size();
+        System.out.println(intervals.size());
+        System.out.println("Allocating " + R + " registers for function: " + function.getName());
 
         for (LiveInterval current : intervals) {
+
             if (MIRType.isFloat(current.vreg.getType()) != forFloat){
                 throw new IllegalArgumentException("Interval type mismatch: " + current.vreg.getType());
                 //continue;
@@ -149,13 +166,16 @@ public class LinearScanRegisterAllocator {
 
             expireOldIntervals(current.start, active, availableRegs);
 
-            if (active.size() == availableRegs.size()) {
-                spillAtInterval(current, active, availableRegs, forFloat);
+            if (active.size() == R) {
+                throw new RuntimeException("never access");
+                //spillAtInterval(current, active, availableRegs, forFloat);
             } else {
                 // 分配物理寄存器
+
                 PhysicalRegister reg = availableRegs.remove(0);
                 registerAssignment.put(current, reg);
                 active.add(current);
+                System.err.println("active = " + active.size());
                 recordUsedRegister(reg);
             }
         }
@@ -174,10 +194,15 @@ public class LinearScanRegisterAllocator {
     private void expireOldIntervals(int currentPoint, TreeSet<LiveInterval> active,
                                     List<PhysicalRegister> availableRegs) {
         Iterator<LiveInterval> it = active.iterator();
+        int j = 0;
         while (it.hasNext()) {
+//            System.err.println("j =" + j++);
             LiveInterval interval = it.next();
-            if (interval.end < currentPoint) {
+            if (interval.end <= currentPoint) {
+//                System.err.println(registerAssignment.get(interval));
+                System.err.println("available = " + availableRegs.size());
                 availableRegs.add(registerAssignment.get(interval));
+                System.err.println("available = " + availableRegs.size());
                 it.remove();
             } else {
                 break;

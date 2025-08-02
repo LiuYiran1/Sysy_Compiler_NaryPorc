@@ -23,6 +23,10 @@ public class MIRConvertOp extends MIRInstruction {
         this.source = source;
     }
 
+    public Op getOp() {
+        return op;
+    }
+
     @Override
     public List<MIROperand> getOperands() {
         return Arrays.asList(source);

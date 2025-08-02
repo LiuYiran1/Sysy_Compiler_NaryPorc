@@ -2,6 +2,7 @@ package com.compiler.ir2;
 
 
 
+import com.compiler.backend.RiscVModuleGenerator;
 import com.compiler.frontend.SysYParser;
 import com.compiler.frontend.SysYParserBaseVisitor;
 import com.compiler.ll.Context;
@@ -197,7 +198,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         return mod;
     }
 
-    public void mirGen(Module mod, String outputPath) {
+    public MIRModule mirGen(Module mod, String outputPath) {
         PrintWriter writer = null;
         try {
             writer = new PrintWriter(new FileWriter(outputPath));
@@ -210,7 +211,24 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         MIRPrinter mirPrinter = new MIRPrinter(mirModule, writer);
         System.out.println("starting print");
         mirPrinter.printModule();
+
+        return mirModule;
     }
+
+    public void riscVGen(MIRModule mirModule, String outputPath) {
+        PrintWriter writer = null;
+        try {
+            writer = new PrintWriter(new FileWriter(outputPath));
+        } catch (IOException e){
+            System.out.println("riscV writer error");
+        }
+
+        RiscVModuleGenerator generator = new RiscVModuleGenerator(mirModule);
+        String asm = generator.generate();
+        writer.println(asm);
+        writer.flush();
+    }
+
 
     @Override
     public Value visitProgram(SysYParser.ProgramContext ctx) {

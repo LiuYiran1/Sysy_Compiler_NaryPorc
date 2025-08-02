@@ -232,7 +232,10 @@ public class MIRConverterLL {
                     floatArgCount++;
                 } else {
                     // 超过8个浮点参数，放在栈上
-                    int offset = (floatArgCount + intArgCount - 8) * 8;
+                    int floatOffset = (floatArgCount - 8 > 0) ? (floatArgCount - 8) * 8 : 0; // 确保偏移量正确
+                    int intOffset = (intArgCount - 8 > 0) ? (intArgCount - 8) * 8 : 0; // 确保偏移量正确
+                    int offset = floatOffset + intOffset;
+//                    int offset = (floatArgCount + intArgCount - 8) * 8;
                     MIRMemory paramMem = new MIRMemory(
                             new MIRPhysicalReg(MIRPhysicalReg.PREGs.FP),
                             new MIRImmediate(offset, MIRType.I64),
@@ -251,7 +254,10 @@ public class MIRConverterLL {
                     intArgCount++;
                 } else {
                     // 超过8个整数参数，放在栈上
-                    int offset = (floatArgCount + intArgCount - 8) * 8;
+//                    int offset = (floatArgCount + intArgCount - 8) * 8;
+                    int floatOffset = (floatArgCount - 8 > 0) ? (floatArgCount - 8) * 8 : 0; // 确保偏移量正确
+                    int intOffset = (intArgCount - 8 > 0) ? (intArgCount - 8) * 8 : 0; // 确保偏移量正确
+                    int offset = floatOffset + intOffset;
                     MIRMemory paramMem = new MIRMemory(
                             new MIRPhysicalReg(MIRPhysicalReg.PREGs.FP),
                             new MIRImmediate(offset, MIRType.I64),
@@ -599,6 +605,24 @@ public class MIRConverterLL {
         int intArgCount = 0; // 整数参数计数
         int floatArgCount = 0; // 浮点参数计数
 
+        for (int i = 0; i < numOperands - 1; i++) {
+            Value arg = inst.getOperand(i);
+            MIRType argType = convertType(arg.getType());
+            boolean isFloat = MIRType.isFloat(argType);
+
+            if(isFloat) {
+                floatArgCount++;
+            } else {
+                intArgCount++;
+            }
+        }
+
+        int stackSize = ((floatArgCount - 8 > 0) ? (floatArgCount - 8) * 8 : 0 ) + ((intArgCount - 8 > 0) ? (intArgCount - 8) * 8 : 0);
+        mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.SUB, new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP), MIRArithOp.Type.INT, new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP),new MIRImmediate(stackSize,MIRType.I64)));
+
+        intArgCount = 0;
+        floatArgCount = 0;
+
         for (int i = 0; i < numOperands - 1; i++) { // 从0开始，最后一个是callee
             Value arg = inst.getOperand(i);
             MIRType argType = convertType(arg.getType());
@@ -613,7 +637,10 @@ public class MIRConverterLL {
                     floatArgCount++;
                 } else {
                     // 超过8个浮点参数，放在栈上
-                    int offset = (floatArgCount + intArgCount - 8) * 8;
+//                    int offset = (floatArgCount + intArgCount - 8) * 8;
+                    int floatOffset = (floatArgCount - 8 > 0) ? (floatArgCount - 8) * 8 : 0; // 确保偏移量正确
+                    int intOffset = (intArgCount - 8 > 0) ? (intArgCount - 8) * 8 : 0; // 确保偏移量正确
+                    int offset = floatOffset + intOffset;
                     MIRMemory argMem = new MIRMemory(new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP), new MIRImmediate(offset, MIRType.I64), mirArg.getType());
                     mirBB.getInstructions().add(new MIRMemoryOp(MIRMemoryOp.Op.STORE, MIRMemoryOp.Type.FLOAT, argMem, mirArg));
                     floatArgCount++;
@@ -625,7 +652,10 @@ public class MIRConverterLL {
                     intArgCount++;
                 } else {
                     // 超过8个整数参数，放在栈上
-                    int offset = (floatArgCount + intArgCount - 8) * 8;
+//                    int offset = (floatArgCount + intArgCount - 8) * 8;
+                    int floatOffset = (floatArgCount - 8 > 0) ? (floatArgCount - 8) * 8 : 0; // 确保偏移量正确
+                    int intOffset = (intArgCount - 8 > 0) ? (intArgCount - 8) * 8 : 0; // 确保偏移量正确
+                    int offset = floatOffset + intOffset;
                     MIRMemory argMem = new MIRMemory(new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP), new MIRImmediate(offset, MIRType.I64), mirArg.getType());
                     if(MIRType.isInt(argType)) {
                         // 整数类型
@@ -699,6 +729,8 @@ public class MIRConverterLL {
             }
 
         }
+
+        mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP), MIRArithOp.Type.INT,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP),new MIRImmediate(stackSize,MIRType.I64)));
 
         // 恢复相关寄存器
         // 怎么能在这里做个标记在后端处理时能完成这个操作
