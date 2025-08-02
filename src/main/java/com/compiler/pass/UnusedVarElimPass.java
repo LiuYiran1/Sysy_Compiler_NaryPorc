@@ -9,18 +9,24 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class UnusedVarElimPass implements Pass {
+
+    boolean hasChanged = false;
+
     @Override
-    public void run(Module module) {
+    public boolean run(Module module) {
+        hasChanged = false;
         for (Function function : module.getFunctionDefs()) {
             for (BasicBlock bb : function.getBasicBlocks()) {
                 List<Instruction> instructions = new ArrayList<>(bb.getInstructions());
                 for (Instruction inst : instructions) {
                     if (inst.getUsers().isEmpty() && isPure(inst)) {
                         bb.removeInstruction(inst);
+                        hasChanged = true;
                     }
                 }
             }
         }
+        return hasChanged;
     }
 
     private boolean isPure(Instruction inst) {
@@ -29,7 +35,7 @@ public class UnusedVarElimPass implements Pass {
             case ZEXT, FPTOSI, SITOFP, ICMP, FCMP,
                  MUL, SDIV, SREM, ADD, SUB,
                  FMUL, FDIV, FREM, FADD, FSUB,
-                 BC, PHI -> true;
+                 BC, PHI, LOAD -> true;
             default -> false;
         };
     }

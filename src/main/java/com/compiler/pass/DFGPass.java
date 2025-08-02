@@ -13,7 +13,7 @@ import java.util.List;
 public class DFGPass implements Pass {
 
     @Override
-    public void run(Module module) {
+    public boolean run(Module module) {
         for (Function function : module.getFunctions()) {
             // 记录所有基本块
             List<BasicBlock> basicBlocks = function.getBasicBlocks();
@@ -38,5 +38,6 @@ public class DFGPass implements Pass {
                 }
             }
         }
+        return true;
     }
 }

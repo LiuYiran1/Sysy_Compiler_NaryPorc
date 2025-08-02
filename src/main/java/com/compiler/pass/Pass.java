@@ -5,5 +5,5 @@ import com.compiler.ll.Values.GlobalValues.Function;
 
 public interface Pass {
 
-    void run(Module module);
+    boolean run(Module module);
 }

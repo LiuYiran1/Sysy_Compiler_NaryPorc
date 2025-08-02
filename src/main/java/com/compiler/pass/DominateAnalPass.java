@@ -9,7 +9,7 @@ import java.util.*;
 public class DominateAnalPass implements Pass {
 
     @Override
-    public void run(Module module) {
+    public boolean run(Module module) {
         List<Function> functions = module.getFunctionDefs();
         for (Function function : functions) {
             computeDomSet(function);
@@ -18,6 +18,7 @@ public class DominateAnalPass implements Pass {
             computeDomFrontier(function);
             // debug(function);
         }
+        return true;
     }
 
     public void computeDomSet(Function function) {
