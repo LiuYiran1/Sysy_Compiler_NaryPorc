@@ -628,9 +628,16 @@ public class RiscVFunctionGenerator {
         asm.append("    # Save caller-saved registers\n");
         int stackSize = allocator.getUsedCallerSaved().size() * 8;
         asm.append("    addi ").append("sp, sp, ").append(-stackSize).append("\n");
-        int offset = -8;
+        int offset = stackSize - 8;
         for (PhysicalRegister reg : allocator.getUsedCallerSaved()) {
-            asm.append("    sd ").append(reg).append(", ").append(offset).append("(s0)\n");
+            if(reg.name().startsWith("f")){
+                // 说明是float的
+                asm.append("    fsw ").append(reg).append(", ").append(offset).append("(sp)\n");
+            } else {
+                asm.append("    sd ").append(reg).append(", ").append(offset).append("(sp)\n");
+            }
+
+//            asm.append("    sd ").append(reg).append(", ").append(offset).append("(s0)\n");
             offset -= 8;
         }
 
@@ -639,13 +646,21 @@ public class RiscVFunctionGenerator {
     private void restoreCallerSavedRegisters() {
         asm.append("    # Restore caller-saved registers\n");
         int stackSize = allocator.getUsedCallerSaved().size() * 8;
-        asm.append("    addi ").append("sp, sp, ").append(stackSize).append("\n");
 
-        int offset = -8;
+        int offset = stackSize - 8;
         for (PhysicalRegister reg : allocator.getUsedCallerSaved()) {
-            asm.append("    ld ").append(reg).append(", ").append(offset).append("(s0)\n");
+
+            if(reg.name().startsWith("f")){
+                // 说明是float的
+                asm.append("    flw ").append(reg).append(", ").append(offset).append("(sp)\n");
+            } else {
+                asm.append("    ld ").append(reg).append(", ").append(offset).append("(sp)\n");
+            }
+//            asm.append("    ld ").append(reg).append(", ").append(offset).append("(s0)\n");
             offset -= 8;
         }
+
+        asm.append("    addi ").append("sp, sp, ").append(stackSize).append("\n");
     }
 
 
@@ -685,7 +700,7 @@ public class RiscVFunctionGenerator {
                     return tempReg.toString();
                 }
                 // 源操作数直接加载
-                String loadOp = MIRType.isFloat(vreg.getType()) ? "fld" : "ld";
+                String loadOp = MIRType.isFloat(vreg.getType()) ? "flw" : "ld";
                 asm.append("    ").append(loadOp).append(" ")
                         .append(tempReg).append(", ")
                         .append(spillOffset).append("(s0)\n");
@@ -705,7 +720,7 @@ public class RiscVFunctionGenerator {
                     allocator.getIntTempReg();
 
             // 源操作数直接加载
-            String loadOp = MIRType.isFloat(type) ? "fld" : "ld";
+            String loadOp = MIRType.isFloat(type) ? "flw" : "ld";
             asm.append("    ").append(loadOp).append(" ")
                     .append(tempReg).append(", ")
                     .append("-"+mem.getOffset().toString()).append("("+ mem.getBase().toString() + ")").append("\n");
