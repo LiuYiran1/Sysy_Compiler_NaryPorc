@@ -325,13 +325,13 @@ public class RiscVFunctionGenerator {
                     if (currentDestTempReg != null) {
                         MIRVirtualReg vreg = currentDestOperand;
                         PhysicalRegister tempReg = currentDestTempReg;
-                        asm.append(leftReg).append(", ")
-                           .append(rightReg).append("\n");
+                        asm.append(rightReg).append(", ")
+                           .append(leftReg).append("\n");
                         asm.append("    xori ").append(tempReg).append(", ").append(tempReg).append(", 1\n");
                         storeSpilledDestOperand(vreg, tempReg);
                     } else {
-                        asm.append(leftReg).append(", ")
-                           .append(rightReg).append("\n");
+                        asm.append(rightReg).append(", ")
+                           .append(leftReg).append("\n");
                         String tempReg = getOperandAsm(result, false);
                         asm.append("    xori ").append(getOperandAsm(result, true)).append(", ")
                            .append(tempReg).append(", 1\n");
@@ -357,13 +357,13 @@ public class RiscVFunctionGenerator {
                     if (currentDestTempReg != null) {
                         MIRVirtualReg vreg = currentDestOperand;
                         PhysicalRegister tempReg = currentDestTempReg;
-                        asm.append(rightReg).append(", ")
-                           .append(leftReg).append("\n");
+                        asm.append(leftReg).append(", ")
+                           .append(rightReg).append("\n");
                         asm.append("    xori ").append(tempReg).append(", ").append(tempReg).append(", 1\n");
                         storeSpilledDestOperand(vreg, tempReg);
                     } else {
-                        asm.append(rightReg).append(", ")
-                           .append(leftReg).append("\n");
+                        asm.append(leftReg).append(", ")
+                           .append(rightReg).append("\n");
                         String tempReg = getOperandAsm(result, false);
                         asm.append("    xori ").append(getOperandAsm(result, true)).append(", ")
                            .append(tempReg).append(", 1\n");
@@ -425,12 +425,12 @@ public class RiscVFunctionGenerator {
                     if (currentDestTempReg != null) {
                         MIRVirtualReg vreg = currentDestOperand;
                         PhysicalRegister tempReg = currentDestTempReg;
-                        asm.append(leftReg).append(", ")
-                           .append(rightReg).append("\n");
+                        asm.append(rightReg).append(", ")
+                           .append(leftReg).append("\n");
                         storeSpilledDestOperand(vreg, tempReg);
                     } else {
-                        asm.append(leftReg).append(", ")
-                           .append(rightReg).append("\n");
+                        asm.append(rightReg).append(", ")
+                           .append(leftReg).append("\n");
                     }
                     break;
                 case GT:
@@ -453,12 +453,12 @@ public class RiscVFunctionGenerator {
                     if (currentDestTempReg != null) {
                         MIRVirtualReg vreg = currentDestOperand;
                         PhysicalRegister tempReg = currentDestTempReg;
-                        asm.append(rightReg).append(", ")
-                           .append(leftReg).append("\n");
+                        asm.append(leftReg).append(", ")
+                           .append(rightReg).append("\n");
                         storeSpilledDestOperand(vreg, tempReg);
                     } else {
-                        asm.append(rightReg).append(", ")
-                           .append(leftReg).append("\n");
+                        asm.append(leftReg).append(", ")
+                           .append(rightReg).append("\n");
                     }
 
                     break;
