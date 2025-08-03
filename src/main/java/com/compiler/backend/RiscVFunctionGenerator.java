@@ -94,16 +94,19 @@ public class RiscVFunctionGenerator {
 //            asm.append("    ld ").append(reg).append(", ").append(offset).append("(sp)\n");
 //            offset -= 8;
 //        }
-        int offset = -24;
-        for (PhysicalRegister reg : allocator.getUsedCalleeSaved()) {
-            if(reg.name().startsWith("f")){
-                // 说明是float的
-                asm.append("    flw ").append(reg).append(", ").append(offset).append("(s0)\n");
-            } else {
-                asm.append("    ld ").append(reg).append(", ").append(offset).append("(s0)\n");
+        if(!function.getName().equals("main")) {
+            int offset = -24;
+            for (PhysicalRegister reg : allocator.getUsedCalleeSaved()) {
+                if(reg.name().startsWith("f")){
+                    // 说明是float的
+                    asm.append("    flw ").append(reg).append(", ").append(offset).append("(s0)\n");
+                } else {
+                    asm.append("    ld ").append(reg).append(", ").append(offset).append("(s0)\n");
+                }
+                offset -= 8;
             }
-            offset -= 8;
         }
+
 
         asm.append("    addi sp, sp, ").append(frameSize - 16).append("\n");
         asm.append("    ld ra, ").append("8").append("(sp)\n");
