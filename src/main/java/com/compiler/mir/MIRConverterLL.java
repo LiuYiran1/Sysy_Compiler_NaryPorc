@@ -972,8 +972,10 @@ public class MIRConverterLL {
 
     private void convertPhiInst(Instruction phi,MIRFunction mirFunc, MIRBasicBlock mirBB) {
         // 收集所有PHI节点
-        MIRVirtualReg phiReg = mirFunc.newVirtualReg(convertType(phi.getType()));
-        valueMap.put(phi, phiReg);
+        if(valueMap.get(phi) == null){
+            MIRVirtualReg phiReg = mirFunc.newVirtualReg(convertType(phi.getType()));
+            valueMap.put(phi, phiReg);
+        }
 
         mirFunc.addPhiNode(mirBB,phi);
         //mirBB.getInstructions().add(new MIRPseudoOp(MIRPseudoOp.Type.SELECT,0));
