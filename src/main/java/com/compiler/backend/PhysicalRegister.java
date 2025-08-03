@@ -58,11 +58,11 @@ public enum PhysicalRegister {
     );
 
     public static final List<PhysicalRegister> CALLER_SAVED_INT = Arrays.asList(
-            T0, T1, T3, T4, T5, T6, A0, A1, A2, A3, A4, A5, A6, A7
+            T0, T1, T3, T4, T5, T6
     );
 
     public static final List<PhysicalRegister> CALLER_SAVED_FLOAT = Arrays.asList(
-            FT0, FT1, FT2, FT3, FT4, FT5, FT6, FT7, FT8, FT9, FT10, FT11, FA0, FA1, FA2, FA3, FA4, FA5, FA6, FA7
+            FT0, FT1, FT2, FT3, FT4, FT5, FT6, FT7, FT8, FT9, FT10, FT11
     );
 
     // s0 也是fp,按理说在PROLOGUE时候就应该处理
