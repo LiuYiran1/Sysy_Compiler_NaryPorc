@@ -828,6 +828,11 @@ public class MIRConverterLL {
             if(indexOp instanceof MIRImmediate){
                 // 如果是立即数，转换为寄存器
                 indexOp = immToReg(mirFunc, mirBB, ((MIRImmediate) indexOp).getValue() * 4); // 这里应该*4吧？
+            } else if (indexOp instanceof  MIRVirtualReg){
+                // 如果是虚拟寄存器，得先左移2位
+                mirBB.getInstructions().add(new MIRShiftOp(MIRShiftOp.Op.SLL, (MIRVirtualReg) indexOp, (MIRVirtualReg) indexOp,new MIRImmediate(2,MIRType.I32)));
+            } else {
+                throw new IllegalArgumentException("the type of index is wrong");
             }
 
             if(basePtr.isGlobalVariable()){
@@ -858,9 +863,17 @@ public class MIRConverterLL {
                 if(indexOp instanceof MIRImmediate){
                     // 如果是立即数，转换为寄存器
                     indexOp = immToReg(mirFunc, mirBB, ((MIRImmediate) indexOp).getValue() * ptrSize * 4); // 这里应该*4吧？
-
+                } else if (indexOp instanceof  MIRVirtualReg) {
+                    // 如果是寄存器，那就给寄存器的值*4
+//                    mirBB.getInstructions().add(new MIRShiftOp(MIRShiftOp.Op.SLL, (MIRVirtualReg) indexOp, (MIRVirtualReg) indexOp,new MIRImmediate(2,MIRType.I32)));
+                    MIRVirtualReg tempReg = (MIRVirtualReg) immToReg(mirFunc,mirBB,ptrSize * 4);
+                    mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.MUL, (MIRVirtualReg) indexOp,MIRArithOp.Type.INT,indexOp,tempReg));
+                } else {
+                    throw new IllegalArgumentException("the type of index is wrong");
                 }
-                if(basePtr.isGlobalVariable()){
+
+
+                if(isOriginalBaseGlobal(basePtr)){
                     mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,result,MIRArithOp.Type.INT,base, indexOp));
                 } else {
                     mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.SUB,result,MIRArithOp.Type.INT,base, indexOp));
@@ -1225,5 +1238,18 @@ public class MIRConverterLL {
                 .filter(bb -> bb.getLabel().toString().equals(name))
                 .findFirst()
                 .orElseThrow();
+    }
+
+    private boolean isOriginalBaseGlobal(Value base) {
+        if (base.isGlobalVariable()) {
+            return true;
+        }
+        if (base instanceof Instruction) {
+            Instruction inst = (Instruction) base;
+            if (inst instanceof GetElementPtrInst) {
+                return isOriginalBaseGlobal(inst.getOperand(0));
+            }
+        }
+        return false; // 默认为局部变量
     }
 }

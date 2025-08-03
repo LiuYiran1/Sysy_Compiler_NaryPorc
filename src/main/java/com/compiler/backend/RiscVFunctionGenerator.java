@@ -134,10 +134,28 @@ public class RiscVFunctionGenerator {
             generateLiOp((MIRLiOp) inst);
         } else if (inst instanceof MIRLuiOp) {
             generateLuiOp((MIRLuiOp) inst);
+        } else if (inst instanceof MIRShiftOp) {
+            generateShiftOp((MIRShiftOp) inst);
         } else {
             System.err.println("Unknown instruction: " + inst);
             throw new IllegalArgumentException("Unsupported instruction type: " + inst.getClass().getSimpleName());
         }
+    }
+
+    private void generateShiftOp(MIRShiftOp inst) {
+        MIRVirtualReg result = inst.getResult();
+        String reg = getOperandAsm(inst.getSource(),false);
+
+        asm.append("    slli ").append(getOperandAsm(result, true)).append(", ");
+        if(currentDestTempReg != null){
+            MIRVirtualReg vreg = currentDestOperand;
+            PhysicalRegister tempReg = currentDestTempReg;
+            asm.append(reg).append(", ").append(inst.getShiftAmount()).append("\n");
+            storeSpilledDestOperand(vreg, tempReg);
+        } else {
+            asm.append(reg).append(", ").append(inst.getShiftAmount()).append("\n");
+        }
+
     }
 
     private void generateLuiOp(MIRLuiOp inst) {
