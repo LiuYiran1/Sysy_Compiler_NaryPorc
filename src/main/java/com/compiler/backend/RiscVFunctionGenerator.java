@@ -320,7 +320,7 @@ public class RiscVFunctionGenerator {
                     }
                     break;
                 case LE:
-                    // slt + xori
+                    // slt(交换） + xori
                     asm.append("    slt ").append(getOperandAsm(result, true)).append(", ");
                     if (currentDestTempReg != null) {
                         MIRVirtualReg vreg = currentDestOperand;
@@ -352,7 +352,7 @@ public class RiscVFunctionGenerator {
                     }
                     break;
                 case GE:
-                    // slt (交换src）+ xori
+                    // slt + xori
                     asm.append("    slt ").append(getOperandAsm(result, true)).append(", ");
                     if (currentDestTempReg != null) {
                         MIRVirtualReg vreg = currentDestOperand;
