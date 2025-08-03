@@ -757,11 +757,11 @@ public class MIRConverterLL {
             if (MIRType.isFloat(result.getType())) {
                 // 如果返回值是浮点数
 //                mirBB.getInstructions().add(new MIRMoveOp(result, new MIRPhysicalReg(MIRPhysicalReg.PREGs.FA0), MIRMoveOp.MoveType.FLOAT));
-                mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.TP),new MIRPhysicalReg(MIRPhysicalReg.PREGs.FA0), MIRMoveOp.MoveType.FLOAT_TO_INT));
+                mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.T2),new MIRPhysicalReg(MIRPhysicalReg.PREGs.FA0), MIRMoveOp.MoveType.FLOAT_TO_INT));
             } else {
                 // 如果返回值是整数
 //                mirBB.getInstructions().add(new MIRMoveOp(result, new MIRPhysicalReg(MIRPhysicalReg.PREGs.A0), MIRMoveOp.MoveType.INTEGER));
-                mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.TP),new MIRPhysicalReg(MIRPhysicalReg.PREGs.A0), MIRMoveOp.MoveType.INTEGER));
+                mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.T2),new MIRPhysicalReg(MIRPhysicalReg.PREGs.A0), MIRMoveOp.MoveType.INTEGER));
             }
 
 
@@ -773,9 +773,9 @@ public class MIRConverterLL {
 
             // 把tp里的返回值存回去
             if (MIRType.isFloat(result.getType())) {
-                mirBB.getInstructions().add(new MIRMoveOp(result,new MIRPhysicalReg(MIRPhysicalReg.PREGs.TP),MIRMoveOp.MoveType.INT_TO_FLOAT));
+                mirBB.getInstructions().add(new MIRMoveOp(result,new MIRPhysicalReg(MIRPhysicalReg.PREGs.T2),MIRMoveOp.MoveType.INT_TO_FLOAT));
             } else {
-                mirBB.getInstructions().add(new MIRMoveOp(result,new MIRPhysicalReg(MIRPhysicalReg.PREGs.TP),MIRMoveOp.MoveType.INTEGER));
+                mirBB.getInstructions().add(new MIRMoveOp(result,new MIRPhysicalReg(MIRPhysicalReg.PREGs.T2),MIRMoveOp.MoveType.INTEGER));
             }
 
         }

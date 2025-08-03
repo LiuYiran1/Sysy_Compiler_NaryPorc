@@ -208,6 +208,8 @@ public class RiscVFunctionGenerator {
             op = "fmv.s";
         } else if (inst.getMoveType() == MIRMoveOp.MoveType.INT_TO_FLOAT) {
             op = "fmv.w.x";
+        } else if(inst.getMoveType() == MIRMoveOp.MoveType.FLOAT_TO_INT){
+            op = "fmv.x.w";
         }
 
         if (src instanceof MIRImmediate) {
