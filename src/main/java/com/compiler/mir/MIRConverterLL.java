@@ -446,6 +446,10 @@ public class MIRConverterLL {
             dest = mirFunc.newVirtualReg(MIRType.I32);
             // TODO: 处理其他类型的零扩展
         }
+        if(src instanceof MIRImmediate){
+            src = immToReg(mirFunc,mirBB,((MIRImmediate) src).getValue());
+        }
+
         mirBB.getInstructions().add(new MIRConvertOp(MIRConvertOp.Op.ZEXT, dest, src));
         valueMap.put(inst, dest);
     }
@@ -726,21 +730,21 @@ public class MIRConverterLL {
             // 如果是void类型,就不用接受返回值了
             mirBB.getInstructions().add(new MIRControlFlowOp(funcLabel, args));
 
-            mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP), MIRArithOp.Type.INT,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP),new MIRImmediate(stackSize,MIRType.I64)));
+//            mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP), MIRArithOp.Type.INT,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP),new MIRImmediate(stackSize,MIRType.I64)));
 
             // 恢复相关寄存器
             // 怎么能在这里做个标记在后端处理时能完成这个操作
-            mirBB.getInstructions().add(new MIRPseudoOp(MIRPseudoOp.Type.CALLER_RESTORE_REG,0));
+//            mirBB.getInstructions().add(new MIRPseudoOp(MIRPseudoOp.Type.CALLER_RESTORE_REG,0));
         } else {
             MIRVirtualReg result = mirFunc.newVirtualReg(mirType);
             valueMap.put(inst, result);
             mirBB.getInstructions().add(new MIRControlFlowOp(funcLabel, result, args));
 
-            mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP), MIRArithOp.Type.INT,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP),new MIRImmediate(stackSize,MIRType.I64)));
+//            mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP), MIRArithOp.Type.INT,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP),new MIRImmediate(stackSize,MIRType.I64)));
 
             // 恢复相关寄存器
             // 怎么能在这里做个标记在后端处理时能完成这个操作
-            mirBB.getInstructions().add(new MIRPseudoOp(MIRPseudoOp.Type.CALLER_RESTORE_REG,0));
+//            mirBB.getInstructions().add(new MIRPseudoOp(MIRPseudoOp.Type.CALLER_RESTORE_REG,0));
 
             //下面是LLVM处理
 //        %avg = alloca float, align 4
@@ -752,10 +756,26 @@ public class MIRConverterLL {
             // 存储返回值 以LL为准处理
             if (MIRType.isFloat(result.getType())) {
                 // 如果返回值是浮点数
-                mirBB.getInstructions().add(new MIRMoveOp(result, new MIRPhysicalReg(MIRPhysicalReg.PREGs.FA0), MIRMoveOp.MoveType.FLOAT));
+//                mirBB.getInstructions().add(new MIRMoveOp(result, new MIRPhysicalReg(MIRPhysicalReg.PREGs.FA0), MIRMoveOp.MoveType.FLOAT));
+                mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.TP),new MIRPhysicalReg(MIRPhysicalReg.PREGs.FA0), MIRMoveOp.MoveType.FLOAT_TO_INT));
             } else {
                 // 如果返回值是整数
-                mirBB.getInstructions().add(new MIRMoveOp(result, new MIRPhysicalReg(MIRPhysicalReg.PREGs.A0), MIRMoveOp.MoveType.INTEGER));
+//                mirBB.getInstructions().add(new MIRMoveOp(result, new MIRPhysicalReg(MIRPhysicalReg.PREGs.A0), MIRMoveOp.MoveType.INTEGER));
+                mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.TP),new MIRPhysicalReg(MIRPhysicalReg.PREGs.A0), MIRMoveOp.MoveType.INTEGER));
+            }
+
+
+            mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP), MIRArithOp.Type.INT,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP),new MIRImmediate(stackSize,MIRType.I64)));
+
+            // 恢复相关寄存器
+            // 怎么能在这里做个标记在后端处理时能完成这个操作
+            mirBB.getInstructions().add(new MIRPseudoOp(MIRPseudoOp.Type.CALLER_RESTORE_REG,0));
+
+            // 把tp里的返回值存回去
+            if (MIRType.isFloat(result.getType())) {
+                mirBB.getInstructions().add(new MIRMoveOp(result,new MIRPhysicalReg(MIRPhysicalReg.PREGs.TP),MIRMoveOp.MoveType.INT_TO_FLOAT));
+            } else {
+                mirBB.getInstructions().add(new MIRMoveOp(result,new MIRPhysicalReg(MIRPhysicalReg.PREGs.TP),MIRMoveOp.MoveType.INTEGER));
             }
 
         }
@@ -765,6 +785,9 @@ public class MIRConverterLL {
 //        // 恢复相关寄存器
 //        // 怎么能在这里做个标记在后端处理时能完成这个操作
 //        mirBB.getInstructions().add(new MIRPseudoOp(MIRPseudoOp.Type.CALLER_RESTORE_REG,0));
+
+
+
     }
 
     // bug4,这个方法写的真是错漏百出

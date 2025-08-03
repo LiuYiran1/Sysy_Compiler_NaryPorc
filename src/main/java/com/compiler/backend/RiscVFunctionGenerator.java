@@ -320,18 +320,18 @@ public class RiscVFunctionGenerator {
                     }
                     break;
                 case LE:
-                    // slt + xori
+                    // slt(交换） + xori
                     asm.append("    slt ").append(getOperandAsm(result, true)).append(", ");
                     if (currentDestTempReg != null) {
                         MIRVirtualReg vreg = currentDestOperand;
                         PhysicalRegister tempReg = currentDestTempReg;
-                        asm.append(leftReg).append(", ")
-                           .append(rightReg).append("\n");
+                        asm.append(rightReg).append(", ")
+                           .append(leftReg).append("\n");
                         asm.append("    xori ").append(tempReg).append(", ").append(tempReg).append(", 1\n");
                         storeSpilledDestOperand(vreg, tempReg);
                     } else {
-                        asm.append(leftReg).append(", ")
-                           .append(rightReg).append("\n");
+                        asm.append(rightReg).append(", ")
+                           .append(leftReg).append("\n");
                         String tempReg = getOperandAsm(result, false);
                         asm.append("    xori ").append(getOperandAsm(result, true)).append(", ")
                            .append(tempReg).append(", 1\n");
@@ -352,18 +352,18 @@ public class RiscVFunctionGenerator {
                     }
                     break;
                 case GE:
-                    // slt (交换src）+ xori
+                    // slt + xori
                     asm.append("    slt ").append(getOperandAsm(result, true)).append(", ");
                     if (currentDestTempReg != null) {
                         MIRVirtualReg vreg = currentDestOperand;
                         PhysicalRegister tempReg = currentDestTempReg;
-                        asm.append(rightReg).append(", ")
-                           .append(leftReg).append("\n");
+                        asm.append(leftReg).append(", ")
+                           .append(rightReg).append("\n");
                         asm.append("    xori ").append(tempReg).append(", ").append(tempReg).append(", 1\n");
                         storeSpilledDestOperand(vreg, tempReg);
                     } else {
-                        asm.append(rightReg).append(", ")
-                           .append(leftReg).append("\n");
+                        asm.append(leftReg).append(", ")
+                           .append(rightReg).append("\n");
                         String tempReg = getOperandAsm(result, false);
                         asm.append("    xori ").append(getOperandAsm(result, true)).append(", ")
                            .append(tempReg).append(", 1\n");

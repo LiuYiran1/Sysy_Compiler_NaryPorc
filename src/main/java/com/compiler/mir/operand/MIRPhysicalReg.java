@@ -9,7 +9,7 @@ public class MIRPhysicalReg extends MIROperand {
     public enum PREGs {
         A0("a0"), A1("a1"), A2("a2"), A3("a3"), A4("a4"), A5("a5"), A6("a6"), A7("a7"),
         FA0("fa0"), FA1("fa1"), FA2("fa2"), FA3("fa3"), FA4("fa4"), FA5("fa5"), FA6("fa6"), FA7("fa7"),
-        FP("fp"), SP("sp"), RA("ra"), ZERO("zero");
+        FP("fp"), SP("sp"), RA("ra"), ZERO("zero"),TP("tp");
 
         private final String name;
 
