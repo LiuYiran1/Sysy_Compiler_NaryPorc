@@ -858,11 +858,12 @@ public class MIRConverterLL {
                 throw new IllegalArgumentException("the type of index is wrong");
             }
 
-            if(basePtr.isGlobalVariable()){
-                mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,result,MIRArithOp.Type.INT,base, indexOp));
-            } else {
-                mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.SUB,result,MIRArithOp.Type.INT,base, indexOp));
-            }
+            mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,result,MIRArithOp.Type.INT,base, indexOp));
+//            if(basePtr.isGlobalVariable()){
+//                mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,result,MIRArithOp.Type.INT,base, indexOp));
+//            } else {
+//                mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.SUB,result,MIRArithOp.Type.INT,base, indexOp));
+//            }
 
         } else {
             // TODO: 三个操作数的
@@ -895,12 +896,12 @@ public class MIRConverterLL {
                     throw new IllegalArgumentException("the type of index is wrong");
                 }
 
-
-                if(isOriginalBaseGlobal(basePtr)){
-                    mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,result,MIRArithOp.Type.INT,base, indexOp));
-                } else {
-                    mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.SUB,result,MIRArithOp.Type.INT,base, indexOp));
-                }
+                mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,result,MIRArithOp.Type.INT,base, indexOp));
+//                if(isOriginalBaseGlobal(basePtr)){
+//                    mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,result,MIRArithOp.Type.INT,base, indexOp));
+//                } else {
+//                    mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.SUB,result,MIRArithOp.Type.INT,base, indexOp));
+//                }
 //                mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.SUB,result,MIRArithOp.Type.INT,base, indexOp));
             } else {
                 // 说明是一个 i32* 或 f32*
