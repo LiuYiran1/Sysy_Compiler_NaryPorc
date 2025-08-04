@@ -87,6 +87,10 @@ public class StackManager {
         return frameSize;
     }
 
+    public void setFrameSize(int frameSize) {
+        this.frameSize = frameSize;
+    }
+
     public int getRegisterSaveSize() {
         return allocator.getUsedCalleeSaved().size() * 8 + 16;
     }

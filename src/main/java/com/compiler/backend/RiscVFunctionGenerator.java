@@ -84,7 +84,7 @@ public class RiscVFunctionGenerator {
 //            int offset = frameSize - 24;
             int offset = -24;
             for (PhysicalRegister reg : allocator.getUsedCalleeSaved()) {
-                if(reg.name().startsWith("f")){
+                if(reg.name().startsWith("F")){
                     // 说明是float的
                     asm.append("    fsw ").append(reg).append(", ").append(offset).append("(s0)\n");
                 } else {
@@ -109,7 +109,7 @@ public class RiscVFunctionGenerator {
         if(!function.getName().equals("main")) {
             int offset = -24;
             for (PhysicalRegister reg : allocator.getUsedCalleeSaved()) {
-                if(reg.name().startsWith("f")){
+                if(reg.name().startsWith("F")){
                     // 说明是float的
                     asm.append("    flw ").append(reg).append(", ").append(offset).append("(s0)\n");
                 } else {
@@ -294,11 +294,11 @@ public class RiscVFunctionGenerator {
         MIROperand right = inst.getOperands().get(1);
         MIRVirtualReg result = inst.getResult();
 
-        boolean isFloat = MIRType.isFloat(result.getType());
+//        boolean isFloat = MIRType.isFloat(result.getType());
 
         String leftReg = getOperandAsm(left, false);
         String rightReg = getOperandAsm(right, false);
-        if(!isFloat) {
+        if(inst.getCmpType() == MIRCmpOp.Type.INT) {
             switch (inst.getOp()){
                 case EQ:
                     // xor + seqz
@@ -601,9 +601,18 @@ public class RiscVFunctionGenerator {
     private void generateMemoryOp(MIRMemoryOp op) {
         if (op.getOperands().size() == 1) { // LOAD
             MIRMemory mem = (MIRMemory) op.getOperands().get(0);
-            MIRVirtualReg result = op.getResult();
-            boolean isFloat = MIRType.isFloat(result.getType());
-            String loadOp = isFloat ? "flw" : "lw";
+            MIROperand result = op.getResult() != null ? op.getResult() : op.getResultPhysicalReg();
+            MIRMemoryOp.Type type = op.getType();
+
+            String loadOp = null;
+            if(type == MIRMemoryOp.Type.FLOAT){
+                loadOp = "flw";
+            } else if(type == MIRMemoryOp.Type.INTEGER){
+                loadOp = "lw";
+            } else {
+                loadOp = "ld";
+            }
+
 
             String base = getOperandAsm(mem.getBase(), false);
 
@@ -627,8 +636,17 @@ public class RiscVFunctionGenerator {
             String val = getOperandAsm(value, false);
             String base = getOperandAsm(mem.getBase(), false);
 
-            boolean isFloat = MIRType.isFloat(value.getType());
-            String storeOp = isFloat ? "fsw" : "sw";
+            MIRMemoryOp.Type type = op.getType();
+
+            String storeOp = null;
+            if(type == MIRMemoryOp.Type.FLOAT){
+                storeOp = "fsw";
+            } else if(type == MIRMemoryOp.Type.INTEGER){
+                storeOp = "sw";
+            } else {
+                storeOp = "sd";
+            }
+
 
             asm.append("    ").append(storeOp).append(" ")
                     .append(val).append(", ")
@@ -678,11 +696,17 @@ public class RiscVFunctionGenerator {
     // TODO: 下面这两个方法也有问题，没有区分浮点寄存器和整型寄存器。
     private void saveCallerSavedRegisters() {
         asm.append("    # Save caller-saved registers\n");
+        if(stackManager.getFrameSize() % 8 != 0){
+            int size = (stackManager.getFrameSize() | 7) + 1;
+            int sub = size - stackManager.getFrameSize();
+            stackManager.setFrameSize(size);
+            asm.append("    addi sp, sp, -").append(sub).append("\n");
+        }
         int stackSize = allocator.getUsedCallerSaved().size() * 8;
         asm.append("    addi ").append("sp, sp, ").append(-stackSize).append("\n");
         int offset = stackSize - 8;
         for (PhysicalRegister reg : allocator.getUsedCallerSaved()) {
-            if(reg.name().startsWith("f")){
+            if(reg.name().startsWith("F")){
                 // 说明是float的
                 asm.append("    fsw ").append(reg).append(", ").append(offset).append("(sp)\n");
             } else {
@@ -702,7 +726,7 @@ public class RiscVFunctionGenerator {
         int offset = stackSize - 8;
         for (PhysicalRegister reg : allocator.getUsedCallerSaved()) {
 
-            if(reg.name().startsWith("f")){
+            if(reg.name().startsWith("F")){
                 // 说明是float的
                 asm.append("    flw ").append(reg).append(", ").append(offset).append("(sp)\n");
             } else {
@@ -753,9 +777,17 @@ public class RiscVFunctionGenerator {
                 }
                 // 源操作数直接加载
                 String loadOp = MIRType.isFloat(vreg.getType()) ? "flw" : "ld";
-                asm.append("    ").append(loadOp).append(" ")
-                        .append(tempReg).append(", ")
-                        .append(spillOffset).append("(s0)\n");
+                if(spillOffset > 2048 || spillOffset < -2048){
+                    asm.append("    li t2, ").append(spillOffset).append("\n");
+                    asm.append("    add ").append("t2").append(", s0, t2").append("\n");
+                    asm.append("    ").append(loadOp).append(" ")
+                            .append(tempReg).append(", 0(t2)\n");
+                } else {
+                    asm.append("    ").append(loadOp).append(" ")
+                            .append(tempReg).append(", ")
+                            .append(spillOffset).append("(s0)\n");
+                }
+
                 return tempReg.toString();
             } else {
                 throw new IllegalArgumentException("Spilled operand should be found in allocator: " + vreg);
@@ -772,7 +804,14 @@ public class RiscVFunctionGenerator {
                     allocator.getIntTempReg();
 
             // 源操作数直接加载
-            String loadOp = MIRType.isFloat(type) ? "flw" : "ld";
+            String loadOp = null;
+            if(MIRType.isFloat(type)){
+                loadOp = "flw";
+            } else if (MIRType.isInt(type)) {
+                loadOp = "lw";
+            } else {
+                loadOp = "ld";
+            }
             asm.append("    ").append(loadOp).append(" ")
                     .append(tempReg).append(", ")
                     .append("-"+mem.getOffset().toString()).append("("+ mem.getBase().toString() + ")").append("\n");
@@ -790,9 +829,21 @@ public class RiscVFunctionGenerator {
         if (spillOffset != null) {
             boolean isFloat = MIRType.isFloat(vreg.getType());
             String storeOp = isFloat ? "fsd" : "sd";
-            asm.append("    ").append(storeOp).append(" ")
-                    .append(tempReg).append(", ")
-                    .append(spillOffset).append("(s0)\n");
+
+            if(spillOffset > 2048 || spillOffset < -2048){
+                asm.append("    li t2, ").append(spillOffset).append("\n");
+                asm.append("    add ").append("t2").append(", s0, t2").append("\n");
+                asm.append("    ").append(storeOp).append(" ")
+                        .append(tempReg).append(", 0(t2)\n");
+            } else {
+                asm.append("    ").append(storeOp).append(" ")
+                        .append(tempReg).append(", ")
+                        .append(spillOffset).append("(s0)\n");
+            }
+
+//            asm.append("    ").append(storeOp).append(" ")
+//                    .append(tempReg).append(", ")
+//                    .append(spillOffset).append("(s0)\n");
         }
     }
 }

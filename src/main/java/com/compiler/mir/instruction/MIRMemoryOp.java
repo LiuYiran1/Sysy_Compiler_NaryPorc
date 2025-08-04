@@ -2,6 +2,7 @@ package com.compiler.mir.instruction;
 
 import com.compiler.mir.operand.MIRMemory;
 import com.compiler.mir.operand.MIROperand;
+import com.compiler.mir.operand.MIRPhysicalReg;
 import com.compiler.mir.operand.MIRVirtualReg;
 
 import java.util.Arrays;
@@ -22,6 +23,14 @@ public class MIRMemoryOp extends MIRInstruction {
     private final MIROperand value; // STORE时使用
 
     public MIRMemoryOp(Op op, Type type, MIRMemory address, MIRVirtualReg result) {
+        super(result);
+        this.op = op;
+        this.address = address;
+        this.type = type;
+        this.value = null;
+    }
+
+    public MIRMemoryOp(Op op, Type type, MIRMemory address, MIRPhysicalReg result) {
         super(result);
         this.op = op;
         this.address = address;
@@ -57,7 +66,7 @@ public class MIRMemoryOp extends MIRInstruction {
     @Override
     public String toString() {
         if (op == Op.LOAD) {
-            return type.name() + " LOAD " + resultVirtualReg + ", " + address;
+            return type.name() + " LOAD " + (resultVirtualReg != null ? resultVirtualReg : resultPhysicalReg) + ", " + address;
         } else {
             return type.name() + " STORE " + value + ", " + address;
         }

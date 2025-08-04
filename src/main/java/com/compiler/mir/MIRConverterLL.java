@@ -232,7 +232,7 @@ public class MIRConverterLL {
             if (isFloat) {
                 // 浮点参数处理
                 if (floatArgCount < 8) {
-                    MIRPhysicalReg paramReg = new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.FA0.ordinal() + floatArgCount]);
+                    MIRPhysicalReg paramReg = new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.FA0.ordinal() + floatArgCount],MIRType.F32);
                     valueMap.put(param, paramReg);
                     mirFunc.addParam(paramReg);
                     floatArgCount++;
@@ -243,8 +243,8 @@ public class MIRConverterLL {
                     int offset = floatOffset + intOffset;
 //                    int offset = (floatArgCount + intArgCount - 8) * 8;
                     MIRMemory paramMem = new MIRMemory(
-                            new MIRPhysicalReg(MIRPhysicalReg.PREGs.FP),
-                            new MIRImmediate(offset, MIRType.I64),
+                            new MIRPhysicalReg(MIRPhysicalReg.PREGs.FP,MIRType.I64),
+                            new MIRImmediate(offset - 8, MIRType.I64),
                             mirType
                     );
                     valueMap.put(param, paramMem);
@@ -254,7 +254,13 @@ public class MIRConverterLL {
             } else {
                 // 整数参数处理
                 if (intArgCount < 8) {
-                    MIRPhysicalReg paramReg = new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.A0.ordinal() + intArgCount]);
+                    MIRPhysicalReg paramReg = null;
+                    if(MIRType.isInt(mirType)){
+                        paramReg = new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.A0.ordinal() + intArgCount], MIRType.I32);
+                    } else {
+                        paramReg = new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.A0.ordinal() + intArgCount], MIRType.I64);
+                    }
+
                     valueMap.put(param, paramReg);
                     mirFunc.addParam(paramReg);
                     intArgCount++;
@@ -265,8 +271,8 @@ public class MIRConverterLL {
                     int intOffset = (intArgCount - 8 > 0) ? (intArgCount - 8) * 8 : 0; // 确保偏移量正确
                     int offset = floatOffset + intOffset;
                     MIRMemory paramMem = new MIRMemory(
-                            new MIRPhysicalReg(MIRPhysicalReg.PREGs.FP),
-                            new MIRImmediate(offset, MIRType.I64),
+                            new MIRPhysicalReg(MIRPhysicalReg.PREGs.FP,MIRType.I64),
+                            new MIRImmediate(offset - 8, MIRType.I64),
                             mirType
                     );
                     valueMap.put(param, paramMem);
@@ -638,9 +644,15 @@ public class MIRConverterLL {
             }
         }
 
-        int stackSize = ((floatArgCount - 8 > 0) ? (floatArgCount - 8) * 8 : 0 ) + ((intArgCount - 8 > 0) ? (intArgCount - 8) * 8 : 0);
+//        int stackSize = ((floatArgCount - 8 > 0) ? (floatArgCount - 8) * 8 : 0 ) + ((intArgCount - 8 > 0) ? (intArgCount - 8) * 8 : 0);
+        int stackSize = floatArgCount * 8 + intArgCount * 8 ;
 
-        mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD, new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP), MIRArithOp.Type.INT, new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP),new MIRImmediate(-stackSize,MIRType.I64)));
+        mirBB.getInstructions().add(new MIRArithOp(
+                MIRArithOp.Op.ADD,
+                new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),
+                MIRArithOp.Type.INT,
+                new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),
+                new MIRImmediate(-stackSize,MIRType.I64)));
 
         intArgCount = 0;
         floatArgCount = 0;
@@ -649,36 +661,57 @@ public class MIRConverterLL {
             Value arg = inst.getOperand(i);
             MIRType argType = convertType(arg.getType());
             MIROperand mirArg = getMIRValue(arg, mirFunc, mirBB);
+
+            if(mirArg instanceof MIRImmediate) {
+                mirArg = immToReg(mirFunc,mirBB,((MIRImmediate) mirArg).getValue());
+            }
             args.add(mirArg);
 
             boolean isFloat = MIRType.isFloat(argType);
             if (isFloat) {
                 // 浮点参数处理
                 if (floatArgCount < 8) {
-                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.FA0.ordinal() + floatArgCount]),mirArg, MIRMoveOp.MoveType.FLOAT));
                     floatArgCount++;
+                    mirBB.getInstructions().add(new MIRMemoryOp(
+                            MIRMemoryOp.Op.STORE,
+                            MIRMemoryOp.Type.FLOAT,
+                            new MIRMemory(new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),new MIRImmediate(stackSize - (floatArgCount+intArgCount) * 8, MIRType.I64),argType),
+                    mirArg));
+
+//                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.FA0.ordinal() + floatArgCount]),mirArg, MIRMoveOp.MoveType.FLOAT));
+//                    floatArgCount++;
                 } else {
                     // 超过8个浮点参数，放在栈上
 //                    int offset = (floatArgCount + intArgCount - 8) * 8;
                     int floatOffset = (floatArgCount - 8 > 0) ? (floatArgCount - 8) * 8 : 0; // 确保偏移量正确
                     int intOffset = (intArgCount - 8 > 0) ? (intArgCount - 8) * 8 : 0; // 确保偏移量正确
                     int offset = floatOffset + intOffset;
-                    MIRMemory argMem = new MIRMemory(new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP), new MIRImmediate(offset, MIRType.I64), mirArg.getType());
+                    MIRMemory argMem = new MIRMemory(new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64), new MIRImmediate(offset, MIRType.I64), mirArg.getType());
                     mirBB.getInstructions().add(new MIRMemoryOp(MIRMemoryOp.Op.STORE, MIRMemoryOp.Type.FLOAT, argMem, mirArg));
                     floatArgCount++;
                 }
             } else {
                 // 整数参数处理
                 if (intArgCount < 8) {
-                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.A0.ordinal() + intArgCount]),mirArg, MIRMoveOp.MoveType.INTEGER));
                     intArgCount++;
+                    MIRMemory argMem = new MIRMemory(new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),new MIRImmediate(stackSize - (floatArgCount+intArgCount) * 8, MIRType.I64),argType);
+                    if(MIRType.isInt(argType)) {
+                        // 整数类型
+                        mirBB.getInstructions().add(new MIRMemoryOp(MIRMemoryOp.Op.STORE, MIRMemoryOp.Type.INTEGER, argMem, mirArg));
+                    } else {
+                        // 指针类型
+                        mirBB.getInstructions().add(new MIRMemoryOp(MIRMemoryOp.Op.STORE, MIRMemoryOp.Type.POINTER, argMem, mirArg));
+                    }
+
+//                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.A0.ordinal() + intArgCount]),mirArg, MIRMoveOp.MoveType.INTEGER));
+//                    intArgCount++;
                 } else {
                     // 超过8个整数参数，放在栈上
 //                    int offset = (floatArgCount + intArgCount - 8) * 8;
                     int floatOffset = (floatArgCount - 8 > 0) ? (floatArgCount - 8) * 8 : 0; // 确保偏移量正确
                     int intOffset = (intArgCount - 8 > 0) ? (intArgCount - 8) * 8 : 0; // 确保偏移量正确
                     int offset = floatOffset + intOffset;
-                    MIRMemory argMem = new MIRMemory(new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP), new MIRImmediate(offset, MIRType.I64), mirArg.getType());
+                    MIRMemory argMem = new MIRMemory(new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64), new MIRImmediate(offset, MIRType.I64), mirArg.getType());
                     if(MIRType.isInt(argType)) {
                         // 整数类型
                         mirBB.getInstructions().add(new MIRMemoryOp(MIRMemoryOp.Op.STORE, MIRMemoryOp.Type.INTEGER, argMem, mirArg));
@@ -689,30 +722,43 @@ public class MIRConverterLL {
                     intArgCount++;
                 }
             }
-//            if(i < 8){
-//                if(MIRType.isFloat(argType)) {
-//                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.FA0.ordinal() + i]),mirArg, MIRMoveOp.MoveType.FLOAT));
-//                } else {
-//                    // 整数类型或指针类型
-//                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.A0.ordinal() + i]),mirArg, MIRMoveOp.MoveType.INTEGER));
-//                }
-//            } else {
-//                // 如果参数超过8个，使用栈传递
-//                // 这里的偏移量需要计算
-//                int offset = (i - 8) * 8; // 每个参数占8个字节
-//                MIRMemory argMem = new MIRMemory(new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP), new MIRImmediate(offset, MIRType.I64), mirArg.getType());
-//                if(MIRType.isFloat(argType)) {
-//                    mirBB.getInstructions().add(new MIRMemoryOp(MIRMemoryOp.Op.STORE, MIRMemoryOp.Type.FLOAT, argMem, mirArg));
-//                } else if(MIRType.isInt(argType)) {
-//                    // 整数类型
-//                    mirBB.getInstructions().add(new MIRMemoryOp(MIRMemoryOp.Op.STORE, MIRMemoryOp.Type.INTEGER, argMem, mirArg));
-//                } else {
-//                    // 指针类型
-//                    mirBB.getInstructions().add(new MIRMemoryOp(MIRMemoryOp.Op.STORE, MIRMemoryOp.Type.POINTER, argMem, mirArg));
-//                }
-//
-//            }
         }
+
+        // 传参
+        int sumStackArgs = (Math.max(floatArgCount - 8, 0)) + (Math.max(intArgCount - 8, 0));
+        int sumRegArgs =  floatArgCount + intArgCount - sumStackArgs;
+        int i = 0;
+        floatArgCount = 0;
+        intArgCount = 0;
+        while(i != sumRegArgs ){
+            MIRType type = args.get(i).getType();
+            MIRMemory argMem = new MIRMemory(new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),new MIRImmediate(stackSize - (i + 1) * 8, MIRType.I64), type);
+            if(MIRType.isFloat(type)) {
+                mirBB.getInstructions().add(new MIRMemoryOp(
+                        MIRMemoryOp.Op.LOAD,
+                        MIRMemoryOp.Type.FLOAT,
+                        argMem,
+                        new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.FA0.ordinal() + floatArgCount],MIRType.F32)));
+                floatArgCount++;
+            } else if (MIRType.isInt(type)) {
+                mirBB.getInstructions().add(new MIRMemoryOp(
+                        MIRMemoryOp.Op.LOAD,
+                        MIRMemoryOp.Type.INTEGER,
+                        argMem,
+                        new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.A0.ordinal() + intArgCount],MIRType.I32)));
+                intArgCount++;
+            } else {
+                mirBB.getInstructions().add(new MIRMemoryOp(
+                        MIRMemoryOp.Op.LOAD,
+                        MIRMemoryOp.Type.POINTER,
+                        argMem,
+                        new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.A0.ordinal() + intArgCount],MIRType.I64)));
+                intArgCount++;
+            }
+            i++;
+        }
+
+
 
         // 为创建调用指令做准备
         Value callee = inst.getOperand(numOperands - 1);
@@ -730,7 +776,12 @@ public class MIRConverterLL {
             // 如果是void类型,就不用接受返回值了
             mirBB.getInstructions().add(new MIRControlFlowOp(funcLabel, args));
 
-            mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP), MIRArithOp.Type.INT,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP),new MIRImmediate(stackSize,MIRType.I64)));
+            mirBB.getInstructions().add(new MIRArithOp(
+                    MIRArithOp.Op.ADD,
+                    new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),
+                    MIRArithOp.Type.INT,
+                    new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),
+                    new MIRImmediate(stackSize,MIRType.I64)));
 
 //             恢复相关寄存器
 //             怎么能在这里做个标记在后端处理时能完成这个操作
@@ -757,25 +808,25 @@ public class MIRConverterLL {
             if (MIRType.isFloat(result.getType())) {
                 // 如果返回值是浮点数
 //                mirBB.getInstructions().add(new MIRMoveOp(result, new MIRPhysicalReg(MIRPhysicalReg.PREGs.FA0), MIRMoveOp.MoveType.FLOAT));
-                mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.T2),new MIRPhysicalReg(MIRPhysicalReg.PREGs.FA0), MIRMoveOp.MoveType.FLOAT_TO_INT));
+                mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.T2,MIRType.I32),new MIRPhysicalReg(MIRPhysicalReg.PREGs.FA0,MIRType.F32), MIRMoveOp.MoveType.FLOAT_TO_INT));
             } else {
                 // 如果返回值是整数
 //                mirBB.getInstructions().add(new MIRMoveOp(result, new MIRPhysicalReg(MIRPhysicalReg.PREGs.A0), MIRMoveOp.MoveType.INTEGER));
-                mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.T2),new MIRPhysicalReg(MIRPhysicalReg.PREGs.A0), MIRMoveOp.MoveType.INTEGER));
+                mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.T2,MIRType.I32),new MIRPhysicalReg(MIRPhysicalReg.PREGs.A0,MIRType.I64), MIRMoveOp.MoveType.INTEGER));
             }
 
 
-            mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP), MIRArithOp.Type.INT,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP),new MIRImmediate(stackSize,MIRType.I64)));
+            mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64), MIRArithOp.Type.INT,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),new MIRImmediate(stackSize,MIRType.I64)));
 
             // 恢复相关寄存器
             // 怎么能在这里做个标记在后端处理时能完成这个操作
             mirBB.getInstructions().add(new MIRPseudoOp(MIRPseudoOp.Type.CALLER_RESTORE_REG,0));
 
-            // 把tp里的返回值存回去
+            // 把t2里的返回值存回去
             if (MIRType.isFloat(result.getType())) {
-                mirBB.getInstructions().add(new MIRMoveOp(result,new MIRPhysicalReg(MIRPhysicalReg.PREGs.T2),MIRMoveOp.MoveType.INT_TO_FLOAT));
+                mirBB.getInstructions().add(new MIRMoveOp(result,new MIRPhysicalReg(MIRPhysicalReg.PREGs.T2,MIRType.I32),MIRMoveOp.MoveType.INT_TO_FLOAT));
             } else {
-                mirBB.getInstructions().add(new MIRMoveOp(result,new MIRPhysicalReg(MIRPhysicalReg.PREGs.T2),MIRMoveOp.MoveType.INTEGER));
+                mirBB.getInstructions().add(new MIRMoveOp(result,new MIRPhysicalReg(MIRPhysicalReg.PREGs.T2,MIRType.I32),MIRMoveOp.MoveType.INTEGER));
             }
 
         }
@@ -814,14 +865,14 @@ public class MIRConverterLL {
 
             if(retOperand instanceof MIRImmediate) {
                 // 如果是立即数，转换为寄存器
-                mirBB.getInstructions().add(new MIRLiOp(MIRLiOp.Op.LI, new MIRPhysicalReg(MIRPhysicalReg.PREGs.A0), (MIRImmediate) retOperand));
+                mirBB.getInstructions().add(new MIRLiOp(MIRLiOp.Op.LI, new MIRPhysicalReg(MIRPhysicalReg.PREGs.A0,MIRType.I32), (MIRImmediate) retOperand));
                 //retOperand = immToReg(mirFunc, mirBB, ((MIRImmediate) retOperand).getValue());
             } else {
                 // 将返回值存储到寄存器
                 if(MIRType.isFloat(mirType)){
-                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.FA0), retOperand, MIRMoveOp.MoveType.FLOAT));
+                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.FA0,MIRType.F32), retOperand, MIRMoveOp.MoveType.FLOAT));
                 } else {
-                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.A0), retOperand, MIRMoveOp.MoveType.INTEGER));
+                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.A0,MIRType.I32), retOperand, MIRMoveOp.MoveType.INTEGER));
                 }
 
             }
