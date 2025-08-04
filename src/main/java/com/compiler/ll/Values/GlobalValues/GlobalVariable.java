@@ -14,6 +14,9 @@ public class GlobalVariable extends GlobalValue {
         super(context.getPointerType(type), name);
         this.initializer = initializer;
         this.valueType = type;
+        if (initializer == null) {
+            this.initializer = ConstantZero.get(valueType);
+        }
     }
 
     public boolean isGlobalVariable() {

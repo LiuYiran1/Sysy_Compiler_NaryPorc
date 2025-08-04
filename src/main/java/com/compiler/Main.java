@@ -36,7 +36,7 @@ public class Main {
     static ParseTree tree;
 
     public static void main(String[] args) throws IOException {
-        Path inputDir = Paths.get("src/test/java/func");
+        Path inputDir = Paths.get("src/test/java/functional6");
 
         // 找出所有 .sy 文件
         List<Path> syFiles = Files.walk(inputDir)
