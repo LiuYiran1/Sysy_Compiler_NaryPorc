@@ -21,7 +21,7 @@ public class StackManager {
     // |-------------------|
     // | spill 变量        |
     // |-------------------|
-    // | 数组              | <- sp
+    // | 数组              | <- sp (反过来存）
     // |-------------------|
 
     // 这两部分需要动态 分配 回收
@@ -58,8 +58,9 @@ public class StackManager {
         for (MIRBasicBlock block : function.getBlocks()) {
             for (MIRInstruction inst : block.getInstructions()) {
                 if (inst instanceof MIRAllocOp alloc) {
-                    arrayOffsets.put(alloc.getResult(), arraySectionOffset);
                     arraySectionOffset += alloc.getSize();
+                    arrayOffsets.put(alloc.getResult(), arraySectionOffset);
+//                    arraySectionOffset += alloc.getSize();
                 }
             }
         }
@@ -77,7 +78,8 @@ public class StackManager {
     // 这个方法理论上，能获得一个负数，与s0做运算，就能得到位置
     public int getSpillOffset(MIRVirtualReg vreg) {
         Integer spillLoc = allocator.getSpillLocation(vreg);
-        return spillLoc != null ? -registerSaveSize + spillLoc + 8 : 0;
+//        return spillLoc != null ? -registerSaveSize + spillLoc + 8 : 0;
+        return spillLoc != null ? -registerSaveSize + spillLoc : 0;
     }
 
 

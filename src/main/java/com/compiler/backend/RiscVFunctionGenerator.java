@@ -58,8 +58,20 @@ public class RiscVFunctionGenerator {
         asm.append("    sd ra, ").append("8").append("(sp)\n");
         asm.append("    sd s0, ").append("0").append("(sp)\n");
         //asm.append("    addi s0, sp, ").append(frameSize).append("\n");
-        asm.append("    addi sp, sp, -").append(frameSize - 16).append("\n");
-        asm.append("    addi s0, sp, ").append(frameSize).append("\n");
+        if(frameSize - 16 > 2048) {
+            asm.append("    li t2, ").append(-(frameSize - 16)).append("\n");
+            asm.append("    add sp, sp, t2").append("\n");
+        } else {
+            asm.append("    addi sp, sp, -").append(frameSize - 16).append("\n");
+        }
+
+        if(frameSize > 2048) {
+            asm.append("    li t2, ").append(frameSize).append("\n");
+            asm.append("    add s0, sp, t2").append("\n");
+        } else {
+            asm.append("    addi s0, sp, ").append(frameSize).append("\n");
+        }
+
 
 //        asm.append("    addi sp, sp, -").append(frameSize).append("\n");
 //        asm.append("    sd ra, ").append(frameSize - 8).append("(sp)\n");
@@ -107,8 +119,14 @@ public class RiscVFunctionGenerator {
             }
         }
 
+        if(frameSize - 16 > 2048) {
+            asm.append("    li t2, ").append(frameSize - 16).append("\n");
+            asm.append("    add sp, sp, t2").append("\n");
+        } else {
+            asm.append("    addi sp, sp, ").append(frameSize - 16).append("\n");
+        }
 
-        asm.append("    addi sp, sp, ").append(frameSize - 16).append("\n");
+//        asm.append("    addi sp, sp, ").append(frameSize - 16).append("\n");
         asm.append("    ld ra, ").append("8").append("(sp)\n");
         asm.append("    ld s0, ").append("0").append("(sp)\n");
         asm.append("    addi sp, sp, ").append("16").append("\n");
@@ -192,13 +210,24 @@ public class RiscVFunctionGenerator {
 
     // TODO: 未完成
     private void generateAllocOp(MIRAllocOp inst) {
-        // 数组分配已在栈管理器中处理，这里不需要生成代码
+
         MIRVirtualReg result = inst.getResult();
         int offset = stackManager.getArrayOffset(result);
         // 应该用个add
-        asm.append("    addi ").append(getOperandAsm(result, true)).append(", ")
-           .append("s0, ").append("-").append(offset).append("\n");
+        if(offset > 2048) {
+            asm.append("    li t2, ").append(-offset).append("\n");
+            asm.append("    add ").append(getOperandAsm(result, true)).append(", ")
+               .append("s0, ").append("t2").append("\n");
+        } else {
+            asm.append("    addi ").append(getOperandAsm(result, true)).append(", ")
+               .append("s0, ").append("-").append(offset).append("\n");
+        }
 
+//        asm.append("    addi ").append(getOperandAsm(result, true)).append(", ")
+//           .append("s0, ").append("-").append(offset).append("\n");
+        if(currentDestTempReg != null) {
+            storeSpilledDestOperand(currentDestOperand, currentDestTempReg);
+        }
     }
 
     private void generateMoveOp(MIRMoveOp inst) {
