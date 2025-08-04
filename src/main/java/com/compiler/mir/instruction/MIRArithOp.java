@@ -9,7 +9,7 @@ import java.util.List;
 
 public class MIRArithOp extends MIRInstruction {
 
-    public enum Type { INT, FLOAT }
+    public enum Type { INT, FLOAT ,PTR}
     public enum Op { ADD, SUB, MUL, DIV, REM, XOR }
 
     private final Type type;

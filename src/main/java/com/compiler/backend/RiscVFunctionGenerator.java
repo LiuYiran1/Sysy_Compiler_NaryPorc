@@ -553,8 +553,7 @@ public class RiscVFunctionGenerator {
         String leftReg = getOperandAsm(left, false);
         String rightReg = getOperandAsm(right, false);
 
-        boolean isFloat = MIRType.isFloat(result.getType());
-        String op = getArithOp(inst.getOp(), isFloat);
+        String op = getArithOp(inst.getOp(), inst.getType());
 
         if(op.equals("add") && right instanceof MIRImmediate){
             op = "addi";
@@ -575,14 +574,24 @@ public class RiscVFunctionGenerator {
 
     }
 
-    private String getArithOp(MIRArithOp.Op op, boolean isFloat) {
-        if (isFloat) {
+    private String getArithOp(MIRArithOp.Op op, MIRArithOp.Type type) {
+        if (type == MIRArithOp.Type.FLOAT) {
             switch (op) {
                 case ADD: return "fadd.s";
                 case SUB: return "fsub.s";
                 case MUL: return "fmul.s";
                 case DIV: return "fdiv.s";
                 default: throw new IllegalArgumentException("Unsupported float op: " + op);
+            }
+        } else if (type == MIRArithOp.Type.INT) {
+            switch (op) {
+                case ADD: return "addw";
+                case SUB: return "subw";
+                case MUL: return "mulw";
+                case DIV: return "divw";
+                case REM: return "remw";
+                case XOR: return "xor";
+                default: throw new IllegalArgumentException("Unsupported int op: " + op);
             }
         } else {
             switch (op) {

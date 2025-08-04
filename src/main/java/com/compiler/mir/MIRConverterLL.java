@@ -650,7 +650,7 @@ public class MIRConverterLL {
         mirBB.getInstructions().add(new MIRArithOp(
                 MIRArithOp.Op.ADD,
                 new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),
-                MIRArithOp.Type.INT,
+                MIRArithOp.Type.PTR,
                 new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),
                 new MIRImmediate(-stackSize,MIRType.I64)));
 
@@ -779,7 +779,7 @@ public class MIRConverterLL {
             mirBB.getInstructions().add(new MIRArithOp(
                     MIRArithOp.Op.ADD,
                     new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),
-                    MIRArithOp.Type.INT,
+                    MIRArithOp.Type.PTR,
                     new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),
                     new MIRImmediate(stackSize,MIRType.I64)));
 
@@ -816,7 +816,7 @@ public class MIRConverterLL {
             }
 
 
-            mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64), MIRArithOp.Type.INT,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),new MIRImmediate(stackSize,MIRType.I64)));
+            mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64), MIRArithOp.Type.PTR,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),new MIRImmediate(stackSize,MIRType.I64)));
 
             // 恢复相关寄存器
             // 怎么能在这里做个标记在后端处理时能完成这个操作
@@ -909,7 +909,7 @@ public class MIRConverterLL {
                 throw new IllegalArgumentException("the type of index is wrong");
             }
 
-            mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,result,MIRArithOp.Type.INT,base, indexOp));
+            mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,result,MIRArithOp.Type.PTR,base, indexOp));
 //            if(basePtr.isGlobalVariable()){
 //                mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,result,MIRArithOp.Type.INT,base, indexOp));
 //            } else {
@@ -947,7 +947,7 @@ public class MIRConverterLL {
                     throw new IllegalArgumentException("the type of index is wrong");
                 }
 
-                mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,result,MIRArithOp.Type.INT,base, indexOp));
+                mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,result,MIRArithOp.Type.PTR,base, indexOp));
 //                if(isOriginalBaseGlobal(basePtr)){
 //                    mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,result,MIRArithOp.Type.INT,base, indexOp));
 //                } else {
