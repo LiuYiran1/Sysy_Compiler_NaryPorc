@@ -20,9 +20,11 @@ public class MIRPhysicalReg extends MIROperand {
     }
     
     private final PREGs pReg;
+    private final MIRType type;
 
-    public MIRPhysicalReg(PREGs pReg) {
+    public MIRPhysicalReg(PREGs pReg, MIRType type) {
         this.pReg = pReg;
+        this.type = type;
     }
 
     @Override
@@ -32,7 +34,7 @@ public class MIRPhysicalReg extends MIROperand {
 
     @Override
     public MIRType getType() {
-        return null; // 物理寄存器没有类型
+        return type;
     }
 
 }

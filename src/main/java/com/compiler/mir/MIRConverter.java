@@ -207,17 +207,17 @@ public class MIRConverter {
                 MIRPhysicalReg paramReg;
                 if (MIRType.isFloat(mirType)) {
                     // 浮点类型参数
-                    paramReg = new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.FA0.ordinal() + i]);
+                    paramReg = new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.FA0.ordinal() + i],MIRType.F32);
                 } else {
                     // ptr + 整数类型
-                    paramReg = new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.A0.ordinal() + i]);
+                    paramReg = new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.A0.ordinal() + i],MIRType.I64);
                 }
                 valueMap.put(param, paramReg);
                 mirFunc.addParam(paramReg);
             } else {
                 int offset = (i - 8) * 8; // 从第9个参数开始，每个参数占8个字节
                 MIRMemory paramMem = new MIRMemory(
-                        new MIRPhysicalReg(MIRPhysicalReg.PREGs.FP), // 使用FP寄存器作为基址
+                        new MIRPhysicalReg(MIRPhysicalReg.PREGs.FP,MIRType.I64), // 使用FP寄存器作为基址
                         new MIRImmediate(offset, MIRType.I64), // 偏移量为0
                         mirType
                 );
@@ -562,17 +562,17 @@ public class MIRConverter {
 
             if(i < 8){
                 if(MIRType.isFloat(argType)) {
-                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.FA0.ordinal() + i]),mirArg, MIRMoveOp.MoveType.FLOAT));
+                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.FA0.ordinal() + i],MIRType.F32),mirArg, MIRMoveOp.MoveType.FLOAT));
                 } else {
                     // 整数类型或指针类型
-                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.A0.ordinal() + i]),mirArg, MIRMoveOp.MoveType.INTEGER));
+                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.A0.ordinal() + i],MIRType.I64),mirArg, MIRMoveOp.MoveType.INTEGER));
                 }
             } else {
                 // 如果参数超过8个，使用栈传递
                 // 这里的偏移量需要计算
                 int offset = (i - 8) * 8; // 每个参数占8个字节
 
-                MIRMemory argMem = new MIRMemory(new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP), new MIRImmediate(offset, MIRType.I64), mirArg.getType());
+                MIRMemory argMem = new MIRMemory(new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64), new MIRImmediate(offset, MIRType.I64), mirArg.getType());
                 if(MIRType.isFloat(argType)) {
                     mirBB.getInstructions().add(new MIRMemoryOp(MIRMemoryOp.Op.STORE, MIRMemoryOp.Type.FLOAT, argMem, mirArg));
                 } else if(MIRType.isInt(argType)) {
@@ -614,10 +614,10 @@ public class MIRConverter {
             // 存储返回值 以LL为准处理
             if (MIRType.isFloat(result.getType())) {
                 // 如果返回值是浮点数
-                mirBB.getInstructions().add(new MIRMoveOp(result, new MIRPhysicalReg(MIRPhysicalReg.PREGs.FA0), MIRMoveOp.MoveType.FLOAT));
+                mirBB.getInstructions().add(new MIRMoveOp(result, new MIRPhysicalReg(MIRPhysicalReg.PREGs.FA0,MIRType.F32), MIRMoveOp.MoveType.FLOAT));
             } else {
                 // 如果返回值是整数
-                mirBB.getInstructions().add(new MIRMoveOp(result, new MIRPhysicalReg(MIRPhysicalReg.PREGs.A0), MIRMoveOp.MoveType.INTEGER));
+                mirBB.getInstructions().add(new MIRMoveOp(result, new MIRPhysicalReg(MIRPhysicalReg.PREGs.A0,MIRType.I64), MIRMoveOp.MoveType.INTEGER));
             }
 
         }
@@ -651,14 +651,14 @@ public class MIRConverter {
 
             if(retOperand instanceof MIRImmediate) {
                 // 如果是立即数，转换为寄存器
-                mirBB.getInstructions().add(new MIRLiOp(MIRLiOp.Op.LI, new MIRPhysicalReg(MIRPhysicalReg.PREGs.A0), (MIRImmediate) retOperand));
+                mirBB.getInstructions().add(new MIRLiOp(MIRLiOp.Op.LI, new MIRPhysicalReg(MIRPhysicalReg.PREGs.A0,MIRType.I32), (MIRImmediate) retOperand));
                 //retOperand = immToReg(mirFunc, mirBB, ((MIRImmediate) retOperand).getValue());
             } else {
                 // 将返回值存储到寄存器
                 if(MIRType.isFloat(mirType)){
-                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.FA0), retOperand, MIRMoveOp.MoveType.FLOAT));
+                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.FA0,MIRType.F32), retOperand, MIRMoveOp.MoveType.FLOAT));
                 } else {
-                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.A0), retOperand, MIRMoveOp.MoveType.INTEGER));
+                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.A0,MIRType.I32), retOperand, MIRMoveOp.MoveType.INTEGER));
                 }
 
             }
