@@ -45,16 +45,16 @@ public class LinearScanRegisterAllocator {
 
     public LinearScanRegisterAllocator(MIRFunction function) {
         this.function = function;
-        System.out.println("starting linear scan register allocation for function: " + function.getName());
+//        System.out.println("starting linear scan register allocation for function: " + function.getName());
         initializeAvailableRegisters();
-        System.out.println(availableIntRegs);
-        System.out.println(availableFloatRegs);
+//        System.out.println(availableIntRegs);
+//        System.out.println(availableFloatRegs);
         assignInstructionPositions();
         buildControlFlowGraph();
         computeLiveness();
-        System.out.println("liveness initialized");
+//        System.out.println("liveness initialized");
         buildLiveIntervals();
-        System.out.println("live intervals initialized");
+//        System.out.println("live intervals initialized");
     }
 
     private void initializeAvailableRegisters() {
@@ -77,6 +77,77 @@ public class LinearScanRegisterAllocator {
         availableIntRegs.remove(intTempReg2);
         availableFloatRegs.remove(floatTempReg1);
         availableFloatRegs.remove(floatTempReg2);
+
+        for(var param : function.getParams()){
+            if(param instanceof MIRPhysicalReg){
+                switch (param.toString()){
+                    case "a0":
+                        availableIntRegs.remove(PhysicalRegister.A0);
+                        usedCallerSaved.add(PhysicalRegister.A0);
+                        break;
+                    case "a1":
+                        availableIntRegs.remove(PhysicalRegister.A1);
+                        usedCallerSaved.add(PhysicalRegister.A1);
+                        break;
+                    case "a2":
+                        availableIntRegs.remove(PhysicalRegister.A2);
+                        usedCallerSaved.add(PhysicalRegister.A2);
+                        break;
+                    case "a3":
+                        availableIntRegs.remove(PhysicalRegister.A3);
+                        usedCallerSaved.add(PhysicalRegister.A3);
+                        break;
+                    case "a4":
+                        availableIntRegs.remove(PhysicalRegister.A4);
+                        usedCallerSaved.add(PhysicalRegister.A4);
+                        break;
+                    case "a5":
+                        availableIntRegs.remove(PhysicalRegister.A5);
+                        usedCallerSaved.add(PhysicalRegister.A5);
+                        break;
+                    case "a6":
+                        availableIntRegs.remove(PhysicalRegister.A6);
+                        usedCallerSaved.add(PhysicalRegister.A6);
+                        break;
+                    case "a7":
+                        availableIntRegs.remove(PhysicalRegister.A7);
+                        usedCallerSaved.add(PhysicalRegister.A7);
+                        break;
+                    case "fa0":
+                        availableFloatRegs.remove(PhysicalRegister.FA0);
+                        usedCallerSaved.add(PhysicalRegister.FA0);
+                        break;
+                    case "fa1":
+                        availableFloatRegs.remove(PhysicalRegister.FA1);
+                        usedCallerSaved.add(PhysicalRegister.FA1);
+                        break;
+                    case "fa2":
+                        availableFloatRegs.remove(PhysicalRegister.FA2);
+                        usedCallerSaved.add(PhysicalRegister.FA2);
+                        break;
+                    case "fa3":
+                        availableFloatRegs.remove(PhysicalRegister.FA3);
+                        usedCallerSaved.add(PhysicalRegister.FA3);
+                        break;
+                    case "fa4":
+                        availableFloatRegs.remove(PhysicalRegister.FA4);
+                        usedCallerSaved.add(PhysicalRegister.FA4);
+                        break;
+                    case "fa5":
+                        availableFloatRegs.remove(PhysicalRegister.FA5);
+                        usedCallerSaved.add(PhysicalRegister.FA5);
+                        break;
+                    case "fa6":
+                        availableFloatRegs.remove(PhysicalRegister.FA6);
+                        usedCallerSaved.add(PhysicalRegister.FA6);
+                        break;
+                    case "fa7":
+                        availableFloatRegs.remove(PhysicalRegister.FA7);
+                        usedCallerSaved.add(PhysicalRegister.FA7);
+                        break;
+                }
+            }
+        }
     }
 
     // 给每个指令分配序号，从entry到return
@@ -110,27 +181,27 @@ public class LinearScanRegisterAllocator {
 
         // 按起始点排序生存区间
         intervals.sort(Comparator.comparingInt(i -> i.start));
-        for(var interval: intIntervals) {
-            System.err.println(interval.vreg.toString() + ": " + interval.start + " " + interval.end);
-        }
-        System.out.println("starting linear scan register allocation for function: " + function.getName());
+//        for(var interval: intIntervals) {
+//            System.err.println(interval.vreg.toString() + ": " + interval.start + " " + interval.end);
+//        }
+//        System.out.println("starting linear scan register allocation for function: " + function.getName());
 
         // 分别处理整数和浮点寄存器分配
         allocateRegisters(intIntervals, false); // 分配整数寄存器
         allocateRegisters(floatIntervals, true);  // 分配浮点寄存器
 
         // 打印出分配情况
-        System.out.println("Register allocation completed for function: " + function.getName());
-        for(var entry : registerAssignment.entrySet()) {
-            LiveInterval interval = entry.getKey();
-            PhysicalRegister reg = entry.getValue();
-            System.out.println("VReg: " + interval.vreg + " assigned to " + reg);
-        }
-        for(var entry : spillLocations.entrySet()) {
-            LiveInterval interval = entry.getKey();
-            Integer location = entry.getValue();
-            System.out.println("VReg: " + interval.vreg + " spilled at location: " + location);
-        }
+//        System.out.println("Register allocation completed for function: " + function.getName());
+//        for(var entry : registerAssignment.entrySet()) {
+//            LiveInterval interval = entry.getKey();
+//            PhysicalRegister reg = entry.getValue();
+//            System.out.println("VReg: " + interval.vreg + " assigned to " + reg);
+//        }
+//        for(var entry : spillLocations.entrySet()) {
+//            LiveInterval interval = entry.getKey();
+//            Integer location = entry.getValue();
+//            System.out.println("VReg: " + interval.vreg + " spilled at location: " + location);
+//        }
     }
 
     private void allocateRegisters(List<LiveInterval> intervals, boolean forFloat) {
@@ -153,8 +224,8 @@ public class LinearScanRegisterAllocator {
                 new ArrayList<>(availableFloatRegs) :
                 new ArrayList<>(availableIntRegs);
         int R = availableRegs.size();
-        System.out.println(intervals.size());
-        System.out.println("Allocating " + R + " registers for function: " + function.getName());
+//        System.out.println(intervals.size());
+//        System.out.println("Allocating " + R + " registers for function: " + function.getName());
 
         for (LiveInterval current : intervals) {
 
@@ -175,7 +246,7 @@ public class LinearScanRegisterAllocator {
                 PhysicalRegister reg = availableRegs.remove(0);
                 registerAssignment.put(current, reg);
                 active.add(current);
-                System.err.println("active = " + active.size());
+//                System.err.println("active = " + active.size());
                 recordUsedRegister(reg);
             }
         }
@@ -200,9 +271,9 @@ public class LinearScanRegisterAllocator {
             LiveInterval interval = it.next();
             if (interval.end <= currentPoint) {
 //                System.err.println(registerAssignment.get(interval));
-                System.err.println("available = " + availableRegs.size());
+//                System.err.println("available = " + availableRegs.size());
                 availableRegs.add(registerAssignment.get(interval));
-                System.err.println("available = " + availableRegs.size());
+//                System.err.println("available = " + availableRegs.size());
                 it.remove();
             } else {
                 break;
@@ -461,6 +532,8 @@ public class LinearScanRegisterAllocator {
             return ((MIRLaOp) inst).getResult();
         } else if (inst instanceof MIRAllocOp) {
             return ((MIRAllocOp) inst).getResult();
+        } else if(inst instanceof MIRShiftOp) {
+            return ((MIRShiftOp) inst).getResult();
         }
         //System.err.println("Unexpected instruction: " + inst.toString());
         return null;
@@ -495,6 +568,9 @@ public class LinearScanRegisterAllocator {
             for(MIROperand operand : cfOp.getOperands()) {
                 addIfVirtualReg(uses, operand);
             }
+        } else if (inst instanceof MIRShiftOp) {
+            MIRShiftOp shiftOp = (MIRShiftOp) inst;
+            addIfVirtualReg(uses, shiftOp.getOperands().get(0));
         }
 
         return uses;
