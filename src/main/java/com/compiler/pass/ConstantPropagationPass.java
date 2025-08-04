@@ -69,8 +69,8 @@ public class ConstantPropagationPass implements Pass {
         }
     }
 
-    Map<Value, ConstValue> valueLattice = new HashMap<>();
-    Set<BasicBlock> executableBlocks = new HashSet<>();
+    Map<Value, ConstValue> valueLattice = new LinkedHashMap<>();
+    Set<BasicBlock> executableBlocks = new LinkedHashSet<>();
 
     Queue<Instruction> instWorkList = new LinkedList<>();
     Queue<BasicBlock> blockWorkList = new LinkedList<>();
@@ -399,24 +399,9 @@ public class ConstantPropagationPass implements Pass {
     private ConstValue meetState(ConstValue a, ConstValue b) {
         if (a.state == LatticeVal.OVERDEF || b.state == LatticeVal.OVERDEF) {
             return ConstValue.makeOverdef(); // OVERDEF by default
-        }
-        if (a.state == LatticeVal.UNDEF && b.state == LatticeVal.UNDEF) {
+        }else {
             return new ConstValue();
         }
-        if (a.state == LatticeVal.UNDEF) {
-            return ConstValue.makeOverdef();
-        }
-        if (b.state == LatticeVal.UNDEF) {
-            return ConstValue.makeOverdef();
-        }
-
-        // Both are CONST
-        if (Objects.equals(a.value, b.value)) {
-            return new ConstValue(a); // same const value
-        }
-
-        // Conflict
-        return ConstValue.makeOverdef(); // default is OVERDEF
     }
 
 
