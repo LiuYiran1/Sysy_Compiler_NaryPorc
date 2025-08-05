@@ -825,7 +825,7 @@ public class RiscVFunctionGenerator {
             }
             asm.append("    ").append(loadOp).append(" ")
                     .append(tempReg).append(", ")
-                    .append("-"+mem.getOffset().toString()).append("("+ mem.getBase().toString() + ")").append("\n");
+                    .append(""+mem.getOffset().toString()).append("("+ mem.getBase().toString() + ")").append("\n");
 
             return tempReg.toString();
         } else if (operand instanceof MIRPhysicalReg) {

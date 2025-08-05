@@ -902,15 +902,42 @@ public class MIRConverterLL {
             Value index = gep.getOperand(1);
             MIROperand indexOp = getMIRValue(index, mirFunc, mirBB);
 
-            if(indexOp instanceof MIRImmediate){
-                // 如果是立即数，转换为寄存器
-                indexOp = immToReg(mirFunc, mirBB, ((MIRImmediate) indexOp).getValue() * 4); // 这里应该*4吧？
-            } else if (indexOp instanceof  MIRVirtualReg){
-                // 如果是虚拟寄存器，得先左移2位
-                mirBB.getInstructions().add(new MIRShiftOp(MIRShiftOp.Op.SLL, (MIRVirtualReg) indexOp, (MIRVirtualReg) indexOp,new MIRImmediate(2,MIRType.I32)));
+            Type elementType = ((PointerType) basePtr.getType()).getPointeeType();
+            TypeID kind = elementType.getTypeID();
+            if(kind == TypeID.ARRAY){
+                int ptrSize = getArrayLength(elementType); // 获取指针指向的大小
+                if(indexOp instanceof MIRImmediate){
+                    // 如果是立即数，转换为寄存器
+                    indexOp = immToReg(mirFunc, mirBB, ((MIRImmediate) indexOp).getValue() * ptrSize * 4); // 这里应该*4吧？
+                } else if (indexOp instanceof  MIRVirtualReg){
+//                    // 如果是虚拟寄存器，得先左移2位
+//                    mirBB.getInstructions().add(new MIRShiftOp(MIRShiftOp.Op.SLL, (MIRVirtualReg) indexOp, (MIRVirtualReg) indexOp,new MIRImmediate(2,MIRType.I32)));
+                    MIRVirtualReg tempReg = (MIRVirtualReg) immToReg(mirFunc,mirBB,ptrSize * 4);
+                    mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.MUL, (MIRVirtualReg) indexOp,MIRArithOp.Type.INT,indexOp,tempReg));
+                } else {
+                    throw new IllegalArgumentException("the type of index is wrong");
+                }
             } else {
-                throw new IllegalArgumentException("the type of index is wrong");
+                if(indexOp instanceof MIRImmediate){
+                    // 如果是立即数，转换为寄存器
+                    indexOp = immToReg(mirFunc, mirBB, ((MIRImmediate) indexOp).getValue() * 4); // 这里应该*4吧？
+                } else if (indexOp instanceof  MIRVirtualReg){
+                    // 如果是虚拟寄存器，得先左移2位
+                    mirBB.getInstructions().add(new MIRShiftOp(MIRShiftOp.Op.SLL, (MIRVirtualReg) indexOp, (MIRVirtualReg) indexOp,new MIRImmediate(2,MIRType.I32)));
+                } else {
+                    throw new IllegalArgumentException("the type of index is wrong");
+                }
             }
+
+//            if(indexOp instanceof MIRImmediate){
+//                // 如果是立即数，转换为寄存器
+//                indexOp = immToReg(mirFunc, mirBB, ((MIRImmediate) indexOp).getValue() * 4); // 这里应该*4吧？
+//            } else if (indexOp instanceof  MIRVirtualReg){
+//                // 如果是虚拟寄存器，得先左移2位
+//                mirBB.getInstructions().add(new MIRShiftOp(MIRShiftOp.Op.SLL, (MIRVirtualReg) indexOp, (MIRVirtualReg) indexOp,new MIRImmediate(2,MIRType.I32)));
+//            } else {
+//                throw new IllegalArgumentException("the type of index is wrong");
+//            }
 
             mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,result,MIRArithOp.Type.PTR,base, indexOp));
 //            if(basePtr.isGlobalVariable()){
