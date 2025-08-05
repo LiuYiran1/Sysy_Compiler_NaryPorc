@@ -131,7 +131,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         //System.out.println(msg);
     }
 
-    public Module dump(File file) {
+    public Module dump(boolean needPass) {
         for (Function func = mod.getFirstFunction(); func != null; func = func.getNextFunction()) {
             for (BasicBlock bb = func.getFirstBasicBlock(); bb != null; bb = bb.getNextBasicBlock()) {
                 if (bb.getTerminator() == null) {
@@ -196,32 +196,19 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         while (hasChanged){
             hasChanged = unUsedVarElimPass.run(mod)
                     || deadCodeElimPass.run(mod);
-                    //|| constantPropagationPass.run(mod);
+            //|| constantPropagationPass.run(mod);
         }
-
-        mod.dump(file);
 
         return mod;
     }
 
-    public MIRModule mirGen(Module mod, String outputPath) {
-        PrintWriter writer = null;
-        try {
-            writer = new PrintWriter(new FileWriter(outputPath));
-        } catch (IOException e){
-            System.out.println("mir writer error");
-        }
+    public MIRModule mirGen(Module mod) {
         MIRConverterLL converter = new MIRConverterLL(mod);
         MIRModule mirModule = converter.convert();
-        System.out.println("ending");
-        MIRPrinter mirPrinter = new MIRPrinter(mirModule, writer);
-        System.out.println("starting print");
-        mirPrinter.printModule();
-
         return mirModule;
     }
 
-    public void riscVGen(MIRModule mirModule, String outputPath) {
+    public void riscvGen(MIRModule mirModule, String outputPath) {
         PrintWriter writer = null;
         try {
             writer = new PrintWriter(new FileWriter(outputPath));

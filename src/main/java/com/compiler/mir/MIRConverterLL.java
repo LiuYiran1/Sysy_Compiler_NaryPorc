@@ -19,7 +19,6 @@ import java.util.List;
 import java.util.Map;
 
 import static com.compiler.mir.instruction.MIRControlFlowOp.Type.*;
-import static org.bytedeco.llvm.global.LLVM.*;
 
 public class MIRConverterLL {
     // 添加调试信息字段
@@ -36,7 +35,7 @@ public class MIRConverterLL {
 //    private final Map<MIRFunction, List<MIRFloatConstant>> functionFloatConstants = new LinkedHashMap<>();
 
     // 调试日志开关
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
 
     public MIRConverterLL(Module llModule) {
         this.llModule = llModule;
