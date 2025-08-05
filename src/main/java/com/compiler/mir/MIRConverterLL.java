@@ -244,7 +244,7 @@ public class MIRConverterLL {
 //                    int offset = (floatArgCount + intArgCount - 8) * 8;
                     MIRMemory paramMem = new MIRMemory(
                             new MIRPhysicalReg(MIRPhysicalReg.PREGs.FP,MIRType.I64),
-                            new MIRImmediate(offset - 8, MIRType.I64),
+                            new MIRImmediate(offset, MIRType.I64),
                             mirType
                     );
                     valueMap.put(param, paramMem);
@@ -272,7 +272,7 @@ public class MIRConverterLL {
                     int offset = floatOffset + intOffset;
                     MIRMemory paramMem = new MIRMemory(
                             new MIRPhysicalReg(MIRPhysicalReg.PREGs.FP,MIRType.I64),
-                            new MIRImmediate(offset - 8, MIRType.I64),
+                            new MIRImmediate(offset, MIRType.I64),
                             mirType
                     );
                     valueMap.put(param, paramMem);
@@ -626,6 +626,7 @@ public class MIRConverterLL {
         mirBB.getInstructions().add(new MIRPseudoOp(MIRPseudoOp.Type.CALLER_SAVE_REG,0));
 
         // 处理参数 + 传参
+        List<MIROperand> regArgs = new ArrayList<>();
         List<MIROperand> args = new ArrayList<>();
         int numOperands = inst.getNumOperands();
 
@@ -672,12 +673,13 @@ public class MIRConverterLL {
                 // 浮点参数处理
                 if (floatArgCount < 8) {
                     floatArgCount++;
+                    int pos = stackSize - ((Math.min(floatArgCount, 8)) + (Math.min(intArgCount, 8))) * 8;
                     mirBB.getInstructions().add(new MIRMemoryOp(
                             MIRMemoryOp.Op.STORE,
                             MIRMemoryOp.Type.FLOAT,
-                            new MIRMemory(new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),new MIRImmediate(stackSize - (floatArgCount+intArgCount) * 8, MIRType.I64),argType),
+                            new MIRMemory(new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),new MIRImmediate(pos, MIRType.I64),argType),
                     mirArg));
-
+                    regArgs.add(mirArg);
 //                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.FA0.ordinal() + floatArgCount]),mirArg, MIRMoveOp.MoveType.FLOAT));
 //                    floatArgCount++;
                 } else {
@@ -694,7 +696,8 @@ public class MIRConverterLL {
                 // 整数参数处理
                 if (intArgCount < 8) {
                     intArgCount++;
-                    MIRMemory argMem = new MIRMemory(new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),new MIRImmediate(stackSize - (floatArgCount+intArgCount) * 8, MIRType.I64),argType);
+                    int pos = stackSize - ((Math.min(floatArgCount, 8)) + (Math.min(intArgCount, 8))) * 8;
+                    MIRMemory argMem = new MIRMemory(new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),new MIRImmediate(pos, MIRType.I64),argType);
                     if(MIRType.isInt(argType)) {
                         // 整数类型
                         mirBB.getInstructions().add(new MIRMemoryOp(MIRMemoryOp.Op.STORE, MIRMemoryOp.Type.INTEGER, argMem, mirArg));
@@ -702,7 +705,7 @@ public class MIRConverterLL {
                         // 指针类型
                         mirBB.getInstructions().add(new MIRMemoryOp(MIRMemoryOp.Op.STORE, MIRMemoryOp.Type.POINTER, argMem, mirArg));
                     }
-
+                    regArgs.add(mirArg);
 //                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.A0.ordinal() + intArgCount]),mirArg, MIRMoveOp.MoveType.INTEGER));
 //                    intArgCount++;
                 } else {
@@ -731,7 +734,7 @@ public class MIRConverterLL {
         floatArgCount = 0;
         intArgCount = 0;
         while(i != sumRegArgs ){
-            MIRType type = args.get(i).getType();
+            MIRType type = regArgs.get(i).getType();
             MIRMemory argMem = new MIRMemory(new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),new MIRImmediate(stackSize - (i + 1) * 8, MIRType.I64), type);
             if(MIRType.isFloat(type)) {
                 mirBB.getInstructions().add(new MIRMemoryOp(

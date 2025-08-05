@@ -459,12 +459,12 @@ public class RiscVFunctionGenerator {
                     if (currentDestTempReg != null) {
                         MIRVirtualReg vreg = currentDestOperand;
                         PhysicalRegister tempReg = currentDestTempReg;
-                        asm.append(rightReg).append(", ")
-                           .append(leftReg).append("\n");
+                        asm.append(leftReg).append(", ")
+                           .append(rightReg).append("\n");
                         storeSpilledDestOperand(vreg, tempReg);
                     } else {
-                        asm.append(rightReg).append(", ")
-                           .append(leftReg).append("\n");
+                        asm.append(leftReg).append(", ")
+                           .append(rightReg).append("\n");
                     }
                     break;
                 case GT:
@@ -487,12 +487,12 @@ public class RiscVFunctionGenerator {
                     if (currentDestTempReg != null) {
                         MIRVirtualReg vreg = currentDestOperand;
                         PhysicalRegister tempReg = currentDestTempReg;
-                        asm.append(leftReg).append(", ")
-                           .append(rightReg).append("\n");
+                        asm.append(rightReg).append(", ")
+                           .append(leftReg).append("\n");
                         storeSpilledDestOperand(vreg, tempReg);
                     } else {
-                        asm.append(leftReg).append(", ")
-                           .append(rightReg).append("\n");
+                        asm.append(rightReg).append(", ")
+                           .append(leftReg).append("\n");
                     }
 
                     break;
@@ -774,6 +774,7 @@ public class RiscVFunctionGenerator {
 
             // 处理spill情况
             int spillOffset = stackManager.getSpillOffset(vreg);
+//            System.err.println(spillOffset);
             if (spillOffset != 0) {
                 // 加载到临时寄存器
                 PhysicalRegister tempReg = MIRType.isFloat(vreg.getType()) ?
@@ -792,6 +793,7 @@ public class RiscVFunctionGenerator {
                     asm.append("    ").append(loadOp).append(" ")
                             .append(tempReg).append(", 0(t2)\n");
                 } else {
+
                     asm.append("    ").append(loadOp).append(" ")
                             .append(tempReg).append(", ")
                             .append(spillOffset).append("(s0)\n");
@@ -834,7 +836,8 @@ public class RiscVFunctionGenerator {
     }
 
     private void storeSpilledDestOperand(MIRVirtualReg vreg, PhysicalRegister tempReg) {
-        Integer spillOffset = allocator.getSpillLocation(vreg);
+//        Integer spillOffset = allocator.getSpillLocation(vreg);
+        Integer spillOffset = stackManager.getSpillOffset(vreg);
         if (spillOffset != null) {
             boolean isFloat = MIRType.isFloat(vreg.getType());
             String storeOp = isFloat ? "fsd" : "sd";

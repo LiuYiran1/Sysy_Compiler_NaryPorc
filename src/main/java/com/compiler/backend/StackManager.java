@@ -53,6 +53,8 @@ public class StackManager {
         int spillSize = allocator.getSpillMap().size() * 8; // 每个spill变量8字节（应该可以这么处理）
         spillSectionOffset = registerSaveSize + spillSize;
 
+        System.err.println(function.getName() + "spill : " + spillSize / 8);
+
         // 4. 计算数组区域大小
         arraySectionOffset = spillSectionOffset;
         for (MIRBasicBlock block : function.getBlocks()) {
@@ -79,6 +81,7 @@ public class StackManager {
     public int getSpillOffset(MIRVirtualReg vreg) {
         Integer spillLoc = allocator.getSpillLocation(vreg);
 //        return spillLoc != null ? -registerSaveSize + spillLoc + 8 : 0;
+//        System.err.println(-registerSaveSize + spillLoc);
         return spillLoc != null ? -registerSaveSize + spillLoc : 0;
     }
 

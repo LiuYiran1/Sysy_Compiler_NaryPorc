@@ -199,7 +199,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
                     //|| constantPropagationPass.run(mod);
         }
 
-        //mod.dump(file);
+        mod.dump(file);
 
         return mod;
     }
