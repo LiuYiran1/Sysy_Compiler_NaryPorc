@@ -214,7 +214,7 @@ public class RiscVFunctionGenerator {
         MIRVirtualReg result = inst.getResult();
         int offset = stackManager.getArrayOffset(result);
         // 应该用个add
-        if(offset > 2048) {
+        if(offset >= 2048) {
             asm.append("    li t2, ").append(-offset).append("\n");
             asm.append("    add ").append(getOperandAsm(result, true)).append(", ")
                .append("s0, ").append("t2").append("\n");
@@ -625,18 +625,43 @@ public class RiscVFunctionGenerator {
 
             String base = getOperandAsm(mem.getBase(), false);
 
-            asm.append("    ").append(loadOp).append(" ")
-               .append(getOperandAsm(result, true)).append(", ");
-            if(currentDestTempReg != null){
-                MIRVirtualReg vreg = currentDestOperand;
-                PhysicalRegister tempReg = currentDestTempReg;
-                asm.append(mem.getOffset()).append("(")
-                   .append(base).append(")\n");
-                storeSpilledDestOperand(vreg, tempReg);
+            long offset = ((MIRImmediate)(mem.getOffset())).getValue();
+
+            if( offset >= 2048){
+                asm.append("    li t2, ").append(offset).append("\n");
+                asm.append("    add ").append("t2").append(", sp, t2").append("\n");
+                asm.append("    ").append(loadOp).append(" ")
+                        .append(getOperandAsm(result, true)).append(", 0(t2)\n");
             } else {
-                asm.append(mem.getOffset()).append("(")
-                   .append(base).append(")\n");
+                asm.append("    ").append(loadOp).append(" ")
+                        .append(getOperandAsm(result, true)).append(", ");
+
+                if(currentDestTempReg != null){
+                    MIRVirtualReg vreg = currentDestOperand;
+                    PhysicalRegister tempReg = currentDestTempReg;
+                    asm.append(mem.getOffset()).append("(")
+                            .append(base).append(")\n");
+                    storeSpilledDestOperand(vreg, tempReg);
+                } else {
+                    asm.append(mem.getOffset()).append("(")
+                            .append(base).append(")\n");
+                }
             }
+
+
+//            asm.append("    ").append(loadOp).append(" ")
+//               .append(getOperandAsm(result, true)).append(", ");
+//
+//            if(currentDestTempReg != null){
+//                MIRVirtualReg vreg = currentDestOperand;
+//                PhysicalRegister tempReg = currentDestTempReg;
+//                asm.append(mem.getOffset()).append("(")
+//                   .append(base).append(")\n");
+//                storeSpilledDestOperand(vreg, tempReg);
+//            } else {
+//                asm.append(mem.getOffset()).append("(")
+//                   .append(base).append(")\n");
+//            }
 
         } else { // STORE
             MIRMemory mem = (MIRMemory) op.getOperands().get(0);
@@ -656,11 +681,24 @@ public class RiscVFunctionGenerator {
                 storeOp = "sd";
             }
 
+            long offset = ((MIRImmediate)(mem.getOffset())).getValue();
 
-            asm.append("    ").append(storeOp).append(" ")
-                    .append(val).append(", ")
-                    .append(mem.getOffset()).append("(")
-                    .append(base).append(")\n");
+            if( offset >= 2048){
+                asm.append("    li t2, ").append(offset).append("\n");
+                asm.append("    add ").append("t2").append(", sp, t2").append("\n");
+                asm.append("    ").append(storeOp).append(" ")
+                        .append(val).append(", 0(t2)\n");
+            } else {
+                asm.append("    ").append(storeOp).append(" ")
+                        .append(val).append(", ")
+                        .append(mem.getOffset()).append("(")
+                        .append(base).append(")\n");
+            }
+
+//            asm.append("    ").append(storeOp).append(" ")
+//                    .append(val).append(", ")
+//                    .append(mem.getOffset()).append("(")
+//                    .append(base).append(")\n");
         }
     }
 
@@ -787,7 +825,7 @@ public class RiscVFunctionGenerator {
                 }
                 // 源操作数直接加载
                 String loadOp = MIRType.isFloat(vreg.getType()) ? "flw" : "ld";
-                if(spillOffset > 2048 || spillOffset < -2048){
+                if(spillOffset >= 2048 || spillOffset < -2048){
                     asm.append("    li t2, ").append(spillOffset).append("\n");
                     asm.append("    add ").append("t2").append(", s0, t2").append("\n");
                     asm.append("    ").append(loadOp).append(" ")
@@ -823,9 +861,24 @@ public class RiscVFunctionGenerator {
             } else {
                 loadOp = "ld";
             }
-            asm.append("    ").append(loadOp).append(" ")
-                    .append(tempReg).append(", ")
-                    .append(""+mem.getOffset().toString()).append("("+ mem.getBase().toString() + ")").append("\n");
+
+            long offset = ((MIRImmediate)(mem.getOffset())).getValue();
+            if(offset >= 2048 || offset < -2048){
+                asm.append("    li t2, ").append(offset).append("\n");
+                asm.append("    add ").append("t2").append(", s0, t2").append("\n");
+                asm.append("    ").append(loadOp).append(" ")
+                        .append(tempReg).append(", 0(t2)\n");
+            } else {
+
+                asm.append("    ").append(loadOp).append(" ")
+                        .append(tempReg).append(", ")
+                        .append(offset).append("(s0)\n");
+            }
+
+
+//            asm.append("    ").append(loadOp).append(" ")
+//                    .append(tempReg).append(", ")
+//                    .append(""+mem.getOffset().toString()).append("("+ mem.getBase().toString() + ")").append("\n");
 
             return tempReg.toString();
         } else if (operand instanceof MIRPhysicalReg) {
@@ -842,7 +895,7 @@ public class RiscVFunctionGenerator {
             boolean isFloat = MIRType.isFloat(vreg.getType());
             String storeOp = isFloat ? "fsd" : "sd";
 
-            if(spillOffset > 2048 || spillOffset < -2048){
+            if(spillOffset >= 2048 || spillOffset < -2048){
                 asm.append("    li t2, ").append(spillOffset).append("\n");
                 asm.append("    add ").append("t2").append(", s0, t2").append("\n");
                 asm.append("    ").append(storeOp).append(" ")

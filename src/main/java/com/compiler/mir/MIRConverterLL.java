@@ -647,13 +647,30 @@ public class MIRConverterLL {
 
 //        int stackSize = ((floatArgCount - 8 > 0) ? (floatArgCount - 8) * 8 : 0 ) + ((intArgCount - 8 > 0) ? (intArgCount - 8) * 8 : 0);
         int stackSize = floatArgCount * 8 + intArgCount * 8 ;
+        if(stackSize >= 2048){
+            MIRVirtualReg reg = (MIRVirtualReg) immToReg(mirFunc,mirBB,-stackSize);
+            mirBB.getInstructions().add(new MIRArithOp(
+                    MIRArithOp.Op.ADD,
+                    new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),
+                    MIRArithOp.Type.PTR,
+                    new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),
+                    reg));
+        } else {
+            mirBB.getInstructions().add(new MIRArithOp(
+                    MIRArithOp.Op.ADD,
+                    new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),
+                    MIRArithOp.Type.PTR,
+                    new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),
+                    new MIRImmediate(-stackSize,MIRType.I64)));
 
-        mirBB.getInstructions().add(new MIRArithOp(
-                MIRArithOp.Op.ADD,
-                new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),
-                MIRArithOp.Type.PTR,
-                new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),
-                new MIRImmediate(-stackSize,MIRType.I64)));
+        }
+
+//        mirBB.getInstructions().add(new MIRArithOp(
+//                MIRArithOp.Op.ADD,
+//                new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),
+//                MIRArithOp.Type.PTR,
+//                new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),
+//                new MIRImmediate(-stackSize,MIRType.I64)));
 
         intArgCount = 0;
         floatArgCount = 0;
@@ -674,6 +691,7 @@ public class MIRConverterLL {
                 if (floatArgCount < 8) {
                     floatArgCount++;
                     int pos = stackSize - ((Math.min(floatArgCount, 8)) + (Math.min(intArgCount, 8))) * 8;
+
                     mirBB.getInstructions().add(new MIRMemoryOp(
                             MIRMemoryOp.Op.STORE,
                             MIRMemoryOp.Type.FLOAT,
@@ -818,8 +836,29 @@ public class MIRConverterLL {
                 mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.T2,MIRType.I32),new MIRPhysicalReg(MIRPhysicalReg.PREGs.A0,MIRType.I64), MIRMoveOp.MoveType.INTEGER));
             }
 
+            if(stackSize >= 2048){
+                MIRVirtualReg reg = (MIRVirtualReg) immToReg(mirFunc,mirBB,stackSize);
+                mirBB.getInstructions().add(new MIRArithOp(
+                        MIRArithOp.Op.ADD,
+                        new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),
+                        MIRArithOp.Type.PTR,
+                        new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),
+                        reg));
+            } else {
+                mirBB.getInstructions().add(new MIRArithOp(
+                        MIRArithOp.Op.ADD,
+                        new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),
+                        MIRArithOp.Type.PTR,
+                        new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),
+                        new MIRImmediate(stackSize,MIRType.I64)));
 
-            mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64), MIRArithOp.Type.PTR,new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),new MIRImmediate(stackSize,MIRType.I64)));
+            }
+//            mirBB.getInstructions().add(new MIRArithOp(
+//                            MIRArithOp.Op.ADD,
+//                            new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),
+//                            MIRArithOp.Type.PTR,
+//                            new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),
+//                            new MIRImmediate(stackSize,MIRType.I64)));
 
             // 恢复相关寄存器
             // 怎么能在这里做个标记在后端处理时能完成这个操作
@@ -1095,16 +1134,16 @@ public class MIRConverterLL {
                         source = immToReg(mirFunc,tempBB,((MIRImmediate) source).getValue());
                     }
 
-                    if (mirIncomingBB.getLabel().toString().equals("ifNext"))
-                        System.out.println("666666666666666666666666666666   " + mirIncomingBB.getInstructions().size());
+//                    if (mirIncomingBB.getLabel().toString().equals("ifNext"))
+//                        System.out.println("666666666666666666666666666666   " + mirIncomingBB.getInstructions().size());
 
 
                     //在入块末尾插入MOV指令
                     int size = mirIncomingBB.getInstructions().size();
                     System.out.println("55555555555555555555555555555555    " + size);
                     if (size > 1 && mirIncomingBB.getInstructions().get(size - 2) instanceof MIRControlFlowOp && ((MIRControlFlowOp) mirIncomingBB.getInstructions().get(size - 2)).getType() ==  COND_JMP) {
-                        if (currentBasicBlock.equals("ifNext"))
-                            System.out.println("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD   " + size);
+//                        if (currentBasicBlock.equals("ifNext"))
+//                            System.out.println("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD   " + size);
                         // 如果倒数第二条指令是控制流指令，插入到前面
                         if(!tempBB.getInstructions().isEmpty()){
                             int sizeOfTemp  = tempBB.getInstructions().size();
@@ -1115,16 +1154,25 @@ public class MIRConverterLL {
                         }
                         size = mirIncomingBB.getInstructions().size();
                         if (MIRType.isFloat(phiReg.getType())) {
-
-                            mirIncomingBB.getInstructions().add(size - 2, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.FLOAT));
+                            if(MIRType.isInt(source.getType())){
+                                mirIncomingBB.getInstructions().add(size - 2, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.INT_TO_FLOAT));
+                            } else {
+                                mirIncomingBB.getInstructions().add(size - 2, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.FLOAT));
+                            }
+//                            mirIncomingBB.getInstructions().add(size - 2, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.FLOAT));
 
                         } else {
-                            mirIncomingBB.getInstructions().add(size - 2, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.INTEGER));
+                            if(MIRType.isInt(source.getType())){
+                                mirIncomingBB.getInstructions().add(size - 2, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.INTEGER));
+                            } else {
+                                mirIncomingBB.getInstructions().add(size - 2, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.FLOAT_TO_INT));
+                            }
+//                            mirIncomingBB.getInstructions().add(size - 2, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.INTEGER));
                         }
 
                     } else if (size > 0 && mirIncomingBB.getInstructions().get(size - 1) instanceof MIRControlFlowOp && ((MIRControlFlowOp) mirIncomingBB.getInstructions().get(size - 1)).getType() == JMP) {
-                        if (currentBasicBlock.equals("ifNext"))
-                            System.out.println("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC   " + size);
+//                        if (currentBasicBlock.equals("ifNext"))
+//                            System.out.println("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC   " + size);
                         // 如果倒数第一条指令是控制流指令，插入到前面
                         if(!tempBB.getInstructions().isEmpty()){
                             int sizeOfTemp  = tempBB.getInstructions().size();
@@ -1135,9 +1183,19 @@ public class MIRConverterLL {
                         }
                         size = mirIncomingBB.getInstructions().size();
                         if (MIRType.isFloat(phiReg.getType())) {
-                            mirIncomingBB.getInstructions().add(size - 1, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.FLOAT));
+                            if(MIRType.isInt(source.getType())){
+                                mirIncomingBB.getInstructions().add(size - 1, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.INT_TO_FLOAT));
+                            } else {
+                                mirIncomingBB.getInstructions().add(size - 1, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.FLOAT));
+                            }
+//                            mirIncomingBB.getInstructions().add(size - 1, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.FLOAT));
                         } else {
-                            mirIncomingBB.getInstructions().add(size - 1, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.INTEGER));
+                            if(MIRType.isInt(source.getType())){
+                                mirIncomingBB.getInstructions().add(size - 1, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.INTEGER));
+                            } else {
+                                mirIncomingBB.getInstructions().add(size - 1, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.FLOAT_TO_INT));
+                            }
+//                            mirIncomingBB.getInstructions().add(size - 1, new MIRMoveOp(phiReg, source, MIRMoveOp.MoveType.INTEGER));
                         }
                     } else {
                         // 否则直接添加到末尾 这种情况不应该出现
