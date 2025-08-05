@@ -30,18 +30,4 @@ public class LexerListener extends BaseErrorListener {
         System.err.println("Error type A at Line " + line + ": Mysterious character \"" + dealMsg(msg) + "\"" + '.');
     }
 
-    // 变量名太长就重新命名
-    public void processTokens(CommonTokenStream tokens) {
-        tokens.fill(); // 确保 tokens 被填满
-
-        for (Token token : tokens.getTokens()) {
-            if (token.getType() == SysYLexer.IDENT) {
-                String name = token.getText();
-                if (name.length() > 32 && !renamedIdentifiers.containsKey(name)) {
-                    String newName = "__longvar_" + (renameCounter++);
-                    renamedIdentifiers.put(name, newName);
-                }
-            }
-        }
-    }
 }
