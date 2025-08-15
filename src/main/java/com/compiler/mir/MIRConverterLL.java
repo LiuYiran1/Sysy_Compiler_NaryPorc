@@ -20,6 +20,7 @@ import java.util.Map;
 
 import static com.compiler.mir.instruction.MIRControlFlowOp.Type.*;
 
+
 public class MIRConverterLL {
     // 添加调试信息字段
     private String currentFunction = "";
@@ -35,7 +36,7 @@ public class MIRConverterLL {
 //    private final Map<MIRFunction, List<MIRFloatConstant>> functionFloatConstants = new LinkedHashMap<>();
 
     // 调试日志开关
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = true;
 
     public MIRConverterLL(Module llModule) {
         this.llModule = llModule;
@@ -221,7 +222,7 @@ public class MIRConverterLL {
         int count = llFunc.getArgumentCount();
         for(int i = 0; i < count; i++) {
             Argument param = llFunc.getArgument(i);
-           if (param == null) continue; // 忽略空参数
+            if (param == null) continue; // 忽略空参数
             MIRType mirType = convertType(param.getType());
             System.out.println("{{{{{{{{{{{{{{{{{{{: " + param.getType().toIR());
 //            MIRVirtualReg paramReg = mirFunc.newVirtualReg(mirType);
@@ -695,7 +696,7 @@ public class MIRConverterLL {
                             MIRMemoryOp.Op.STORE,
                             MIRMemoryOp.Type.FLOAT,
                             new MIRMemory(new MIRPhysicalReg(MIRPhysicalReg.PREGs.SP,MIRType.I64),new MIRImmediate(pos, MIRType.I64),argType),
-                    mirArg));
+                            mirArg));
                     regArgs.add(mirArg);
 //                    mirBB.getInstructions().add(new MIRMoveOp(new MIRPhysicalReg(MIRPhysicalReg.PREGs.values()[MIRPhysicalReg.PREGs.FA0.ordinal() + floatArgCount]),mirArg, MIRMoveOp.MoveType.FLOAT));
 //                    floatArgCount++;
@@ -926,6 +927,11 @@ public class MIRConverterLL {
 
     // 实现GetElementPtr指令转换
     private void convertGEPInst(Instruction gep, MIRFunction mirFunc, MIRBasicBlock mirBB) {
+
+        if(valueMap.get(gep) != null){
+            return;
+        }
+
         MIRType ptrType = convertType(gep.getType()); // 获取指针类型
         MIRVirtualReg result = mirFunc.newVirtualReg(ptrType);
         valueMap.put(gep, result);
@@ -944,6 +950,12 @@ public class MIRConverterLL {
             TypeID kind = elementType.getTypeID();
             if(kind == TypeID.ARRAY){
                 int ptrSize = getArrayLength(elementType); // 获取指针指向的大小
+                System.err.println("ptrSize = " + ptrSize);
+                if(ptrSize <= 0) {
+                    System.err.println("arrayLen = " + ptrSize);
+                    throw new IllegalArgumentException("Array size must be greater than 0");
+                }
+
                 if(indexOp instanceof MIRImmediate){
                     // 如果是立即数，转换为寄存器
                     indexOp = immToReg(mirFunc, mirBB, ((MIRImmediate) indexOp).getValue() * ptrSize * 4); // 这里应该*4吧？
@@ -995,7 +1007,7 @@ public class MIRConverterLL {
                 // 数组类型
 
                 int ptrSize = getArrayLength(((ArrayType) elementType).getElementType()); // 获取指针指向的大小
-
+                System.err.println("ptrSize = " + ptrSize);
                 if(ptrSize <= 0) {
                     System.err.println("arrayLen = " + ptrSize);
                     throw new IllegalArgumentException("Array size must be greater than 0");
@@ -1010,7 +1022,9 @@ public class MIRConverterLL {
                     // 如果是寄存器，那就给寄存器的值*4
 //                    mirBB.getInstructions().add(new MIRShiftOp(MIRShiftOp.Op.SLL, (MIRVirtualReg) indexOp, (MIRVirtualReg) indexOp,new MIRImmediate(2,MIRType.I32)));
                     MIRVirtualReg tempReg = (MIRVirtualReg) immToReg(mirFunc,mirBB,ptrSize * 4);
+//                    mirBB.getInstructions().add(new MIRLiOp(MIRLiOp.Op.LI,new MIRPhysicalReg(MIRPhysicalReg.PREGs.T2,MIRType.I32),new MIRImmediate(4 * ptrSize,MIRType.I32)));
                     mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.MUL, (MIRVirtualReg) indexOp,MIRArithOp.Type.INT,indexOp,tempReg));
+//                    mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.MUL, (MIRVirtualReg) indexOp,MIRArithOp.Type.INT,indexOp,new MIRPhysicalReg(MIRPhysicalReg.PREGs.T2,MIRType.I32)));
                 } else {
                     throw new IllegalArgumentException("the type of index is wrong");
                 }
@@ -1243,11 +1257,13 @@ public class MIRConverterLL {
         // %hi 和 %lo
         // 相当于去处理一个I64地址 lui + add 是静态链接吗？
         MIRVirtualReg reg = mirFunc.newVirtualReg(MIRType.I64);
+//        valueMap.put(value, reg);
         System.out.println(value.getName());
         MIRGlobalVariable globalVar = mirModule.getGlobalVariableMap().get(value.getName());
 //        mirBB.getInstructions().add(new MIRLuiOp(reg,globalVar));
 //        mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.ADD,reg, MIRArithOp.Type.INT,reg,globalVar));
         mirBB.getInstructions().add(new MIRLaOp(MIRLaOp.Op.La, reg, globalVar));
+
         return reg;
 
     }

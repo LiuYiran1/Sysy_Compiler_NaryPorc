@@ -21,6 +21,7 @@ public class LinearScanRegisterAllocator {
 
     private final PhysicalRegister intTempReg1 = PhysicalRegister.T0;
     private final PhysicalRegister intTempReg2 = PhysicalRegister.T1;
+
     int tempIntRegIndex = 0;
     private final List<PhysicalRegister> tempIntRegs = Arrays.asList(intTempReg1, intTempReg2);
 
@@ -300,7 +301,7 @@ public class LinearScanRegisterAllocator {
         }
     }
 
-//    private int allocateSpillSlot() {
+    //    private int allocateSpillSlot() {
 //        stackOffset -= 8; // 每个溢出槽8个字节
 //        return stackOffset;
 //    }
@@ -489,6 +490,12 @@ public class LinearScanRegisterAllocator {
             }
         }
 
+        for(var reg : getAllVirtualRegisters()){
+            LiveInterval interval = intervalMap.get(reg);
+            if(interval.end == Integer.MIN_VALUE){
+                interval.end = Integer.MAX_VALUE;
+            }
+        }
         // 收集所有生存区间
         intervals.addAll(intervalMap.values());
     }
