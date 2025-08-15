@@ -789,6 +789,12 @@ public class MIRConverterLL {
 //            throw new IllegalArgumentException("Expected a function call, but got: " + LLVMGetValueName(callee).getString());
 //        }
         String calleeName = callee.getName();
+        if(calleeName.equals("starttime")){
+            calleeName = "_sysy_starttime";
+        } else if (calleeName.equals("stoptime")) {
+            calleeName = "_sysy_stoptime";
+        }
+
         MIRLabel funcLabel = new MIRLabel(calleeName);
 
         // 接受返回值，但void呢？
