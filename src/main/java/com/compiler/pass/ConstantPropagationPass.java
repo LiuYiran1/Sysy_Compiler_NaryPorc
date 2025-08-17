@@ -52,20 +52,27 @@ public class ConstantPropagationPass implements Pass {
             return v;
         }
 
-
         void meet(ConstValue other) {
-            if (other.state == LatticeVal.OVERDEF || this.state == LatticeVal.OVERDEF) {
+            if (other.state == LatticeVal.OVERDEF || this.state == LatticeVal.OVERDEF || true) {
                 this.state = LatticeVal.OVERDEF;
                 this.value = null;
-            } else if (this.state == LatticeVal.UNDEF) {
-                this.state = other.state;
-                this.value = other.value;
+            } else if (this.state == LatticeVal.UNDEF || other.state == LatticeVal.UNDEF) {
+                this.state = LatticeVal.UNDEF;
             } else if (other.state == LatticeVal.UNDEF) {
                 // do nothing
             } else if (!this.value.equals(other.value)) {
                 this.state = LatticeVal.OVERDEF;
                 this.value = null;
             }
+        }
+
+        boolean isSmallerThan(ConstValue other) {
+            if (this.state == LatticeVal.OVERDEF) {
+                return false;
+            } else if (other.state == LatticeVal.UNDEF) {
+                return false;
+            }
+            return true;
         }
     }
 
@@ -75,10 +82,14 @@ public class ConstantPropagationPass implements Pass {
     Queue<Instruction> instWorkList = new LinkedList<>();
     Queue<BasicBlock> blockWorkList = new LinkedList<>();
 
+    Function function;
+    BasicBlock block;
+
     @Override
     public boolean run(Module module) {
         hasChanged = false;
         for (Function func : module.getFunctionDefs()) {
+            this.function = func;
             runOnFunction(func);
         }
         return hasChanged;
@@ -96,6 +107,7 @@ public class ConstantPropagationPass implements Pass {
         while (!instWorkList.isEmpty() || !blockWorkList.isEmpty()) {
             while (!blockWorkList.isEmpty()) {
                 BasicBlock bb = blockWorkList.poll();
+                this.block = bb;
                 for (Instruction inst : bb.getInstructions()) {
                     visitInstruction(inst);
                 }
@@ -111,7 +123,9 @@ public class ConstantPropagationPass implements Pass {
     }
 
     private void markExecutable(BasicBlock bb) {
-        if (executableBlocks.add(bb)) {
+        boolean tem = executableBlocks.add(bb);
+        if (tem) {
+            //System.out.println(function.getName() + "  " + bb.getName() + "   AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA   " + tem);
             blockWorkList.add(bb);
         }
     }
@@ -126,53 +140,19 @@ public class ConstantPropagationPass implements Pass {
             case ZEXT, FPTOSI, SITOFP -> evalCast(inst);
             case PHI -> evalPhi((PhiInst) inst);
             case CBR -> evalCondBr((CondBranchInst) inst);
-            case BR -> {
-                markExecutable(((BranchInst) inst).getTarget());
-            }
+            case BR -> evalBr((BranchInst) inst);
             // 数组不管，全局变量现在跨函数了
 //            case LOAD -> evalLoad((LoadInst) inst);
 //            case STORE -> evalStore((StoreInst) inst);
-            case RET, CALL -> valueLattice.put(inst, new ConstValue()); // 默认不处理 call/ret
+            case RET, CALL, LOAD, STORE -> valueLattice.put(inst, new ConstValue()); // 默认不处理 call/ret
         }
     }
 
     private void evalStore(StoreInst inst) {
-        Value ptr = inst.getOperand(1);
-        Value val = inst.getOperand(0);
-
-        if (!ptr.isGlobalVariable()) return; // 目前store只对全局变量使用
-
-        ConstValue valConst = getConst(val);
-        ConstValue old = getConst(ptr);
-
-        ConstValue result = new ConstValue(old);
-        result.meet(valConst);
-
-        if (updateLattice(ptr, result)) {
-            // load 指令依赖于 store 的全局变量值，需要更新
-            for (User user : ptr.getUsers()) {
-                if (user instanceof LoadInst) {
-                    instWorkList.add((Instruction) user);
-                }
-            }
-        }
     }
 
 
     private void evalLoad(LoadInst inst) {
-        Value ptr = inst.getOperand(0);
-
-        ConstValue memVal = getConst(ptr);
-
-        if (memVal != null && memVal.state == LatticeVal.CONST) {
-            // 能确定的全局变量常量
-            valueLattice.put(inst, new ConstValue(memVal));
-        } else {
-            // 没有写入记录，或多次写入不同值，设置为 OVERDEF
-            valueLattice.put(inst, new ConstValue());
-        }
-
-        addUsersToWorklist(inst);
     }
 
 
@@ -217,6 +197,7 @@ public class ConstantPropagationPass implements Pass {
 
         if (updateLattice(inst, result)) {
             addUsersToWorklist(inst);
+            deleteBlockFromMark(this.block);
         }
     }
 
@@ -258,6 +239,7 @@ public class ConstantPropagationPass implements Pass {
 
         if (updateLattice(inst, result)) {
             addUsersToWorklist(inst);
+            deleteBlockFromMark(this.block);
         }
     }
 
@@ -278,39 +260,56 @@ public class ConstantPropagationPass implements Pass {
 
         if (updateLattice(inst, result)) {
             addUsersToWorklist(inst);
+            deleteBlockFromMark(this.block);
         }
     }
 
     private void evalPhi(PhiInst phi) {
         ConstValue result = new ConstValue();
-        System.out.println(phi.toIR());
+        //System.out.println(phi.toIR());
         for (int i = 0; i < phi.getOperands().size(); i++) {
             BasicBlock from = phi.getIncomingBlocks().get(i);
-            // if (!executableBlocks.contains(from)) continue;
+            //if (!executableBlocks.contains(from)) continue;
 
             Value incoming = phi.getOperands().get(i);
 
             ConstValue tem = getConst(incoming);
-            if (phi.getName().equals("Mem2RegPhi_sum")){
-                System.out.println(tem.state.name());
-            }
             result.meet(tem);
-            if (phi.getName().equals("Mem2RegPhi_sum")){
-                System.out.println("result   " + result.state.name());
-            }
         }
 
         if (updateLattice(phi, result)) {
             addUsersToWorklist(phi);
+            deleteBlockFromMark(this.block);
         }
+    }
+
+    private void evalBr(BranchInst br){
+        if (!executableBlocks.contains(this.block)){
+            executableBlocks.add(br.getTarget());
+            blockWorkList.add(br.getTarget());
+            return;
+        }
+        markExecutable(br.getTarget());
     }
 
     private void evalCondBr(CondBranchInst cbr) {
         ConstValue cond = getConst(cbr.getOperand(0));
         if (cond.state == LatticeVal.CONST) {
             boolean takeTrue = ((int) cond.value) != 0;
+            if (!executableBlocks.contains(this.block)){
+                executableBlocks.add(takeTrue ? cbr.getTrueBlock() : cbr.getFalseBlock());
+                blockWorkList.add(takeTrue ? cbr.getTrueBlock() : cbr.getFalseBlock());
+                return;
+            }
             markExecutable(takeTrue ? cbr.getTrueBlock() : cbr.getFalseBlock());
         } else {
+            if (!executableBlocks.contains(this.block)){
+                executableBlocks.add(cbr.getTrueBlock());
+                executableBlocks.add(cbr.getFalseBlock());
+                blockWorkList.add(cbr.getTrueBlock());
+                blockWorkList.add(cbr.getFalseBlock());
+                return;
+            }
             markExecutable(cbr.getTrueBlock());
             markExecutable(cbr.getFalseBlock());
         }
@@ -318,13 +317,13 @@ public class ConstantPropagationPass implements Pass {
 
     private void applyChanges(Function func) {
         for (BasicBlock bb : func.getBasicBlocks()) {
-            if (!executableBlocks.contains(bb)) continue;
+            // if (!executableBlocks.contains(bb)) continue;
             ListIterator<Instruction> iter = bb.getInstructions().listIterator();
             while (iter.hasNext()) {
                 Instruction inst = iter.next();
                 if (!valueLattice.containsKey(inst)) continue;
                 ConstValue val = valueLattice.get(inst);
-                if (val.state == LatticeVal.CONST) {
+                if (val.state == LatticeVal.CONST && !inst.getUsers().isEmpty()) {
                     bb.replaceAllUse(inst, makeConst(val.value, inst.getType()));
                     hasChanged = true;
                 }
@@ -359,17 +358,10 @@ public class ConstantPropagationPass implements Pass {
             valueLattice.put(v, cv);
             return cv;
 
-        } else if (v.isGlobalVariable()) {
-            Constant constValue = ((GlobalVariable) v).getInitializer();
-            Object value = null;
-            if (constValue.getType().isIntegerType()) {
-                value = (int) ((ConstantInt) constValue).getValue();
-            } else if (constValue.getType().isFloatType()) {
-                value = ((ConstantFloat) constValue).getValue();
-            } else {
-                throw new RuntimeException("ARRAY!!!!!");
-            }
-            ConstValue cv = new ConstValue(value);
+        } else if (v.isGlobalVariable()) { // 这里不对
+
+            ConstValue cv = new ConstValue();
+            cv.state = LatticeVal.OVERDEF;
             valueLattice.put(v, cv);
             return cv;
         }
@@ -383,6 +375,11 @@ public class ConstantPropagationPass implements Pass {
     private boolean updateLattice(Value v, ConstValue val) {
         ConstValue old = valueLattice.get(v);
         if (old == null || old.state != val.state || !Objects.equals(old.value, val.value)) {
+
+            if (old != null && !old.isSmallerThan(val)) {
+                return false;
+            }
+
             valueLattice.put(v, new ConstValue(val)); // 深拷贝
             return true;
         }
@@ -391,9 +388,13 @@ public class ConstantPropagationPass implements Pass {
 
 
     private void addUsersToWorklist(Instruction inst) {
-        for (User user : inst.getUsers()) {
-            instWorkList.add((Instruction) user);
-        }
+//        for (User user : inst.getUsers()) {
+//            instWorkList.add((Instruction) user);
+//        }
+    }
+
+    private void deleteBlockFromMark(BasicBlock bb) {
+        executableBlocks.remove(bb);
     }
 
     private ConstValue meetState(ConstValue a, ConstValue b) {
