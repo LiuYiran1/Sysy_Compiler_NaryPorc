@@ -55,6 +55,10 @@ public abstract class Instruction extends User {
         }
     }
 
+    public void setBlock(BasicBlock block) {
+        this.block = block;
+    }
+
 
     protected String getOpStr(Value op) {
         if (op.isConstant()) {

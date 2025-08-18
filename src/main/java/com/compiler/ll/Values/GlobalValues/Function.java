@@ -81,7 +81,7 @@ public class Function extends GlobalValue {
             succ.getPredecessors().remove(block);
 
             // 如果后继块中有 Phi，需要把该 block 作为 incoming 的信息删掉
-            for (PhiInst phi : succ.getPhiInsts()) {
+            for (PhiInst phi : new ArrayList<>(succ.getAllPhiInsts())) {
                 phi.removeIncomingFrom(block);
             }
         }

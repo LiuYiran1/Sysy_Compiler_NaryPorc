@@ -90,7 +90,7 @@ public class Context {
 
     public IRBuilder getIRBuilder() {
         if(builder == null) {
-            this.builder = new IRBuilder(this, new NameManager());
+            this.builder = new IRBuilder(this, NameManager.getInstance());
         }
         return builder;
     }

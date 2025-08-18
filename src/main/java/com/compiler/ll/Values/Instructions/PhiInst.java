@@ -1,9 +1,14 @@
 package com.compiler.ll.Values.Instructions;
 
+import com.compiler.ll.Types.FloatType;
+import com.compiler.ll.Types.IntegerType;
 import com.compiler.ll.Types.Type;
 import com.compiler.ll.Values.BasicBlock;
+import com.compiler.ll.Values.Constants.ConstantFloat;
+import com.compiler.ll.Values.Constants.ConstantInt;
 import com.compiler.ll.Values.Instruction;
 import com.compiler.ll.Values.Value;
+import com.compiler.ll.utils.NameManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,12 +27,31 @@ public class PhiInst extends Instruction {
         incomingBlocks.add(block);
     }
 
+    public void replaceIncomingBlock(BasicBlock oldPred, BasicBlock newPred) {
+        for (int i = 0; i < incomingBlocks.size(); i++) {
+            if (incomingBlocks.get(i) == oldPred) {
+                incomingBlocks.set(i, newPred);
+                break; // 假设每个前驱只会出现一次
+            }
+        }
+    }
+
+
     public List<BasicBlock> getIncomingBlocks() {
         return incomingBlocks;
     }
 
     public BasicBlock getIncomingBlock(int index) {
         return incomingBlocks.get(index);
+    }
+
+    public Value getIncomingValue(BasicBlock incomingBlock) {
+        int index = incomingBlocks.indexOf(incomingBlock);
+        return operands.get(index);
+    }
+
+    public int getIncomingBlocksSize() {
+        return incomingBlocks.size();
     }
 
     public void setVariable(AllocaInst variable) {
@@ -42,10 +66,15 @@ public class PhiInst extends Instruction {
         for (int i = 0; i < incomingBlocks.size(); ) {
             if (incomingBlocks.get(i) == block) {
                 incomingBlocks.remove(i);
-                operands.remove(i);  // 同时移除对应的 value operand
+                removeOperand(i);  // 同时移除对应的 value operand
             } else {
                 i++;
             }
+        }
+        // 如果只有一个incoming，直接降级为add
+        if (incomingBlocks.size() == 1){
+            Value op = operands.get(0);
+            this.block.replaceAllUse(this, op);
         }
     }
 
@@ -59,4 +88,5 @@ public class PhiInst extends Instruction {
         }
         return sb.toString();
     }
+
 }

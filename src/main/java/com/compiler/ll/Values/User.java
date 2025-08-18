@@ -45,4 +45,27 @@ public abstract class User extends Value {
             }
         }
     }
+
+    public void removeOperand(Value operand) {
+        if (operand == null) return;
+
+        // 遍历 operands 列表，找到所有匹配的并删除
+        for (int i = operands.size() - 1; i >= 0; i--) {
+            if (operands.get(i) == operand) {
+                operands.remove(i);
+                operand.removeUser(this); // 解除使用关系
+            }
+        }
+    }
+
+    public void removeOperand(int index) {
+        if (index < 0 || index >= operands.size()) return;
+
+        Value operand = operands.remove(index); // 从列表中移除
+        if (operand != null) {
+            operand.removeUser(this); // 同步解除使用关系
+        }
+    }
+
+
 }

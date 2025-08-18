@@ -4,8 +4,27 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class NameManager {
+
+    // ===== 单例 =====
+    private static volatile NameManager instance = null;
+
+    public static NameManager getInstance() {
+        if (instance == null) {
+            synchronized (NameManager.class) {
+                if (instance == null) {
+                    instance = new NameManager();
+                }
+            }
+        }
+        return instance;
+    }
+
+    // ===== 成员变量 =====
     private int unnamedCount = 0;
     private final Map<String, Integer> nameCountMap = new HashMap<>();
+
+    // ===== 构造函数私有化 =====
+    private NameManager() {}
 
     /**
      * 获取一个匿名变量的唯一名字，如 %0, %1, %2...
@@ -30,7 +49,9 @@ public class NameManager {
         }
     }
 
-
+    /**
+     * 重置计数
+     */
     public void reset() {
         unnamedCount = 0;
         nameCountMap.clear();

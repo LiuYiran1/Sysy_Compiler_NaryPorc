@@ -318,6 +318,7 @@ public class IRBuilder {
         String name = nameManager.getUniqueName(varName);
         PhiInst inst = new PhiInst(type, name, currentBlock);
         currentBlock.addInstruction(inst);
+        currentBlock.addToAllPhiInsts(inst);
         return inst;
     }
 
