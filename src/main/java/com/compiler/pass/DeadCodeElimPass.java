@@ -52,7 +52,9 @@ public class DeadCodeElimPass implements Pass {
 
             // 2. 处理 target 的 PHI
             for (PhiInst phi : new ArrayList<>(target.getAllPhiInsts())) {
-                phi.removeIncomingFrom(target.getSuccessors().get(0));
+                if(!target.getSuccessors().isEmpty()){
+                    phi.removeIncomingFrom(target.getSuccessors().get(0));
+                }
             }
 
             // 3. 把 target 的指令（除了 phi）移动到 bb
