@@ -188,6 +188,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         Pass constantPropagationPass = new ConstantPropagationPass(context);
         Pass loopAnalPass = new LoopAnalPass((DominateAnalPass) domPass);
         Pass loopInvariantPass = new LoopInvariantPass((LoopAnalPass) loopAnalPass);
+        Pass splicingBlockPass = new SplicingBlockPass();
 
         DFGPass.run(mod);
         deadCodeElimPass.run(mod);
@@ -214,6 +215,9 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         loopInvariantPass.run(mod);
         deadCodeElimPass.run(mod);
         System.out.println("-------------------Loop--------------------");
+
+        splicingBlockPass.run(mod);
+        deadCodeElimPass.run(mod);
 
         return mod;
     }
