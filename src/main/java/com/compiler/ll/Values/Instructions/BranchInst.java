@@ -4,7 +4,7 @@ import com.compiler.ll.Values.BasicBlock;
 import com.compiler.ll.Values.Instruction;
 
 public class BranchInst extends TerminatorInst {
-    private final BasicBlock target;
+    private BasicBlock target;
 
     public BranchInst(BasicBlock target, BasicBlock block) {
         super(null, "", Opcode.BR, block);
@@ -13,6 +13,10 @@ public class BranchInst extends TerminatorInst {
 
     public BasicBlock getTarget() {
         return target;
+    }
+
+    public void replaceTarget(BasicBlock target) {
+        this.target = target;
     }
 
     @Override

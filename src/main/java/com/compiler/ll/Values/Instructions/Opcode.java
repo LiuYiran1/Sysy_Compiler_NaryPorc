@@ -26,5 +26,4 @@ public enum Opcode {
     LOAD,///
     GEP,///
     BC, // bitCast///
-    SELECT // 没有这个
 }

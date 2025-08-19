@@ -2,7 +2,6 @@ package com.compiler.mir.instruction;
 
 import com.compiler.mir.operand.MIRImmediate;
 import com.compiler.mir.operand.MIROperand;
-import com.compiler.mir.operand.MIRPhysicalReg;
 import com.compiler.mir.operand.MIRVirtualReg;
 
 import java.util.Arrays;

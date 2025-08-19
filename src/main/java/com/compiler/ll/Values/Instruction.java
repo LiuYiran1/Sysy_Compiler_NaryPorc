@@ -50,13 +50,17 @@ public abstract class Instruction extends User {
 
     public void eraseFromParent() {
         if (block != null) {
-            block.removeInst(this);
+            block.removeInstruction(this);
             this.block = null; // 解除引用
         }
     }
 
     public void setBlock(BasicBlock block) {
         this.block = block;
+    }
+
+    public BasicBlock getParent() {
+        return block;
     }
 
 

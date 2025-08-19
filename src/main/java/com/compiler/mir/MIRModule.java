@@ -1,6 +1,8 @@
 package com.compiler.mir;
 
+import com.compiler.ll.Values.Value;
 import com.compiler.mir.operand.MIRGlobalVariable;
+import com.compiler.mir.operand.MIROperand;
 
 import java.util.*;
 
@@ -9,6 +11,7 @@ public class MIRModule {
     private final List<MIRGlobalVariable> globalVariables = new ArrayList<>();
     private final Map<String, MIRFunction> functionMap = new LinkedHashMap<>();
     private final Map<String, MIRGlobalVariable> globalVariableMap = new LinkedHashMap<>();
+    private final Map<Value, MIROperand> valueMap = new LinkedHashMap<>();
 
     public void addFunction(MIRFunction function) {
         functions.add(function);
@@ -34,5 +37,18 @@ public class MIRModule {
 
     public Map<String, MIRGlobalVariable> getGlobalVariableMap() {
         return Collections.unmodifiableMap(globalVariableMap);
+    }
+
+    public Map<Value,MIROperand> getValueMap(){
+        return valueMap;
+    }
+
+    public Value findKeyByOperand(MIROperand operand) {
+        return valueMap.entrySet()
+                .stream()
+                .filter(entry -> operand.equals(entry.getValue()))
+                .map(Map.Entry::getKey)
+                .findFirst()
+                .orElse(null); // 未找到时返回 null
     }
 }

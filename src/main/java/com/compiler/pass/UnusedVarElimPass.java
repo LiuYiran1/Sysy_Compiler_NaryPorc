@@ -15,13 +15,18 @@ public class UnusedVarElimPass implements Pass {
     @Override
     public boolean run(Module module) {
         hasChanged = false;
-        for (Function function : module.getFunctionDefs()) {
-            for (BasicBlock bb : function.getBasicBlocks()) {
-                List<Instruction> instructions = new ArrayList<>(bb.getInstructions());
-                for (Instruction inst : instructions) {
-                    if (inst.getUsers().isEmpty() && isPure(inst)) {
-                        bb.removeInstruction(inst);
-                        hasChanged = true;
+        boolean innerHasChanged = true;
+        while (innerHasChanged) {
+            innerHasChanged = false;
+            for (Function function : module.getFunctionDefs()) {
+                for (BasicBlock bb : function.getBasicBlocks()) {
+                    List<Instruction> instructions = new ArrayList<>(bb.getInstructions());
+                    for (Instruction inst : instructions) {
+                        if (inst.getUsers().isEmpty() && isPure(inst)) {
+                            bb.removeInstruction(inst);
+                            hasChanged = true;
+                            innerHasChanged = true;
+                        }
                     }
                 }
             }

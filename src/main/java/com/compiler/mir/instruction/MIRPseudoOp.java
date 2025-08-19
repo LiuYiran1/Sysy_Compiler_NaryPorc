@@ -18,12 +18,10 @@ public class MIRPseudoOp extends MIRInstruction {
     }
 
     private final Type type;
-    private final int frameSize;
 
-    public MIRPseudoOp(Type type, int frameSize) {
+    public MIRPseudoOp(Type type) {
         super((MIRVirtualReg) null);
         this.type = type;
-        this.frameSize = frameSize;
     }
     public Type getType() {
         return type;
@@ -36,6 +34,6 @@ public class MIRPseudoOp extends MIRInstruction {
 
     @Override
     public String toString() {
-        return type.name() + (frameSize > 0 ? " " + frameSize : "");
+        return type.name();
     }
 }

@@ -80,8 +80,6 @@ public class StackManager {
     // 这个方法理论上，能获得一个负数，与s0做运算，就能得到位置
     public int getSpillOffset(MIRVirtualReg vreg) {
         Integer spillLoc = allocator.getSpillLocation(vreg);
-//        return spillLoc != null ? -registerSaveSize + spillLoc + 8 : 0;
-//        System.err.println(-registerSaveSize + spillLoc);
         return spillLoc != null ? -registerSaveSize + spillLoc : 0;
     }
 

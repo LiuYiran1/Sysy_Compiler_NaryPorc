@@ -22,8 +22,8 @@ public class DeadCodeElimPass implements Pass {
     public boolean run(Module module) {
         hasChanged = false;
         for(Function function : module.getFunctionDefs()) {
-            rewriteTerminator(function);
-            splicingBlocks(function);
+            //rewriteTerminator(function);
+            //splicingBlocks(function);
             deleteSuspendBlocks(function);
         }
         return hasChanged;

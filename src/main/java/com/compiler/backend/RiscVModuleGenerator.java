@@ -1,9 +1,7 @@
 package com.compiler.backend;
 
 import com.compiler.backend.allocator.LinearScanRegisterAllocator;
-import com.compiler.backend.PhysicalRegister;
 import com.compiler.mir.*;
-import com.compiler.mir.instruction.*;
 import com.compiler.mir.operand.*;
 import java.util.*;
 
@@ -28,6 +26,7 @@ public class RiscVModuleGenerator {
         return stackManagers.get(function);
     }
 
+
     private void initialize() {
         // 为每个函数创建寄存器分配器和栈管理器
         for (MIRFunction function : mirModule.getFunctions()) {
@@ -38,6 +37,10 @@ public class RiscVModuleGenerator {
                 LinearScanRegisterAllocator allocator = new LinearScanRegisterAllocator(function);
                 allocator.allocate();
                 allocators.put(function, allocator);
+                for(var reg : allocator.unusedVarReg){
+                    System.err.println("unused variable: " + mirModule.findKeyByOperand(reg).getName());
+                }
+
 
                 System.out.println("allocated function: " + function.getName());
                 StackManager stackManager = new StackManager(function, allocator);
@@ -117,15 +120,6 @@ public class RiscVModuleGenerator {
     }
 
     private void generateFunctions() {
-        // 生成函数入口点（如果需要）
-//        if (mirModule.getFunction("main") != null) {
-//            asm.append("    .globl _start\n");
-//            asm.append("_start:\n");
-//            asm.append("    call main\n");
-//            asm.append("    li a7, 93\n");  // exit syscall
-//            asm.append("    ecall\n\n");
-//        }
-
 //         生成每个函数的具体实现
         for (MIRFunction function : definedFunctions) {
             RiscVFunctionGenerator funcGenerator = new RiscVFunctionGenerator(

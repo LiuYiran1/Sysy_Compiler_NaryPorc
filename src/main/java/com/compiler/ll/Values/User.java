@@ -46,6 +46,12 @@ public abstract class User extends Value {
         }
     }
 
+    public void removeAllOperands() {
+        for (int i = operands.size() - 1; i >= 0; i--) {
+            removeOperand(i);
+        }
+    }
+
     public void removeOperand(Value operand) {
         if (operand == null) return;
 

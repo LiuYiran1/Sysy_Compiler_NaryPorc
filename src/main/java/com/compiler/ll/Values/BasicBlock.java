@@ -84,8 +84,33 @@ public class BasicBlock extends User {
         instructions.clear();
     }
 
-    public void removeInstruction(Instruction inst){
+    public void removeInstruction(Instruction inst) {
+        inst.removeAllOperands();
+        // 1. 从所有 user 里移除
+        for (User user : new ArrayList<>(inst.getUsers())) {
+            user.removeOperand(inst);
+        }
+        // 2. 从基本块里移除
         instructions.remove(inst);
+        if (inst.getOpcode() == Opcode.PHI){
+            phiInsts.remove(inst);
+            allPhiInsts.remove(inst);
+        }
+    }
+
+    public void moveInstruction(Instruction inst, BasicBlock targetBlock) {
+        instructions.remove(inst);
+        inst.setBlock(targetBlock);
+        targetBlock.insertBeforeTerminator(inst);
+    }
+
+    public void insertBeforeTerminator(Instruction inst) {
+        Instruction terminator = getTerminator();
+        if (terminator == null){
+            instructions.add(0, inst);
+        } else {
+            instructions.add(instructions.size() - 1, inst);
+        }
     }
 
     public List<BasicBlock> getPredecessors() {
@@ -109,6 +134,10 @@ public class BasicBlock extends User {
     }
 
     public void setTerminator(Instruction inst) {
+        if (!(inst.getOpcode() == Opcode.BR || inst.getOpcode() == Opcode.CBR || inst.getOpcode() == Opcode.RET)) {
+            throw new RuntimeException("Terminator not allowed !!!!!");
+        }
+        if (instructions.isEmpty()) instructions.add(inst);
         instructions.set(instructions.size() - 1, inst);
     }
 
@@ -159,11 +188,40 @@ public class BasicBlock extends User {
         }
     }
 
+    /**
+     * 用 newSucc 替换旧的后继 oldSucc
+     */
+    public void replaceSuccessor(BasicBlock oldSucc, BasicBlock newSucc) {
+        int idx = successors.indexOf(oldSucc);
+        if (idx == -1) return; // oldSucc 不存在，直接返回
 
+        // 1. 替换 successors 列表中的 oldSucc
+        successors.set(idx, newSucc);
 
-    public void removeInst(Instruction inst) {
-        instructions.remove(inst);
+        // 2. 更新 oldSucc 的 predecessors 列表
+        oldSucc.getPredecessors().remove(this);
+
+        // 3. 确保 newSucc 的 predecessors 包含当前块
+        if (!newSucc.getPredecessors().contains(this)) {
+            newSucc.addPredecessor(this);
+        }
+
+        // 4. 更新 newSucc 的 PHI 节点，将 oldSucc 对应的 incoming 替换为 newSucc
+        for (PhiInst phi : newSucc.getAllPhiInsts()) {
+            phi.replaceIncomingBlock(oldSucc, newSucc);
+        }
+
+        // 更新跳转指令
+        Instruction terminator = getTerminator();
+        if (terminator.getOpcode() == Opcode.BR) {
+            BranchInst branchInst = (BranchInst) terminator;
+            branchInst.replaceTarget(newSucc);
+        } else if (terminator.getOpcode() == Opcode.CBR) {
+            CondBranchInst condBranchInst = (CondBranchInst) terminator;
+            condBranchInst.replaceTarget(oldSucc, newSucc);
+        }
     }
+
 
     @Override
     public String toIR() {

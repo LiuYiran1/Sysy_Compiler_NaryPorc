@@ -8,6 +8,7 @@ import com.compiler.ll.Values.BasicBlock;
 import com.compiler.ll.Values.GlobalValue;
 import com.compiler.ll.Values.Instruction;
 import com.compiler.ll.Values.Instructions.PhiInst;
+import com.compiler.ll.utils.NameManager;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -207,4 +208,11 @@ public class Function extends GlobalValue {
         return sb.toString();
     }
 
+    public BasicBlock createBasicBlock(String name) {
+        NameManager nameManager = NameManager.getInstance();
+        String blockName = nameManager.getUniqueName(name);
+        BasicBlock bb = new BasicBlock(blockName, this);
+        addBasicBlock(bb);
+        return bb;
+    }
 }

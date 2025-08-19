@@ -43,19 +43,17 @@ public class LinearScanRegisterAllocator {
     private final Set<PhysicalRegister> usedCalleeSaved = new LinkedHashSet<>();
     private final Set<PhysicalRegister> usedCallerSaved = new LinkedHashSet<>();
 
+    // 记录未使用变量所在虚拟寄存器
+    public final Set<MIRVirtualReg> unusedVarReg = new LinkedHashSet<>();
+
 
     public LinearScanRegisterAllocator(MIRFunction function) {
         this.function = function;
-//        System.out.println("starting linear scan register allocation for function: " + function.getName());
         initializeAvailableRegisters();
-//        System.out.println(availableIntRegs);
-//        System.out.println(availableFloatRegs);
         assignInstructionPositions();
         buildControlFlowGraph();
         computeLiveness();
-//        System.out.println("liveness initialized");
         buildLiveIntervals();
-//        System.out.println("live intervals initialized");
     }
 
     private void initializeAvailableRegisters() {
@@ -68,8 +66,6 @@ public class LinearScanRegisterAllocator {
         availableFloatRegs.addAll(PhysicalRegister.CALLEE_SAVED_FLOAT);
 
         // 移除特殊寄存器
-//        availableIntRegs.remove(PhysicalRegister.SP);
-//        availableIntRegs.remove(PhysicalRegister.RA);
         availableIntRegs.remove(PhysicalRegister.A0); // 返回值寄存器
         availableFloatRegs.remove(PhysicalRegister.FA0); // 浮点返回值寄存器
 
@@ -206,6 +202,7 @@ public class LinearScanRegisterAllocator {
     }
 
     private void allocateRegisters(List<LiveInterval> intervals, boolean forFloat) {
+        // 这是个值得注意的是问题，当end相同时，Comparator.comparingInt(i -> i.end)这个处理逻辑就有问题了
 //        TreeSet<LiveInterval> active = new TreeSet<>(Comparator.comparingInt(i -> i.end));
         TreeSet<LiveInterval> active = new TreeSet<>((i1, i2) -> {
             int endCompare = Integer.compare(i1.end, i2.end);
@@ -225,8 +222,6 @@ public class LinearScanRegisterAllocator {
                 new ArrayList<>(availableFloatRegs) :
                 new ArrayList<>(availableIntRegs);
         int R = availableRegs.size();
-//        System.out.println(intervals.size());
-//        System.out.println("Allocating " + R + " registers for function: " + function.getName());
 
         for (LiveInterval current : intervals) {
 
@@ -239,7 +234,6 @@ public class LinearScanRegisterAllocator {
             expireOldIntervals(current.start, active, availableRegs);
 
             if (active.size() == R) {
-//                throw new RuntimeException("never access");
                 spillAtInterval(current, active, availableRegs, forFloat);
             } else {
                 // 分配物理寄存器
@@ -247,7 +241,6 @@ public class LinearScanRegisterAllocator {
                 PhysicalRegister reg = availableRegs.remove(0);
                 registerAssignment.put(current, reg);
                 active.add(current);
-//                System.err.println("active = " + active.size());
                 recordUsedRegister(reg);
             }
         }
@@ -263,18 +256,12 @@ public class LinearScanRegisterAllocator {
         }
     }
 
-    private void expireOldIntervals(int currentPoint, TreeSet<LiveInterval> active,
-                                    List<PhysicalRegister> availableRegs) {
+    private void expireOldIntervals(int currentPoint, TreeSet<LiveInterval> active, List<PhysicalRegister> availableRegs) {
         Iterator<LiveInterval> it = active.iterator();
-        int j = 0;
         while (it.hasNext()) {
-//            System.err.println("j =" + j++);
             LiveInterval interval = it.next();
             if (interval.end <= currentPoint) {
-//                System.err.println(registerAssignment.get(interval));
-//                System.err.println("available = " + availableRegs.size());
                 availableRegs.add(registerAssignment.get(interval));
-//                System.err.println("available = " + availableRegs.size());
                 it.remove();
             } else {
                 break;
@@ -301,10 +288,6 @@ public class LinearScanRegisterAllocator {
         }
     }
 
-    //    private int allocateSpillSlot() {
-//        stackOffset -= 8; // 每个溢出槽8个字节
-//        return stackOffset;
-//    }
     private int allocateSpillSlot(boolean isFloat) {
         stackOffset -= 8; // 整数和浮点都占用8个字节
         return stackOffset;
@@ -331,9 +314,9 @@ public class LinearScanRegisterAllocator {
             List<MIRBasicBlock> blocks = new ArrayList<>(function.getBlocks());
             Collections.reverse(blocks);
 
-            for(MIRBasicBlock block : blocks) {
-                System.out.println(block.getLabel().toString());
-            }
+//            for(MIRBasicBlock block : blocks) {
+//                System.out.println(block.getLabel().toString());
+//            }
 
 
             for (MIRBasicBlock block : blocks) {
@@ -439,10 +422,6 @@ public class LinearScanRegisterAllocator {
 
     private void buildLiveIntervals() {
         // 初始化所有虚拟寄存器的生存区间
-//        for (MIRVirtualReg reg : getAllVirtualRegisters()) {
-//            intervalMap.put(reg, new LiveInterval(reg, Integer.MAX_VALUE, Integer.MIN_VALUE));
-//        }
-
         // 如果有一个变量之后未被使用怎么办？
         // 直接删除这条指令？
 
@@ -476,9 +455,13 @@ public class LinearScanRegisterAllocator {
             int firstPos = instructionPositions.get(block.getInstructions().get(0));
             int lastPos = instructionPositions.get(block.getInstructions().get(block.getInstructions().size() - 1));
 
+//                liveIn变量必须在基本块开始就是活跃的
+//                liveOut变量必须保持活跃直到基本块结束
+
             // 处理live-in
             for (MIRVirtualReg reg : liveInSets.get(block)) {
                 LiveInterval interval = intervalMap.get(reg);
+
                 interval.start = Math.min(interval.start, firstPos);
                 interval.end = Math.max(interval.end, firstPos);
             }
@@ -490,12 +473,14 @@ public class LinearScanRegisterAllocator {
             }
         }
 
-        for(var reg : getAllVirtualRegisters()){
-            LiveInterval interval = intervalMap.get(reg);
-            if(interval.end == Integer.MIN_VALUE){
-                interval.end = Integer.MAX_VALUE;
-            }
-        }
+        // 应对未使用变量
+//        for(var reg : getAllVirtualRegisters()){
+//            LiveInterval interval = intervalMap.get(reg);
+//            if(interval.end == Integer.MIN_VALUE){
+//                unusedVarReg.add(reg);
+//                interval.end = Integer.MAX_VALUE;
+//            }
+//        }
         // 收集所有生存区间
         intervals.addAll(intervalMap.values());
     }
@@ -522,27 +507,24 @@ public class LinearScanRegisterAllocator {
     // 获取指令定义的虚拟寄存器（def）
     private MIRVirtualReg getDefinedRegister(MIRInstruction inst) {
         if (inst instanceof MIRArithOp) {
-            return ((MIRArithOp) inst).getResult();
+            return inst.getResult();
         } else if (inst instanceof MIRMoveOp) {
-            return ((MIRMoveOp) inst).getResult();
+            return inst.getResult();
         } else if (inst instanceof MIRMemoryOp) {
-            return ((MIRMemoryOp) inst).getResult();
+            return inst.getResult();
         } else if (inst instanceof MIRConvertOp) {
-            return ((MIRConvertOp) inst).getResult();
+            return inst.getResult();
         } else if (inst instanceof MIRCmpOp) {
-            return ((MIRCmpOp) inst).getResult();
+            return inst.getResult();
         } else if (inst instanceof MIRLiOp) {
-            return ((MIRLiOp) inst).getResult();
-        } else if (inst instanceof MIRLuiOp) {
-            return ((MIRLuiOp) inst).getResult();
+            return inst.getResult();
         } else if (inst instanceof MIRLaOp) {
-            return ((MIRLaOp) inst).getResult();
+            return inst.getResult();
         } else if (inst instanceof MIRAllocOp) {
-            return ((MIRAllocOp) inst).getResult();
+            return inst.getResult();
         } else if(inst instanceof MIRShiftOp) {
-            return ((MIRShiftOp) inst).getResult();
+            return inst.getResult();
         }
-        //System.err.println("Unexpected instruction: " + inst.toString());
         return null;
     }
 
@@ -555,7 +537,7 @@ public class LinearScanRegisterAllocator {
             addIfVirtualReg(uses, arithOp.getOperands().get(0));
             addIfVirtualReg(uses, arithOp.getOperands().get(1));
         } else if (inst instanceof MIRMoveOp) {
-            addIfVirtualReg(uses, ((MIRMoveOp) inst).getOperands().get(0));
+            addIfVirtualReg(uses, inst.getOperands().get(0));
         } else if (inst instanceof MIRMemoryOp) {
             MIRMemoryOp memOp = (MIRMemoryOp) inst;
             addIfVirtualReg(uses, ((MIRMemory)memOp.getOperands().get(0)).getBase());
@@ -565,7 +547,7 @@ public class LinearScanRegisterAllocator {
                 addIfVirtualReg(uses, memOp.getOperands().get(1));
             }
         } else if (inst instanceof MIRConvertOp) {
-            addIfVirtualReg(uses, ((MIRConvertOp) inst).getOperands().get(0));
+            addIfVirtualReg(uses, inst.getOperands().get(0));
         } else if (inst instanceof MIRCmpOp) {
             MIRCmpOp cmpOp = (MIRCmpOp) inst;
             addIfVirtualReg(uses, cmpOp.getOperands().get(0));

@@ -5,8 +5,8 @@ import com.compiler.ll.Values.Instruction;
 import com.compiler.ll.Values.Value;
 
 public class CondBranchInst extends TerminatorInst {
-    private final BasicBlock trueBlock;
-    private final BasicBlock falseBlock;
+    private BasicBlock trueBlock;
+    private BasicBlock falseBlock;
 
     public CondBranchInst(Value condition, BasicBlock trueBlock, BasicBlock falseBlock, BasicBlock block) {
         super(null, "", Opcode.CBR, block);
@@ -21,6 +21,16 @@ public class CondBranchInst extends TerminatorInst {
 
     public BasicBlock getFalseBlock() {
         return falseBlock;
+    }
+
+    public void replaceTarget(BasicBlock oldTarget, BasicBlock newTarget) {
+        if (trueBlock.equals(oldTarget)) {
+            this.trueBlock = newTarget;
+        } else if (falseBlock.equals(oldTarget)) {
+            this.falseBlock = newTarget;
+        } else {
+            throw new RuntimeException("CondBranchInst does not support replaceTarget");
+        }
     }
 
     @Override

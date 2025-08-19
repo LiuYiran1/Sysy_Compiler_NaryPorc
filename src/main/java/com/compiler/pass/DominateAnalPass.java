@@ -12,13 +12,17 @@ public class DominateAnalPass implements Pass {
     public boolean run(Module module) {
         List<Function> functions = module.getFunctionDefs();
         for (Function function : functions) {
-            computeDomSet(function);
-            computeIdom(function, function.getDomMap());
-            function.buildDomTreeFromIdom();
-            computeDomFrontier(function);
-            // debug(function);
+            run(function);
         }
         return true;
+    }
+
+    public void run(Function function) {
+        computeDomSet(function);
+        computeIdom(function, function.getDomMap());
+        function.buildDomTreeFromIdom();
+        computeDomFrontier(function);
+        // debug(function);
     }
 
     public void computeDomSet(Function function) {
