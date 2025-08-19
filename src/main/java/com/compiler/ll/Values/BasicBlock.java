@@ -199,7 +199,7 @@ public class BasicBlock extends User {
         successors.set(idx, newSucc);
 
         // 2. 更新 oldSucc 的 predecessors 列表
-        oldSucc.getPredecessors().remove(this);
+        oldSucc.removePredecessor(this);
 
         // 3. 确保 newSucc 的 predecessors 包含当前块
         if (!newSucc.getPredecessors().contains(this)) {

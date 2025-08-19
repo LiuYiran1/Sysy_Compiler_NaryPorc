@@ -27,6 +27,8 @@ class Loop {
 public class LoopAnalPass implements Pass {
     DominateAnalPass domPass;
 
+    List<Loop> loops = new ArrayList<>();
+
     public LoopAnalPass(DominateAnalPass domPass) {
         this.domPass = domPass;
     }
@@ -34,7 +36,7 @@ public class LoopAnalPass implements Pass {
     @Override
     public boolean run(Module mod) {
         for (Function func : mod.getFunctionDefs()) {
-            List<Loop> loops = findLoops(func);
+            loops = findLoops(func);
 
             // 按循环体大小排序：先处理内层循环
             loops.sort((l1, l2) -> l2.bodyBlocks.size() - l1.bodyBlocks.size());
@@ -45,7 +47,7 @@ public class LoopAnalPass implements Pass {
                 for (BasicBlock bb : loop.bodyBlocks) {
                     System.out.print(bb.getName() + " ");
                 }
-                System.out.println("Loop preHeader: " + loop.preHeader.getName());
+                System.out.println("\nLoop preHeader: " + loop.preHeader.getName());
                 System.out.println("\n---");
             }
         }
@@ -78,6 +80,9 @@ public class LoopAnalPass implements Pass {
 
                     // 找 Preheader
                     loop.preHeader = getOrCreatePreheader(loop);
+                    if (loop.preHeader == null) {
+                        loops.clear();
+                    }
 
                 }
             }
@@ -105,23 +110,24 @@ public class LoopAnalPass implements Pass {
             // 只有一个前驱，可以直接用它作为 Preheader
             return nonLoopPreds.get(0);
         } else {
-            // 多个前驱，需要创建新的 Preheader
-            BasicBlock newPreheader = func.createBasicBlock("preheader_for_" + header.getName());
+//            //throw new RuntimeException("Multiple predecessors found for " + header.getName());
+//            // 多个前驱，需要创建新的 Preheader
+//            BasicBlock newPreheader = func.createBasicBlock("preheader_for_" + header.getName());
+//
+//            // 修改所有非循环体前驱的跳转，指向 newPreheader
+//            for (BasicBlock pred : nonLoopPreds) {
+//                pred.replaceSuccessor(header, newPreheader);
+//            }
+//
+//            // Preheader 跳转到 Header
+//            newPreheader.setTerminator(new BranchInst(header, newPreheader));
+//            newPreheader.addSuccessor(header);
+//            header.addPredecessor(newPreheader);
+//
+//            // 需要重新建立支配关系
+//            domPass.run(func);
 
-            // 修改所有非循环体前驱的跳转，指向 newPreheader
-            for (BasicBlock pred : nonLoopPreds) {
-                pred.replaceSuccessor(header, newPreheader);
-            }
-
-            // Preheader 跳转到 Header
-            newPreheader.setTerminator(new BranchInst(header, newPreheader));
-            newPreheader.addSuccessor(header);
-            header.addPredecessor(newPreheader);
-
-            // 需要重新建立支配关系
-            domPass.run(func);
-
-            return newPreheader;
+            return null;
         }
     }
 

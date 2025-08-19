@@ -21,9 +21,18 @@ public class LoopInvariantPass implements Pass {
     public boolean run(Module mod) {
         for (Function func : mod.getFunctionDefs()) {
             List<Loop> loops = loopAnal.findLoops(func);
-
             // 内层循环优先处理
             loops.sort((l1, l2) -> l2.bodyBlocks.size() - l1.bodyBlocks.size());
+
+            for (Loop loop : loops) {
+                System.out.println("Loop header: " + loop.header.getName());
+                System.out.println("Loop body blocks: ");
+                for (BasicBlock bb : loop.bodyBlocks) {
+                    System.out.print(bb.getName() + " ");
+                }
+                System.out.println("\nLoop preHeader: " + loop.preHeader.getName());
+                System.out.println("\n---");
+            }
 
             for (Loop loop : loops) {
                 hoistLoopInvariants(loop);
@@ -75,17 +84,19 @@ public class LoopInvariantPass implements Pass {
             System.out.println(inst.toIR() + " " + inst.getOpcode().name());
             throw new RuntimeException("Cannot move terminator to preheader!");
         }
+        System.err.println(inst.toIR() + " " + inst.getParent().getName() + " to " + preHeader.getName());
         inst.getParent().moveInstruction(inst, preHeader);
+        //throw new RuntimeException("有用");
     }
 
 
     private boolean isPure(Instruction inst) {
-        // 只能删除没有 副作用 的指令
-        return switch (inst.getOpcode()) {
-            case ZEXT, FPTOSI, SITOFP, ICMP, FCMP,
+        // 只能移动没有 副作用 的指令
+        return switch (inst.getOpcode()) { // 这里不处理zext指令，这与后端特性适配
+            case FPTOSI, SITOFP, ICMP, FCMP,
                  MUL, SDIV, SREM, ADD, SUB,
                  FMUL, FDIV, FREM, FADD, FSUB,
-                 BC, PHI -> true;
+                 BC-> true;
             default -> false;
         };
     }

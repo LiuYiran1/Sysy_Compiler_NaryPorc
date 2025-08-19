@@ -186,18 +186,34 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         Pass mem2RegPass = new Mem2RegPass(context);
         Pass unUsedVarElimPass = new UnusedVarElimPass();
         Pass constantPropagationPass = new ConstantPropagationPass(context);
+        Pass loopAnalPass = new LoopAnalPass((DominateAnalPass) domPass);
+        Pass loopInvariantPass = new LoopInvariantPass((LoopAnalPass) loopAnalPass);
 
         DFGPass.run(mod);
         deadCodeElimPass.run(mod);
+        domPass.run(mod);
+//        System.out.println("-------------------Loop--------------------");
+//        //loopAnalPass.run(mod);
+//        loopInvariantPass.run(mod);
+//        loopInvariantPass.run(mod);
+//        System.out.println("-------------------Loop--------------------");
+
         domPass.run(mod);
         mem2RegPass.run(mod);
 
         boolean hasChanged = true;
         while (hasChanged){
-            hasChanged = unUsedVarElimPass.run(mod)
-                    || deadCodeElimPass.run(mod)
-                    || constantPropagationPass.run(mod);
+            boolean hasChanged1 = unUsedVarElimPass.run(mod);
+            boolean hasChanged2 = deadCodeElimPass.run(mod);
+            boolean hasChanged3 =  constantPropagationPass.run(mod);
+            hasChanged = hasChanged1 || hasChanged2 || hasChanged3;
         }
+
+        domPass.run(mod);
+        System.out.println("-------------------Loop--------------------");
+        loopInvariantPass.run(mod);
+        deadCodeElimPass.run(mod);
+        System.out.println("-------------------Loop--------------------");
 
         return mod;
     }

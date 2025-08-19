@@ -40,7 +40,7 @@ public class UnusedVarElimPass implements Pass {
             case ZEXT, FPTOSI, SITOFP, ICMP, FCMP,
                  MUL, SDIV, SREM, ADD, SUB,
                  FMUL, FDIV, FREM, FADD, FSUB,
-                 BC, PHI, LOAD -> true;
+                 BC, PHI, LOAD, GEP-> true;
             default -> false;
         };
     }
