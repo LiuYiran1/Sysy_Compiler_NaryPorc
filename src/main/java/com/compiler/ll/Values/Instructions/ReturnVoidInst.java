@@ -15,4 +15,9 @@ public class ReturnVoidInst extends TerminatorInst {
     public String toIR() {
         return "ret void";
     }
+
+    @Override
+    public Instruction clone() {
+        throw new RuntimeException("Not implemented");
+    }
 }

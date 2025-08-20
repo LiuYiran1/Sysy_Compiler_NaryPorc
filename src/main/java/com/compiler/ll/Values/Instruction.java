@@ -5,6 +5,7 @@ import com.compiler.ll.Values.Constants.ConstantFloat;
 import com.compiler.ll.Values.Constants.ConstantInt;
 import com.compiler.ll.Values.Instructions.Opcode;
 import com.compiler.ll.exceptions.StoreException;
+import com.compiler.ll.utils.NameManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,6 +13,7 @@ import java.util.List;
 public abstract class Instruction extends User {
     protected BasicBlock block;
     protected final Opcode opcode;
+    public NameManager nameManager = NameManager.getInstance();
 
 
     public Instruction(Type type, String name, Opcode opcode, BasicBlock block) {
@@ -77,4 +79,6 @@ public abstract class Instruction extends User {
             return op.getName() == null ? "0" : "%" + op.getName();
         }
     }
+
+    public abstract Instruction clone();
 }

@@ -21,4 +21,9 @@ public class FMulInst extends Instruction {
         return "%" + name + " = fmul " + type.toIR() + " " + op1Str
                 + ", " + op2Str;
     }
+
+    @Override
+    public Instruction clone() {
+        return new FMulInst(type, nameManager.getUniqueName(name), operands.get(0), operands.get(1), block);
+    }
 }

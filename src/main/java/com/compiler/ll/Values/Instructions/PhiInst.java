@@ -89,4 +89,9 @@ public class PhiInst extends Instruction {
         return sb.toString();
     }
 
+    @Override
+    public Instruction clone() {
+        throw new RuntimeException("Not implemented");
+    }
+
 }

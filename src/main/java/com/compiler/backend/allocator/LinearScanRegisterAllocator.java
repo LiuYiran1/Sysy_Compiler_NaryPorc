@@ -46,6 +46,12 @@ public class LinearScanRegisterAllocator {
     // 记录未使用变量所在虚拟寄存器
     public final Set<MIRVirtualReg> unusedVarReg = new LinkedHashSet<>();
 
+    // 存Call指令以及对应的位置
+    private final List<MIRControlFlowOp> callInstructions = new ArrayList<>();
+    private final Map<MIRControlFlowOp, Integer> callPositions = new LinkedHashMap<>();
+    private final Map<MIRLabel, Set<PhysicalRegister>> callLiveRegisters = new LinkedHashMap<>();
+
+
 
     public LinearScanRegisterAllocator(MIRFunction function) {
         this.function = function;
@@ -152,6 +158,12 @@ public class LinearScanRegisterAllocator {
         int counter = 0;
         for (MIRBasicBlock block : function.getBlocks()) {
             for (MIRInstruction inst : block.getInstructions()) {
+                if(inst instanceof MIRControlFlowOp){
+                    if(((MIRControlFlowOp) inst).getType() == MIRControlFlowOp.Type.CALL){
+                        callInstructions.add((MIRControlFlowOp) inst);
+                        callPositions.put((MIRControlFlowOp) inst,counter);
+                    }
+                }
                 instructionPositions.put(inst, counter++);
             }
         }
@@ -199,7 +211,37 @@ public class LinearScanRegisterAllocator {
 //            Integer location = entry.getValue();
 //            System.out.println("VReg: " + interval.vreg + " spilled at location: " + location);
 //        }
+        // 计算每个调用指令处的活跃寄存器
+        calculateCallLiveRegisters();
     }
+
+    private void calculateCallLiveRegisters() {
+        for (var callOp : callInstructions) {
+            int callPos = callPositions.get(callOp);
+            Set<PhysicalRegister> liveRegs = new LinkedHashSet<>();
+
+            // 查找在调用指令位置活跃的虚拟寄存器
+            for (LiveInterval interval : intervals) {
+                if (interval.start < callPos && interval.end > callPos) {
+                    PhysicalRegister reg = registerAssignment.get(interval);
+                    if (reg != null) {
+                        // 只关注caller-saved寄存器
+                        if (usedCallerSaved.contains(reg)) {
+                            liveRegs.add(reg);
+                        }
+                    }
+                }
+            }
+            for(var reg : usedCallerSaved){
+                if(PhysicalRegister.INT_ARG_REGS.contains(reg) || PhysicalRegister.FLOAT_ARG_REGS.contains(reg)){
+                    liveRegs.add(reg);
+                }
+            }
+            System.err.println(callOp.getTarget().toString());
+            callLiveRegisters.put((MIRLabel) callOp.getTarget(), liveRegs);
+        }
+    }
+
 
     private void allocateRegisters(List<LiveInterval> intervals, boolean forFloat) {
         // 这是个值得注意的是问题，当end相同时，Comparator.comparingInt(i -> i.end)这个处理逻辑就有问题了
@@ -614,6 +656,11 @@ public class LinearScanRegisterAllocator {
     public Set<PhysicalRegister> getUsedCallerSaved() {
         return usedCallerSaved;
     }
+
+    public Set<PhysicalRegister> getCallLiveRegisters(MIRLabel callOp) {
+        return callLiveRegisters.get(callOp);
+    }
+
     public PhysicalRegister getIntTempReg1() { return intTempReg1; }
     public PhysicalRegister getIntTempReg2() { return intTempReg2; }
     public PhysicalRegister getIntTempReg() {

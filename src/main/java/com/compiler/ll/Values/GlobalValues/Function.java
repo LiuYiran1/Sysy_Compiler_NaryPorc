@@ -7,6 +7,8 @@ import com.compiler.ll.Values.Argument;
 import com.compiler.ll.Values.BasicBlock;
 import com.compiler.ll.Values.GlobalValue;
 import com.compiler.ll.Values.Instruction;
+import com.compiler.ll.Values.Instructions.CallInst;
+import com.compiler.ll.Values.Instructions.Opcode;
 import com.compiler.ll.Values.Instructions.PhiInst;
 import com.compiler.ll.utils.NameManager;
 
@@ -214,5 +216,17 @@ public class Function extends GlobalValue {
         BasicBlock bb = new BasicBlock(blockName, this);
         addBasicBlock(bb);
         return bb;
+    }
+
+    public List<CallInst> getCallInstructions() {
+        List<CallInst> callInsts = new ArrayList<>();
+        for (BasicBlock bb : getBasicBlocks()) {
+            for (Instruction inst : bb.getInstructions()) {
+                if (inst.getOpcode() == Opcode.CALL) {
+                    callInsts.add((CallInst) inst);
+                }
+            }
+        }
+        return callInsts;
     }
 }

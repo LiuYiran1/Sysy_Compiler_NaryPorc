@@ -567,14 +567,26 @@ public class MIRConverterLL {
 
     private void convertCallInst(Instruction inst, MIRFunction mirFunc, MIRBasicBlock mirBB) {
         // TODO: 实现函数调用指令转换
+        // 为创建调用指令做准备
+        int numOperands = inst.getNumOperands();
+        Value callee = inst.getOperand(numOperands - 1);
+
+        String calleeName = callee.getName();
+        if(calleeName.equals("starttime")){
+            calleeName = "_sysy_starttime";
+        } else if (calleeName.equals("stoptime")) {
+            calleeName = "_sysy_stoptime";
+        }
+        MIRLabel funcLabel = new MIRLabel(calleeName);
+
         // 保存相关寄存器
         // 怎么能在这里做个标记在后端处理时能完成这个操作
-        mirBB.getInstructions().add(new MIRPseudoOp(MIRPseudoOp.Type.CALLER_SAVE_REG));
+        mirBB.getInstructions().add(new MIRPseudoOp(MIRPseudoOp.Type.CALLER_SAVE_REG,funcLabel));
 
         // 处理参数 + 传参
         List<MIROperand> regArgs = new ArrayList<>();
         List<MIROperand> args = new ArrayList<>();
-        int numOperands = inst.getNumOperands();
+//        int numOperands = inst.getNumOperands();
 
         int intArgCount = 0; // 整数参数计数
         int floatArgCount = 0; // 浮点参数计数
@@ -713,16 +725,16 @@ public class MIRConverterLL {
 
 
 
-        // 为创建调用指令做准备
-        Value callee = inst.getOperand(numOperands - 1);
-
-        String calleeName = callee.getName();
-        if(calleeName.equals("starttime")){
-            calleeName = "_sysy_starttime";
-        } else if (calleeName.equals("stoptime")) {
-            calleeName = "_sysy_stoptime";
-        }
-        MIRLabel funcLabel = new MIRLabel(calleeName);
+//        // 为创建调用指令做准备
+//        Value callee = inst.getOperand(numOperands - 1);
+//
+//        String calleeName = callee.getName();
+//        if(calleeName.equals("starttime")){
+//            calleeName = "_sysy_starttime";
+//        } else if (calleeName.equals("stoptime")) {
+//            calleeName = "_sysy_stoptime";
+//        }
+//        MIRLabel funcLabel = new MIRLabel(calleeName);
 
         // 接受返回值，但void呢？
         MIRType mirType = convertType(inst.getType());
@@ -738,7 +750,7 @@ public class MIRConverterLL {
                     new MIRImmediate(stackSize,MIRType.I64)));
 
             //恢复相关寄存器
-            mirBB.getInstructions().add(new MIRPseudoOp(MIRPseudoOp.Type.CALLER_RESTORE_REG));
+            mirBB.getInstructions().add(new MIRPseudoOp(MIRPseudoOp.Type.CALLER_RESTORE_REG, funcLabel));
         } else {
             MIRVirtualReg result = mirFunc.newVirtualReg(mirType);
             valueMap.put(inst, result);
@@ -779,7 +791,7 @@ public class MIRConverterLL {
             }
 
             // 恢复相关寄存器
-            mirBB.getInstructions().add(new MIRPseudoOp(MIRPseudoOp.Type.CALLER_RESTORE_REG));
+            mirBB.getInstructions().add(new MIRPseudoOp(MIRPseudoOp.Type.CALLER_RESTORE_REG,funcLabel));
 
             // 把t2里的返回值存回去
             if (MIRType.isFloat(result.getType())) {

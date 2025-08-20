@@ -32,7 +32,10 @@ public class CondBranchInst extends TerminatorInst {
             throw new RuntimeException("CondBranchInst does not support replaceTarget");
         }
     }
-
+    @Override
+    public Instruction clone() {
+        throw new RuntimeException("Not implemented");
+    }
     @Override
     public String toIR() {
         return "br i1 " + getOpStr(operands.get(0)) + ", label %" + trueBlock.getName() + ", label %" + falseBlock.getName();

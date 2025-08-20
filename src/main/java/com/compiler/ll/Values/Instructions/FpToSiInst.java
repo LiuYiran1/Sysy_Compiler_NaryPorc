@@ -18,4 +18,9 @@ public class FpToSiInst extends Instruction {
         return "%" + name + " = fptosi " + operands.get(0).getType().toIR() + " " + op1Str
                 + " to " + type.toIR();
     }
+
+    @Override
+    public Instruction clone() {
+        return new FpToSiInst(operands.get(0), type, nameManager.getUniqueName(name), block);
+    }
 }

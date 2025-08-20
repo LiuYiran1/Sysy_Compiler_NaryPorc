@@ -21,4 +21,9 @@ public class FDivInst extends Instruction {
         return "%" + name + " = fdiv " + type.toIR() + " " + op1Str
                 + ", " + op2Str;
     }
+
+    @Override
+    public Instruction clone() {
+        return new FDivInst(type, nameManager.getUniqueName(name), operands.get(0), operands.get(1), block);
+    }
 }

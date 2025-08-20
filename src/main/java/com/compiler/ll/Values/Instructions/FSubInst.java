@@ -21,4 +21,9 @@ public class FSubInst extends Instruction {
         return "%" + name + " = fsub " + type.toIR() + " " + op1Str
                 + ", " + op2Str;
     }
+
+    @Override
+    public Instruction clone() {
+        return new FSubInst(type, nameManager.getUniqueName(name), operands.get(0), operands.get(1), block);
+    }
 }

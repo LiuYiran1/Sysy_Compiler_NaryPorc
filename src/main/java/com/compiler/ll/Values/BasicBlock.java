@@ -232,4 +232,14 @@ public class BasicBlock extends User {
         }
         return sb.toString();
     }
+
+    public void insertBefore(Instruction cloned, CallInst call) {
+        int index = instructions.indexOf(call);
+        if (index == -1) {
+            throw new IllegalArgumentException("call not found in this block");
+        }
+        instructions.add(index, cloned);
+        cloned.setBlock(this);
+    }
+
 }

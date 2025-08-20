@@ -18,4 +18,9 @@ public class SiToFpInst extends Instruction {
         return "%" + name + " = sitofp " + operands.get(0).getType().toIR() + " " + op1Str
                 + " to " + type.toIR();
     }
+
+    @Override
+    public Instruction clone() {
+        return new SiToFpInst(operands.get(0), type, nameManager.getUniqueName(name), block);
+    }
 }

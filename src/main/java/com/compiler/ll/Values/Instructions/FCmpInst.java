@@ -24,6 +24,11 @@ public class FCmpInst extends Instruction {
     }
 
     @Override
+    public Instruction clone() {
+        return new FCmpInst(type, nameManager.getUniqueName(name), predicate, operands.get(0), operands.get(1), block);
+    }
+
+    @Override
     public String toIR() {
         Value op1 = operands.get(0);
         Value op2 = operands.get(1);

@@ -18,4 +18,9 @@ public class ReturnInst extends TerminatorInst {
         String opStr = getOpStr(op);
         return "ret " + operands.get(0).getType().toIR() + " " + opStr;
     }
+
+    @Override
+    public Instruction clone() {
+        throw new RuntimeException("Not implemented");
+    }
 }

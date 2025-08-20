@@ -25,4 +25,9 @@ public class AllocaInst extends Instruction {
         }
 
     }
+
+    @Override
+    public Instruction clone() {
+        return new AllocaInst(type, nameManager.getUniqueName(name), block);
+    }
 }

@@ -21,4 +21,9 @@ public class SubInst extends Instruction {
         return "%" + name + " = sub " + type.toIR() + " " + op1Str
                 + ", " + op2Str;
     }
+
+    @Override
+    public Instruction clone() {
+        return new SubInst(type, nameManager.getUniqueName(name), operands.get(0), operands.get(1), block);
+    }
 }

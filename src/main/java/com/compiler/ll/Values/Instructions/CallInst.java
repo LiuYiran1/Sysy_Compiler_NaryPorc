@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 
 public class CallInst extends Instruction {
     private final String calleeName;
+    private final Function function;
 
     public CallInst(Type returnType, String name, String calleeName, BasicBlock block, Function function, Value... args) {
         super(returnType, name, Opcode.CALL, block);
@@ -19,6 +20,7 @@ public class CallInst extends Instruction {
         for (Value arg : args) {
             addOperand(arg);
         }
+        this.function = function;
         addOperand(function);
     }
 
@@ -30,5 +32,12 @@ public class CallInst extends Instruction {
                 .collect(Collectors.joining(", "));
         return name == null ? "call " + type.toIR() + " @" + calleeName + "(" + argsStr + ")"
                               : "%" + name + " = call " + type.toIR() + " @" + calleeName + "(" + argsStr + ")";
+    }
+    @Override
+    public Instruction clone() {
+        throw new RuntimeException("Not implemented");
+    }
+    public Function getFunction() {
+        return function;
     }
 }

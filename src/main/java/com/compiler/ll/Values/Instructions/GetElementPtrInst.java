@@ -30,6 +30,10 @@ public class GetElementPtrInst extends Instruction {
         }
         return sb.toString();
     }
+    @Override
+    public Instruction clone() {
+        throw new RuntimeException("Not implemented");
+    }
 
     public List<Value> getIndices() {
         return indices;

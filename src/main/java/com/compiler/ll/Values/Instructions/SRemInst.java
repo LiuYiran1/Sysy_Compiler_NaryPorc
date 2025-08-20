@@ -21,4 +21,9 @@ public class SRemInst extends Instruction {
         return "%" + name + " = srem " + type.toIR() + " " + op1Str
                 + ", " + op2Str;
     }
+
+    @Override
+    public Instruction clone() {
+        return new SRemInst(type, nameManager.getUniqueName(name), operands.get(0), operands.get(1), block);
+    }
 }

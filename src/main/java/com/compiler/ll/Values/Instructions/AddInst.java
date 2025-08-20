@@ -21,4 +21,9 @@ public class AddInst extends Instruction {
         return "%" + name + " = add " + type.toIR() + " " + op1Str
                 + ", " + op2Str;
     }
+
+    @Override
+    public Instruction clone() {
+        return new AddInst(type, nameManager.getUniqueName(name), operands.get(0), operands.get(1), block);
+    }
 }

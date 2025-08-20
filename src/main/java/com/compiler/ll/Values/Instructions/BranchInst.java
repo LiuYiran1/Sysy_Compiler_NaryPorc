@@ -15,6 +15,11 @@ public class BranchInst extends TerminatorInst {
         return target;
     }
 
+    @Override
+    public Instruction clone() {
+        throw new RuntimeException("Not implemented");
+    }
+
     public void replaceTarget(BasicBlock target) {
         this.target = target;
     }

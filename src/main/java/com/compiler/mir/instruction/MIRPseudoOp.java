@@ -1,5 +1,7 @@
 package com.compiler.mir.instruction;
 
+import com.compiler.ll.Values.Instruction;
+import com.compiler.mir.operand.MIRLabel;
 import com.compiler.mir.operand.MIROperand;
 import com.compiler.mir.operand.MIRVirtualReg;
 
@@ -18,13 +20,24 @@ public class MIRPseudoOp extends MIRInstruction {
     }
 
     private final Type type;
+    private final MIRLabel call;
 
     public MIRPseudoOp(Type type) {
         super((MIRVirtualReg) null);
         this.type = type;
+        this.call = null;
+    }
+
+    public MIRPseudoOp(Type type, MIRLabel instruction) {
+        super((MIRVirtualReg) null);
+        this.type = type;
+        this.call = instruction;
     }
     public Type getType() {
         return type;
+    }
+    public MIRLabel getInstName() {
+        return call;
     }
 
     @Override

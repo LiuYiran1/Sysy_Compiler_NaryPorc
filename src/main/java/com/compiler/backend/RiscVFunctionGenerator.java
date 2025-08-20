@@ -990,10 +990,10 @@ public class RiscVFunctionGenerator {
                 generateEpilogue();
                 break;
             case CALLER_SAVE_REG:
-                saveCallerSavedRegisters();
+                saveCallerSavedRegisters(op.getInstName());
                 break;
             case CALLER_RESTORE_REG:
-                restoreCallerSavedRegisters();
+                restoreCallerSavedRegisters(op.getInstName());
                 break;
             case CALLEE_SAVE_REG:
                 saveCalleeSavedRegisters();
@@ -1018,7 +1018,7 @@ public class RiscVFunctionGenerator {
         // 已在收尾处理
     }
 
-    private void saveCallerSavedRegisters() {
+    private void saveCallerSavedRegisters(MIRLabel name) {
         asm.append("    # Save caller-saved registers\n");
         // 8个字节对齐
         if(stackManager.getFrameSize() % 8 != 0){
@@ -1028,9 +1028,19 @@ public class RiscVFunctionGenerator {
             asm.append("    addi sp, sp, -").append(sub).append("\n");
         }
         int stackSize = allocator.getUsedCallerSaved().size() * 8;
+//        int stackSize = allocator.getCallLiveRegisters(name).size() * 8;
         asm.append("    addi ").append("sp, sp, ").append(-stackSize).append("\n");
         int offset = stackSize - 8;
-        for (PhysicalRegister reg : allocator.getUsedCallerSaved()) {
+//        for (PhysicalRegister reg : allocator.getUsedCallerSaved()) {
+//            if(reg.name().startsWith("F")){
+//                // 说明是float的
+//                asm.append("    fsw ").append(reg).append(", ").append(offset).append("(sp)\n");
+//            } else {
+//                asm.append("    sd ").append(reg).append(", ").append(offset).append("(sp)\n");
+//            }
+//            offset -= 8;
+//        }
+        for (PhysicalRegister reg : allocator.getCallLiveRegisters(name)) {
             if(reg.name().startsWith("F")){
                 // 说明是float的
                 asm.append("    fsw ").append(reg).append(", ").append(offset).append("(sp)\n");
@@ -1042,13 +1052,22 @@ public class RiscVFunctionGenerator {
 
     }
 
-    private void restoreCallerSavedRegisters() {
+    private void restoreCallerSavedRegisters(MIRLabel name) {
         asm.append("    # Restore caller-saved registers\n");
         int stackSize = allocator.getUsedCallerSaved().size() * 8;
-
+//        int stackSize = allocator.getCallLiveRegisters(name).size() * 8;
         int offset = stackSize - 8;
-        for (PhysicalRegister reg : allocator.getUsedCallerSaved()) {
-
+//        for (PhysicalRegister reg : allocator.getUsedCallerSaved()) {
+//
+//            if(reg.name().startsWith("F")){
+//                // 说明是float的
+//                asm.append("    flw ").append(reg).append(", ").append(offset).append("(sp)\n");
+//            } else {
+//                asm.append("    ld ").append(reg).append(", ").append(offset).append("(sp)\n");
+//            }
+//            offset -= 8;
+//        }
+        for (PhysicalRegister reg : allocator.getCallLiveRegisters(name)) {
             if(reg.name().startsWith("F")){
                 // 说明是float的
                 asm.append("    flw ").append(reg).append(", ").append(offset).append("(sp)\n");

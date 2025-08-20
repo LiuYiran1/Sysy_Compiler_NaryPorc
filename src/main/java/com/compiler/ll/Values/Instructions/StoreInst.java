@@ -26,5 +26,10 @@ public class StoreInst extends Instruction {
                 + ", " + operands.get(1).getType().toIR() + " " + op2Str;
     }
 
+    @Override
+    public Instruction clone() {
+        return new StoreInst(operands.get(0), operands.get(1), block);
+    }
+
 
 }

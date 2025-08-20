@@ -21,4 +21,9 @@ public class MulInst extends Instruction {
         return "%" + name + " = mul " + type.toIR() + " " + op1Str
                 + ", " + op2Str;
     }
+
+    @Override
+    public Instruction clone() {
+        return new MulInst(type, nameManager.getUniqueName(name), operands.get(0), operands.get(1), block);
+    }
 }

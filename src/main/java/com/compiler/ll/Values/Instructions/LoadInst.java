@@ -18,4 +18,9 @@ public class LoadInst extends Instruction {
         return "%" + name + " = load " + type.toIR() + ", " + operands.get(0).getType().toIR()
                 + " " + op1Str;
     }
+
+    @Override
+    public Instruction clone() {
+        return new LoadInst(type, nameManager.getUniqueName(name), operands.get(0), block);
+    }
 }

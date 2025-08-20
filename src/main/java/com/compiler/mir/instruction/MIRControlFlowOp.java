@@ -1,12 +1,12 @@
 package com.compiler.mir.instruction;
 
+import com.compiler.backend.PhysicalRegister;
+import com.compiler.ll.Values.Value;
 import com.compiler.mir.operand.MIRLabel;
 import com.compiler.mir.operand.MIROperand;
 import com.compiler.mir.operand.MIRVirtualReg;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 
 public class MIRControlFlowOp extends MIRInstruction {
@@ -22,6 +22,7 @@ public class MIRControlFlowOp extends MIRInstruction {
     private final MIROperand target;
     private final MIROperand condition; // COND_JMP时使用
     private final List<MIROperand> args; // CALL时使用
+
 
     // 返回指令
     public MIRControlFlowOp() {

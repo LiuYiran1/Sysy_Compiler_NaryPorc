@@ -25,4 +25,9 @@ public class BitCastInst extends Instruction {
         return "%" + name + " = bitcast " + fromType.toIR() + " " +
                 op1Str + " to " + toType.toIR();
     }
+
+    @Override
+    public Instruction clone() {
+        return new BitCastInst(fromType, toType, operands.get(0), nameManager.getUniqueName(name), block);
+    }
 }

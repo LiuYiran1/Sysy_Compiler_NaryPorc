@@ -21,4 +21,9 @@ public class SDivInst extends Instruction {
         return "%" + name + " = sdiv " + type.toIR() + " " + op1Str
                 + ", " + op2Str;
     }
+
+    @Override
+    public Instruction clone() {
+        return new SDivInst(type, nameManager.getUniqueName(name), operands.get(0), operands.get(1), block);
+    }
 }
