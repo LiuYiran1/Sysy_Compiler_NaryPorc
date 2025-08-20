@@ -463,7 +463,7 @@ public class LinearScanRegisterAllocator {
                 LiveInterval interval = intervalMap.get(reg);
 
                 interval.start = Math.min(interval.start, firstPos);
-                interval.end = Math.max(interval.end, firstPos);
+//                interval.end = Math.max(interval.end, firstPos);
             }
 
             // 处理live-out
@@ -474,13 +474,13 @@ public class LinearScanRegisterAllocator {
         }
 
         // 应对未使用变量
-        for(var reg : getAllVirtualRegisters()){
-            LiveInterval interval = intervalMap.get(reg);
-            if(interval.end == Integer.MIN_VALUE){
-                unusedVarReg.add(reg);
-                interval.end = Integer.MAX_VALUE;
-            }
-        }
+//        for(var reg : getAllVirtualRegisters()){
+//            LiveInterval interval = intervalMap.get(reg);
+//            if(interval.end == Integer.MIN_VALUE){
+//                unusedVarReg.add(reg);
+//                interval.end = Integer.MAX_VALUE;
+//            }
+//        }
         // 收集所有生存区间
         intervals.addAll(intervalMap.values());
     }

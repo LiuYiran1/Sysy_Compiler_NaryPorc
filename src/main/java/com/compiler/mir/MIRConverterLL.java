@@ -323,7 +323,8 @@ public class MIRConverterLL {
             case FDIV:
             case SREM:
             case FREM:
-                convertBinaryOp(inst, mirFunc, mirBB, opcode);
+//                convertBinaryOp(inst, mirFunc, mirBB, opcode);
+                convertBinaryOpOptimized(inst, mirFunc, mirBB, opcode);
                 break;
             case ALLOCA:
                 convertAlloca(inst, mirFunc, mirBB); ///
@@ -861,18 +862,41 @@ public class MIRConverterLL {
 
                 if(indexOp instanceof MIRImmediate){
                     // 如果是立即数，转换为寄存器
-                    indexOp = immToReg(mirFunc, mirBB, ((MIRImmediate) indexOp).getValue() * ptrSize * 4); // 这里应该*4吧？
+                    long offset = ((MIRImmediate) indexOp).getValue() * ptrSize * 4;
+                    if(offset >= 2048){
+                        indexOp = immToReg(mirFunc, mirBB, offset); // 这里应该*4吧？
+                    } else {
+                        indexOp = new MIRImmediate(offset,MIRType.I64);
+                    }
+//                    indexOp = immToReg(mirFunc, mirBB, ((MIRImmediate) indexOp).getValue() * ptrSize * 4); // 这里应该*4吧？
+//                    indexOp = new MIRImmediate(((MIRImmediate) indexOp).getValue() * ptrSize * 4,MIRType.I64);
                 } else if (indexOp instanceof  MIRVirtualReg){
                     // 如果是虚拟寄存器，得先左移2位
-                    MIRVirtualReg tempReg = (MIRVirtualReg) immToReg(mirFunc,mirBB,ptrSize * 4);
-                    mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.MUL, (MIRVirtualReg) indexOp,MIRArithOp.Type.INT,indexOp,tempReg));
+                    long offset = ptrSize * 4;
+                    if(offset >= 2048) {
+                        MIRVirtualReg tempReg = (MIRVirtualReg) immToReg(mirFunc,mirBB,offset);
+                        mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.MUL, (MIRVirtualReg) indexOp,MIRArithOp.Type.INT,indexOp,tempReg));
+                    } else {
+                        MIRImmediate tempReg = new MIRImmediate(offset,MIRType.I32);
+                        mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.MUL, (MIRVirtualReg) indexOp,MIRArithOp.Type.INT,indexOp,tempReg));
+                    }
+//                    MIRVirtualReg tempReg = (MIRVirtualReg) immToReg(mirFunc,mirBB,ptrSize * 4);
+//                    MIRImmediate tempReg = new MIRImmediate(ptrSize * 4,MIRType.I32);
+
                 } else {
                     throw new IllegalArgumentException("the type of index is wrong");
                 }
             } else {
                 if(indexOp instanceof MIRImmediate){
                     // 如果是立即数，转换为寄存器
-                    indexOp = immToReg(mirFunc, mirBB, ((MIRImmediate) indexOp).getValue() * 4); // 这里应该*4吧？
+                    long offset = ((MIRImmediate) indexOp).getValue() * 4;
+                    if(offset >= 2048){
+                        indexOp = immToReg(mirFunc, mirBB, offset); // 这里应该*4吧？
+                    } else {
+                        indexOp = new MIRImmediate(offset,MIRType.I64);
+                    }
+//                    indexOp = immToReg(mirFunc, mirBB, ((MIRImmediate) indexOp).getValue() * 4); // 这里应该*4吧？
+//                    indexOp = new MIRImmediate(((MIRImmediate) indexOp).getValue() * 4,MIRType.I64);
                 } else if (indexOp instanceof  MIRVirtualReg){
                     // 如果是虚拟寄存器，得先左移2位
                     mirBB.getInstructions().add(new MIRShiftOp(MIRShiftOp.Op.SLL, (MIRVirtualReg) indexOp, (MIRVirtualReg) indexOp,new MIRImmediate(2,MIRType.I32)));
@@ -904,11 +928,24 @@ public class MIRConverterLL {
 
                 if(indexOp instanceof MIRImmediate){
                     // 如果是立即数，转换为寄存器
-                    indexOp = immToReg(mirFunc, mirBB, ((MIRImmediate) indexOp).getValue() * ptrSize * 4); // 这里应该*4吧？
+                    long offset = ((MIRImmediate) indexOp).getValue() * ptrSize * 4;
+                    if(offset >= 2048){
+                        indexOp = immToReg(mirFunc, mirBB, offset); // 这里应该*4吧？
+                    } else {
+                        indexOp = new MIRImmediate(offset,MIRType.I64);
+                    }
                 } else if (indexOp instanceof  MIRVirtualReg) {
-                    // 如果是寄存器，那就给寄存器的值*4
-                    MIRVirtualReg tempReg = (MIRVirtualReg) immToReg(mirFunc,mirBB,ptrSize * 4);
-                    mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.MUL, (MIRVirtualReg) indexOp,MIRArithOp.Type.INT,indexOp,tempReg));
+                    // 如果是寄存器，那就给寄存器的值*4 //也可能是常量的值比较大
+                    long offset = ptrSize * 4;
+                    if(offset >= 2048) {
+                        MIRVirtualReg tempReg = (MIRVirtualReg) immToReg(mirFunc,mirBB,offset);
+                        mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.MUL, (MIRVirtualReg) indexOp,MIRArithOp.Type.INT,indexOp,tempReg));
+                    } else {
+                        MIRImmediate tempReg = new MIRImmediate(offset,MIRType.I32);
+                        mirBB.getInstructions().add(new MIRArithOp(MIRArithOp.Op.MUL, (MIRVirtualReg) indexOp,MIRArithOp.Type.INT,indexOp,tempReg));
+                    }
+
+
                 } else {
                     throw new IllegalArgumentException("the type of index is wrong");
                 }
@@ -977,6 +1014,56 @@ public class MIRConverterLL {
         }
         mirBB.getInstructions().add(new MIRArithOp(op, result,MIRType.isFloat(type) ? MIRArithOp.Type.FLOAT : MIRArithOp.Type.INT, left, right));
     }
+
+    private void convertBinaryOpOptimized(Instruction inst, MIRFunction mirFunc,MIRBasicBlock mirBB, Opcode opcode) {
+
+        MIRType type = convertType(inst.getType());
+//        System.out.println("Binary Op Type: " + type);
+        MIRVirtualReg result = mirFunc.newVirtualReg(type);
+        valueMap.put(inst, result);
+        MIROperand left = getMIRValue(inst.getOperand(0),mirFunc,mirBB);
+        MIROperand right = getMIRValue(inst.getOperand(1),mirFunc,mirBB);
+
+        MIRArithOp.Op op = null;
+        switch (opcode) {
+            case ADD:
+            case FADD:
+                op = MIRArithOp.Op.ADD;
+                break;
+            case SUB:
+            case FSUB:
+                op = MIRArithOp.Op.SUB;
+                break;
+            case MUL:
+            case FMUL:
+                op = MIRArithOp.Op.MUL;
+                break;
+            case SDIV:
+            case FDIV:
+                op = MIRArithOp.Op.DIV;
+                break;
+            case SREM:
+            case FREM:
+                op = MIRArithOp.Op.REM;
+                break;
+            default:
+                throw new UnsupportedOperationException("Unsupported binary op: " + opcode);
+        }
+
+        if(left instanceof MIRImmediate && ( op == MIRArithOp.Op.MUL || op == MIRArithOp.Op.ADD )){
+            System.err.println(inst.toIR());
+            // 左操作数是imm的话，右操作数一定不是imm,换句话说，要交换两个操作数的位置，确保右操作数是imm
+            MIROperand temp = left;
+            left = right;
+            right = temp;
+            System.err.println(right);
+        } else if(left instanceof MIRImmediate){
+            left = immToReg(mirFunc,mirBB, ((MIRImmediate) left).getValue());
+        }
+
+        mirBB.getInstructions().add(new MIRArithOp(op, result,MIRType.isFloat(type) ? MIRArithOp.Type.FLOAT : MIRArithOp.Type.INT, left, right));
+    }
+
 
     private void convertPhiInst(Instruction phi,MIRFunction mirFunc, MIRBasicBlock mirBB) {
         // 收集所有PHI节点
@@ -1143,8 +1230,8 @@ public class MIRConverterLL {
 
     private MIROperand handleConstantInt(ConstantInt constant, MIRFunction mirFunc, MIRBasicBlock mirBB) {
         long value = constant.getSExtValue();
-        // 小立即数直接使用，大立即数特殊处理
-        if (value >= -2048 && value < 2048) {
+        // 小立即数直接使用，大立即数特殊处理 // 去掉>的等号，防止有问题
+        if (value > -2048 && value < 2048) {
             return new MIRImmediate((int)value, convertType(constant.getType()));
         } else {
             // 大立即数生成加载指令

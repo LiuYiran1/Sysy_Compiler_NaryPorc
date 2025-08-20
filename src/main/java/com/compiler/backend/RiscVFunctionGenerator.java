@@ -116,7 +116,8 @@ public class RiscVFunctionGenerator {
         if (inst instanceof MIRPseudoOp) {
             generatePseudoOp((MIRPseudoOp) inst);
         } else if (inst instanceof MIRArithOp) {
-            generateArithOp((MIRArithOp) inst);
+//            generateArithOp((MIRArithOp) inst);
+            generateArithOpOptimized((MIRArithOp) inst);
         } else if (inst instanceof MIRMoveOp) {
             generateMoveOp((MIRMoveOp) inst);
         } else if (inst instanceof MIRMemoryOp) {
@@ -517,15 +518,22 @@ public class RiscVFunctionGenerator {
 
         String leftReg = getOperandAsm(left, false);
         String rightReg = getOperandAsm(right, false);
+        String resultReg = getOperandAsm(result, true);
 
         String op = getArithOp(inst.getOp(), inst.getType());
 
         if(op.equals("add") && right instanceof MIRImmediate){
             op = "addi";
+        } else if(op.equals("addw") && right instanceof MIRImmediate){
+            op = "addiw";
+        } else if(right instanceof MIRImmediate){
+            System.err.println(rightReg);
+            asm.append("    li t2,").append(rightReg).append("\n");
+            rightReg = "t2";
         }
 
         asm.append("    ").append(op).append(" ")
-           .append(getOperandAsm(result, true)).append(", ");
+           .append(resultReg).append(", ");
         if(currentDestTempReg != null) {
             MIRVirtualReg vreg = currentDestOperand;
             PhysicalRegister tempReg = currentDestTempReg;
@@ -537,6 +545,253 @@ public class RiscVFunctionGenerator {
                .append(rightReg).append("\n");
         }
 
+    }
+
+    private void generateArithOpOptimized(MIRArithOp inst) {
+        MIROperand left = inst.getOperands().get(0);
+        MIROperand right = inst.getOperands().get(1);
+        MIROperand result = inst.getResult() != null ? inst.getResult() : inst.getResultPhysicalReg();
+
+        String leftReg = getOperandAsm(left, false);
+        String rightReg = getOperandAsm(right, false);
+        String resultReg = getOperandAsm(result, true);
+        //System.err.println(resultReg);
+
+        // 尝试优化整数运算（特别是乘除）
+        if (inst.getType() == MIRArithOp.Type.INT && tryOptimizeArithOp(inst, leftReg, right, resultReg)) {
+            return; // 优化成功，直接返回
+        }
+
+        // 未优化或无法优化的情况
+        String op = getArithOp(inst.getOp(), inst.getType());
+
+        // 处理加减法的立即数优化
+        if (right instanceof MIRImmediate) {
+            long imm = ((MIRImmediate) right).getValue();
+            switch (op) {
+                case "add":
+                case "addw":
+                    op = op.equals("add") ? "addi" : "addiw";
+                    break;
+                case "sub":
+                case "subw":
+                    // 减法转换为加负数
+                    op = op.equals("sub") ? "addi" : "addiw";
+                    imm = -imm;
+                    rightReg = String.valueOf(imm);
+                    System.err.println(rightReg);
+                    break;
+                case "xor":
+                    op = "xori";
+                    break;
+                default:
+                    System.err.println(rightReg);
+                    asm.append("    li t2,").append(rightReg).append("\n");
+                    rightReg = "t2";
+                    break;
+
+            }
+        }
+
+        asm.append("    ").append(op).append(" ")
+           .append(resultReg).append(", ");
+
+        if (currentDestTempReg != null) {
+            MIRVirtualReg vreg = currentDestOperand;
+            PhysicalRegister tempReg = currentDestTempReg;
+            asm.append(leftReg).append(", ").append(rightReg).append("\n");
+            storeSpilledDestOperand(vreg, tempReg);
+        } else {
+            asm.append(leftReg).append(", ").append(rightReg).append("\n");
+        }
+    }
+
+    // 尝试优化算术操作（乘除和求余）
+    private boolean tryOptimizeArithOp(MIRArithOp inst, String leftReg, MIROperand right, String resultReg) {
+        // 只处理整数运算
+        if (inst.getType() != MIRArithOp.Type.INT) {
+            return false;
+        }
+
+        // 1. 乘法优化
+        if (inst.getOp() == MIRArithOp.Op.MUL && right instanceof MIRImmediate) {
+            long imm = ((MIRImmediate) right).getValue();
+            boolean isNegative = imm < 0;
+            long absImm = Math.abs(imm);
+            System.err.println(absImm);
+
+            // a. 乘以0 - 直接清零
+            if (absImm == 0) {
+                if (currentDestTempReg != null) {
+                    MIRVirtualReg vreg = currentDestOperand;
+                    PhysicalRegister tempReg = currentDestTempReg;
+                    asm.append("    li ").append(resultReg).append(", 0\n");
+                    storeSpilledDestOperand(vreg, tempReg);
+                } else {
+                    asm.append("    li ").append(resultReg).append(", 0\n");
+                }
+                return true;
+            }
+
+            // b. 乘以1 - 直接移动
+            if (absImm == 1) {
+                if (currentDestTempReg != null) {
+                    MIRVirtualReg vreg = currentDestOperand;
+                    PhysicalRegister tempReg = currentDestTempReg;
+                    if (isNegative) {
+                        asm.append("    negw ").append(resultReg).append(", ").append(leftReg).append("\n");
+                    } else {
+                        asm.append("    mv ").append(resultReg).append(", ").append(leftReg).append("\n");
+                    }
+                    storeSpilledDestOperand(vreg, tempReg);
+                } else {
+                    if (isNegative) {
+                        asm.append("    negw ").append(resultReg).append(", ").append(leftReg).append("\n");
+                    } else {
+                        asm.append("    mv ").append(resultReg).append(", ").append(leftReg).append("\n");
+                    }
+                }
+                return true;
+            }
+
+            // c. 乘以2的幂 - 移位
+            if (isPowerOfTwo(absImm)) {
+                int shift = Long.numberOfTrailingZeros(absImm);
+                //System.err.println("imm: " + absImm + " shift: " + shift);
+                if (currentDestTempReg != null) {
+                    MIRVirtualReg vreg = currentDestOperand;
+                    PhysicalRegister tempReg = currentDestTempReg;
+                    asm.append("    slliw ").append(resultReg).append(", ")
+                       .append(leftReg).append(", ").append(shift).append("\n");
+                    if (isNegative) {
+                        asm.append("    negw ").append(resultReg).append(", ").append(resultReg).append("\n");
+                    }
+                    storeSpilledDestOperand(vreg, tempReg);
+                } else {
+                    asm.append("    slliw ").append(resultReg).append(", ")
+                       .append(leftReg).append(", ").append(shift).append("\n");
+                    if (isNegative) {
+                        asm.append("    negw ").append(resultReg).append(", ").append(resultReg).append("\n");
+                    }
+                }
+                return true;
+            }
+
+            // d. 特殊分解优化
+            if (decomposeMultiplication(leftReg, resultReg, absImm, isNegative)) {
+                return true;
+            }
+
+        }
+
+//        // 2. 除法优化
+//        if (inst.getOp() == MIRArithOp.Op.DIV && right instanceof MIRImmediate) {
+//            long divisor = ((MIRImmediate) right).getValue();
+//
+//            // a. 除以1 - 直接移动
+//            if (divisor == 1) {
+//                asm.append("    mv ").append(resultReg).append(", ").append(leftReg).append("\n");
+//                return true;
+//            }
+//
+//            // b. 除以2的幂 - 移位
+//            if (isPowerOfTwo(divisor)) {
+//                int shift = Long.numberOfTrailingZeros(divisor);
+//                asm.append("    sraiw ").append(resultReg).append(", ")
+//                   .append(leftReg).append(", ").append(shift).append("\n");
+//                return true;
+//            }
+//        }
+//
+//        // 3. 取模优化
+//        if (inst.getOp() == MIRArithOp.Op.REM && right instanceof MIRImmediate) {
+//            long divisor = ((MIRImmediate) right).getValue();
+//
+//            // a. 模1 - 直接清零
+//            if (divisor == 1) {
+//                asm.append("    li ").append(resultReg).append(", 0\n");
+//                return true;
+//            }
+//
+//            // b. 模2的幂 - 与操作
+//            if (isPowerOfTwo(divisor)) {
+//                asm.append("    andi ").append(resultReg).append(", ")
+//                   .append(leftReg).append(", ").append(divisor - 1).append("\n");
+//                return true;
+//            }
+//        }
+
+        return false; // 未优化
+    }
+
+
+    // 通用乘法分解算法
+    private boolean decomposeMultiplication(String operand, String result, long constant, boolean isNegative) {
+        // 找到最接近的2的幂次
+        int closestShift = 63 - Long.numberOfLeadingZeros(constant);
+        System.err.println(closestShift);
+        long closestPower = 1L << closestShift;
+        long diff = constant - closestPower;
+
+        // 生成最接近的2的幂次乘法
+        asm.append("    slliw ").append("t2").append(", ")
+           .append(operand).append(", ").append(closestShift).append("\n");
+
+        // 处理差值
+        if (diff == 0) {
+            // 正好是2的幂次（理论上不会发生，因为前面已处理）
+            throw new IllegalArgumentException("diff is power of 2");
+        } else if (isPowerOfTwo(Math.abs(diff))) {
+            // 差值是2的幂次
+            int diffShift = Long.numberOfTrailingZeros(Math.abs(diff));
+            System.err.println(diffShift);
+            if (diff > 0) {
+                asm.append("    slliw ").append(result).append(", ")
+                   .append(operand).append(", ").append(diffShift).append("\n");
+                asm.append("    addw ").append(result).append(", ").append(result)
+                   .append(", ").append("t2").append("\n");
+            } else {
+                asm.append("    slliw ").append(result).append(", ")
+                   .append(operand).append(", ").append(diffShift).append("\n");
+                asm.append("    subw ").append(result).append(", ").append("t2")
+                   .append(", ").append(result).append("\n");
+            }
+
+            if (currentDestTempReg != null) {
+                MIRVirtualReg vreg = currentDestOperand;
+                PhysicalRegister tempReg = currentDestTempReg;
+                storeSpilledDestOperand(vreg, tempReg);
+            }
+        } else if (diff == 1 || diff == -1) {
+            // 差值为±1
+            if (diff > 0) {
+                asm.append("    addiw ").append(result).append(", ").append("t2")
+                   .append(", 1").append("\n");
+            } else {
+                asm.append("    addiw ").append(result).append(", ").append("t2")
+                   .append(", -1").append("\n");
+            }
+            if (currentDestTempReg != null) {
+                MIRVirtualReg vreg = currentDestOperand;
+                PhysicalRegister tempReg = currentDestTempReg;
+                storeSpilledDestOperand(vreg, tempReg);
+            }
+        } else {
+            return false;
+        }
+
+        // 处理符号
+        if (isNegative) {
+            asm.append("    negw ").append(result).append(", ").append(result).append("\n");
+        }
+        return true;
+    }
+
+    // 2的幂次检查
+    private boolean isPowerOfTwo(long n) {
+        if (n <= 0) return false;
+        // 处理32位整数范围
+        return (n & (n - 1)) == 0;
     }
 
     private String getArithOp(MIRArithOp.Op op, MIRArithOp.Type type) {

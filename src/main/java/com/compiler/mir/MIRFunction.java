@@ -53,6 +53,5 @@ public class MIRFunction {
         phiNodes.putIfAbsent(block, new ArrayList<>());
         phiNodes.get(block).add(phi);
     }
-
 }
 

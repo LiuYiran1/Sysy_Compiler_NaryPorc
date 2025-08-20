@@ -1,73 +1,38 @@
-//#include "sylib.h"
-int n = 20;
-int A[1400][1400];
-int b[1400];
-int x[1400];
-int y[1400];
+int seed = 0;
 
-void kernel_ludcmp(int n,int A[][1400],int b[],int x[],int y[])
-{
-  int i, j, k, w;
-  i = 0;
-  while (i < n) {
-    j = 0;
-    while (j < i) {
-       w = A[i][j];
-       k = 0;
-       while (k < j) {
-          w = w - A[i][k] * A[k][j];
-          k = k +1;
-       }
-        A[i][j] = w / A[j][j];
-      j = j +1;
+int rand() {
+  seed = (seed * 19980130 + 23333) % 100000007;
+  if (seed < 0) seed = seed + 100000007;
+  return seed;
+}
+
+int fib(int c,int n,int d){
+    if(n == 0 || n==1){
+        return ((c+1)/2 + (d*2)%3);
     }
-   j = i;
-   while (j < n) {
-       w = A[i][j];
-       k = 0;
-       while (k < i) {
-          w = w - A[i][k] * A[k][j];
-          k = k +1;
-       }
-       A[i][j] = w;
-    j = j +1;
-   }
-    i = i +1;
-  }
-  i = 0;
-  while (i < n) {
-     w = b[i];
-     j = 0;
-     while (j < i) {
-        w = w - A[i][j] * y[j];
-        j = j +1;
-     }
-     y[i] = w;
-     i = i +1;
-  }
-  i = n -1;
-  while (i >=0) {
-     w = y[i];
-     j = i + 1;
-     while (j < n) {
-        w = w - A[i][j] * x[j];
-        j = j+1;
-     }
-     x[i] = w / A[i][i];
-     i = i -1;
-  }
+    return fib(c+1    , n-1, (d+1)/2 ) +
+           fib((c-2)/2, n-2, (d-3)%2 ) ;
 }
 
 
-int main()
-{
-  getarray(A);
-  getarray(b);
-  getarray(x);
-  getarray(y);
-  starttime();
-  kernel_ludcmp (n, A, b, x, y);
-  stoptime();
-  putarray(n, x);
-  return 0;
+
+int main(){
+    int sum = 0;
+    int i = 0;
+    int n = getint();
+    seed = getint();
+    starttime();
+    while(i < n){
+        if(i % 2 == 0){
+            sum = sum - fib(rand() / 10007  , i, sum) % 256;
+        }else{
+            sum = sum + fib(rand() % (-10007), i, i  ) % 256;
+        }
+        sum = sum % 256;
+        putint(sum);
+        putch(10);
+        i = i + 1;
+    }
+    stoptime();
+    return 0;
 }
