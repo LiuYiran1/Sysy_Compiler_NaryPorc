@@ -189,6 +189,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
         Pass loopAnalPass = new LoopAnalPass((DominateAnalPass) domPass);
         Pass loopInvariantPass = new LoopInvariantPass((LoopAnalPass) loopAnalPass);
         Pass splicingBlockPass = new SplicingBlockPass();
+        Pass functionInlinePass = new FunctionInlinePass();
 
         DFGPass.run(mod);
         deadCodeElimPass.run(mod);
@@ -201,6 +202,8 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
         domPass.run(mod);
         mem2RegPass.run(mod);
+
+        functionInlinePass.run(mod);
 
         boolean hasChanged = true;
         while (hasChanged){
@@ -218,6 +221,7 @@ public class LLVisitor extends SysYParserBaseVisitor<Value> {
 
         splicingBlockPass.run(mod);
         deadCodeElimPass.run(mod);
+
 
         return mod;
     }
