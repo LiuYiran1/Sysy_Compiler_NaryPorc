@@ -579,13 +579,13 @@ public class RiscVFunctionGenerator {
                     op = op.equals("sub") ? "addi" : "addiw";
                     imm = -imm;
                     rightReg = String.valueOf(imm);
-                    System.err.println(rightReg);
+                    System.err.println("subw: " + rightReg);
                     break;
                 case "xor":
                     op = "xori";
                     break;
                 default:
-                    System.err.println(rightReg);
+                    System.err.println("default: " + rightReg);
                     asm.append("    li t2,").append(rightReg).append("\n");
                     rightReg = "t2";
                     break;
@@ -684,43 +684,122 @@ public class RiscVFunctionGenerator {
 
         }
 
-//        // 2. 除法优化
-//        if (inst.getOp() == MIRArithOp.Op.DIV && right instanceof MIRImmediate) {
-//            long divisor = ((MIRImmediate) right).getValue();
-//
-//            // a. 除以1 - 直接移动
-//            if (divisor == 1) {
-//                asm.append("    mv ").append(resultReg).append(", ").append(leftReg).append("\n");
-//                return true;
-//            }
-//
-//            // b. 除以2的幂 - 移位
-//            if (isPowerOfTwo(divisor)) {
-//                int shift = Long.numberOfTrailingZeros(divisor);
-//                asm.append("    sraiw ").append(resultReg).append(", ")
-//                   .append(leftReg).append(", ").append(shift).append("\n");
-//                return true;
-//            }
-//        }
-//
-//        // 3. 取模优化
-//        if (inst.getOp() == MIRArithOp.Op.REM && right instanceof MIRImmediate) {
-//            long divisor = ((MIRImmediate) right).getValue();
-//
-//            // a. 模1 - 直接清零
-//            if (divisor == 1) {
-//                asm.append("    li ").append(resultReg).append(", 0\n");
-//                return true;
-//            }
-//
-//            // b. 模2的幂 - 与操作
-//            if (isPowerOfTwo(divisor)) {
-//                asm.append("    andi ").append(resultReg).append(", ")
-//                   .append(leftReg).append(", ").append(divisor - 1).append("\n");
-//                return true;
-//            }
-//        }
+        // 2. 除法优化
+        if (inst.getOp() == MIRArithOp.Op.DIV && right instanceof MIRImmediate) {
+            long divisor = ((MIRImmediate) right).getValue();
+            boolean isNegative = divisor < 0;
+            long absDivisor = Math.abs(divisor);
 
+            // a. 除以1 - 直接移动
+            if (absDivisor == 1) {
+                if (isNegative) {
+                    asm.append("    negw ").append(resultReg).append(", ").append(leftReg).append("\n");
+                } else {
+                    asm.append("    mv ").append(resultReg).append(", ").append(leftReg).append("\n");
+                }
+                if (currentDestTempReg != null) {
+                    MIRVirtualReg vreg = currentDestOperand;
+                    PhysicalRegister tempReg = currentDestTempReg;
+                    storeSpilledDestOperand(vreg, tempReg);
+                }
+                return true;
+            }
+
+            // b. 除以2的幂 - 需要更复杂的处理
+            if (isPowerOfTwo(absDivisor)) {
+                int shift = Long.numberOfTrailingZeros(absDivisor);
+
+                // 计算被除数加上(除数-1)如果被除数是负数
+                asm.append("    srai ").append("t2").append(", ").append(leftReg).append(", 31\n");
+                asm.append("    andi ").append("t2").append(", ").append("t2").append(", ").append(absDivisor - 1).append("\n");
+                asm.append("    add ").append(resultReg).append(", ").append(leftReg).append(", ").append("t2").append("\n");
+                asm.append("    srai ").append(resultReg).append(", ").append(resultReg).append(", ").append(shift).append("\n");
+
+                // 如果除数是负数，需要取负
+                if (isNegative) {
+                    asm.append("    negw ").append(resultReg).append(", ").append(resultReg).append("\n");
+                }
+
+                if (currentDestTempReg != null) {
+                    MIRVirtualReg vreg = currentDestOperand;
+                    PhysicalRegister tempReg = currentDestTempReg;
+                    storeSpilledDestOperand(vreg, tempReg);
+                }
+                return true;
+            }
+        }
+
+
+        // 3. 取模优化
+        if (inst.getOp() == MIRArithOp.Op.REM && right instanceof MIRImmediate) {
+            long divisor = ((MIRImmediate) right).getValue();
+            long absDivisor = Math.abs(divisor);
+            boolean isDivisorNegative = divisor < 0;
+
+            // a. 模1或-1 - 直接清零 (结果符号与被除数相同，但0的符号无所谓)
+            if (absDivisor == 1) {
+                asm.append("    li ").append(resultReg).append(", 0\n");
+                if (currentDestTempReg != null) {
+                    MIRVirtualReg vreg = currentDestOperand;
+                    PhysicalRegister tempReg = currentDestTempReg;
+                    storeSpilledDestOperand(vreg, tempReg);
+                }
+                return true;
+            }
+
+            // b. 模2的幂 (处理所有符号情况)
+            if (isPowerOfTwo(absDivisor)) {
+                long mask = absDivisor - 1;
+
+                // 1. 计算 raw modulus: tempReg2 = leftReg & mask
+                asm.append("    andi ").append(resultReg).append(", ").append(leftReg).append(", ").append(mask).append("\n");
+
+                // 2. 生成符号掩码: tempReg1 = (leftReg < 0) ? -1 : 0
+                asm.append("    srai ").append("t2").append(", ").append(leftReg).append(", 31\n");
+
+                // 3. 将符号掩码与 |divisor| 进行与操作，得到调整值: tempReg1 = (leftReg < 0) ? absDivisor : 0
+                //    注意：如果除数是负数，我们需要用 |divisor| 而不是 divisor。
+                asm.append("    andi ").append("t2").append(", ").append("t2").append(", ").append(absDivisor).append("\n");
+
+                // 4. 关键调整:
+                //    if (leftReg < 0 && tempReg2 != 0) {
+                //        result = tempReg2 - absDivisor;
+                //    } else {
+                //        result = tempReg2;
+                //    }
+                // 等价于: result = tempReg2 - tempReg1
+                // 但如果tempReg2==0，减去absDivisor会得到错误结果。所以需要判断。
+
+                // 更安全的方法：先判断是否需要调整
+                // 如果 tempReg1 != 0 (即被除数为负) 且 tempReg2 != 0，则 resultReg = tempReg2 - absDivisor
+                // 否则 resultReg = tempReg2
+
+                String labelAdjust = ".L_adjust_" + System.identityHashCode(inst); // 生成唯一标签
+                String labelDone = ".L_done_" + System.identityHashCode(inst);
+
+                // 如果被除数是正数 (tempReg1 == 0)，直接跳转到最后，结果就是 tempReg2
+                asm.append("    beqz ").append("t2").append(", ").append(labelDone).append("\n");
+                // 如果余数已经是0 (tempReg2 == 0)，也跳转到最后，结果是0
+                asm.append("    beqz ").append(resultReg).append(", ").append(labelDone).append("\n");
+
+                // 如果需要调整（被除数为负且余数非零）：执行减法
+                asm.append("    sub ").append(resultReg).append(", ").append(resultReg).append(", ").append("t2").append("\n");
+                asm.append("    j ").append(labelAdjust).append("\n");
+
+                // 如果不需要调整：将 tempReg2 移动到结果寄存器
+                asm.append(labelDone).append(":\n");
+                asm.append("    mv ").append(resultReg).append(", ").append(resultReg).append("\n");
+
+                asm.append(labelAdjust).append(":\n");
+
+                if (currentDestTempReg != null) {
+                    MIRVirtualReg vreg = currentDestOperand;
+                    PhysicalRegister tempReg = currentDestTempReg;
+                    storeSpilledDestOperand(vreg, tempReg);
+                }
+                return true;
+            }
+        }
         return false; // 未优化
     }
 
